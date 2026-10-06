@@ -551,7 +551,7 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
            const D3D12DDIARG_PRESENT_0001 *pArgs, D3D12DDI_PRESENT_0003 *pOut)
 {
     PTRITON12_QUEUE q = (PTRITON12_QUEUE)hQueue.pDrvPrivate;
-    (void)hList;
+    PTRITON12_LIST l = (PTRITON12_LIST)hList.pDrvPrivate;
     if (!pOut)
         return;
     memset(pOut, 0, sizeof(*pOut));
@@ -565,6 +565,44 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
     PTRITON12_RESOURCE dst =
         (PTRITON12_RESOURCE)pArgs->hDstResource.pDrvPrivate;
 
+    /* A source still holding its residency-only placeholder names no memory
+     * for the kernel present to copy from.  D3D9On12 presents plain textures
+     * (no RENDER_TARGET flag, e.g. its A2R10G10B10 back buffer), which the
+     * create path gives no companion; build one here, once.  The companion
+     * takes the same shape rule as the create path's -- one plane, one
+     * sample -- and a ROW_MAJOR source is left alone: CopyResource needs
+     * both resources the same size, which a linear source and an opaque
+     * companion need not be.  A shape the rule rejects, or a create the
+     * host refuses, is latched so it costs one attempt rather than a host
+     * create per frame; any other failure (host memory, the blob export)
+     * is retried at the next present. */
+    if (src && src->pResource && !src->pCompanion && !src->CompanionFailed &&
+        q->pDev && (src->ResidencyOnlyAlloc || !src->hKMAllocation)) {
+        D3D12_RESOURCE_DESC desc;
+        ID3D12Resource_GetDesc(src->pResource, &desc);
+        HRESULT hr = E_INVALIDARG;
+        if (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D &&
+            desc.MipLevels <= 1 && desc.DepthOrArraySize <= 1 &&
+            desc.SampleDesc.Count <= 1 &&
+            desc.Layout != D3D12_TEXTURE_LAYOUT_ROW_MAJOR) {
+            D3D12_HEAP_PROPERTIES props;
+            memset(&props, 0, sizeof(props));
+            props.Type = D3D12_HEAP_TYPE_DEFAULT;
+            hr = triton12CreateCompanion(q->pDev, src, &props, &desc);
+        }
+        if (SUCCEEDED(hr)) {
+            src->ResidencyOnlyAlloc = FALSE;
+        } else if (hr == E_INVALIDARG || hr == E_NOTIMPL) {
+            src->CompanionFailed = TRUE;
+            npt_log("present: no companion for source %llux%u fmt=%d "
+                    "dim=%d mips=%u array=%u samples=%u layout=%d; it "
+                    "presents nothing", (unsigned long long)desc.Width,
+                    desc.Height, (int)desc.Format, (int)desc.Dimension,
+                    (unsigned)desc.MipLevels, (unsigned)desc.DepthOrArraySize,
+                    (unsigned)desc.SampleDesc.Count, (int)desc.Layout);
+        }
+    }
+
     pOut->hSrcAllocation = src ? src->hKMAllocation : 0;
     pOut->hDstAllocation = dst ? dst->hKMAllocation : 0;
     pOut->hContext       = q->hKMContext;
@@ -576,9 +614,20 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
 
     /* Companion-backed back buffer: copy the rendered native frame into
      * the shared companion the KM allocation names, before the arm below
-     * so the GPU-done gate covers the copy. */
-    if (src && src->pCompanion && src->pResource && q->pQueue)
-        t12PresentCompanionCopy(q, src);
+     * so the GPU-done gate covers the copy.  A blt present instead records
+     * the copy at the end of the open list the runtime executes ahead of
+     * the kernel present: a downlevel presenter (D3D9On12, D3D11On12)
+     * records the frame's last writes there, so a copy issued now would
+     * read the previous frame. */
+    if (src && src->pCompanion && src->pResource) {
+        if (pArgs->Flags.Blt && l && l->pList && !l->AwaitingReset) {
+            ID3D12GraphicsCommandList_CopyResource(l->pList, src->pCompanion,
+                                                   src->pResource);
+            pOut->AddedGpuWork = TRUE;
+        } else if (q->pQueue) {
+            t12PresentCompanionCopy(q, src);
+        }
+    }
 
     /* Arm the render->flip token for this frame, then wait for it.
      *

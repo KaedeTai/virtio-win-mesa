@@ -186,23 +186,26 @@ t12ForceRowMajorOnCpuHeap(const D3D12DDIARG_CREATERESOURCE_0003 *pRes,
         pDesc->Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 }
 
-/* Create the present-copy companion for a native simple-2D render target:
- * a second committed resource with the same desc but the shared/display/
+/* Create the present-copy companion for a native simple-2D texture (a
+ * render target at create, a plain texture at its first present): a second
+ * committed resource with the same desc but the shared/display/
  * linear-export heap flags (so the host substitutes its linear shm surface
  * for it), whose blob then backs the KM allocation registered against the
- * GAME resource's runtime handle.  The companion starts and stays in
- * COMMON; its only writer is the CopyResource in t12PresentCompanionCopy,
- * which relies on implicit COMMON-state promotion (verified host-side by
- * d3dmetal-native's present-copy-test). */
-static BOOL
-t12CreateCompanion(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
-                   const D3D12_HEAP_PROPERTIES *props,
-                   const D3D12_RESOURCE_DESC *desc)
+ * GAME resource's runtime handle.  Its layout is always UNKNOWN: a
+ * ROW_MAJOR texture is legal only on a cross-adapter heap.  The companion
+ * starts and stays in COMMON; its only writer is the present's
+ * CopyResource (t12Present), which relies on implicit COMMON-state
+ * promotion (verified host-side by d3dmetal-native's present-copy-test). */
+HRESULT
+triton12CreateCompanion(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
+                        const D3D12_HEAP_PROPERTIES *props,
+                        const D3D12_RESOURCE_DESC *desc)
 {
     const D3D12_HEAP_FLAGS hf =
         D3D12_HEAP_FLAG_ALLOW_DISPLAY | D3D12_HEAP_FLAG_SHARED |
         (D3D12_HEAP_FLAGS)0x40000000u;
     D3D12_RESOURCE_DESC cd = *desc;
+    cd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     HRESULT hr = ID3D12Device_CreateCommittedResource(
         p->pDev, props, hf, &cd, D3D12_RESOURCE_STATE_COMMON, NULL,
         &IID_ID3D12Resource, (void **)&r->pCompanion);
@@ -211,17 +214,17 @@ t12CreateCompanion(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
                (unsigned long)hr, (unsigned long long)desc->Width,
                desc->Height, (int)desc->Format);
         r->pCompanion = NULL;
-        return FALSE;
+        return FAILED(hr) ? hr : E_FAIL;
     }
     if (!triton12RegisterSharedBlob(p, r, FALSE, r->pCompanion)) {
         ID3D12Resource_Release(r->pCompanion);
         r->pCompanion = NULL;
-        return FALSE;
+        return E_FAIL;
     }
     TR_LOG_HOT("12.CreateCompanion: %llux%u fmt=%d alloc=0x%x",
            (unsigned long long)desc->Width, desc->Height, (int)desc->Format,
            r->hKMAllocation);
-    return TRUE;
+    return S_OK;
 }
 
 static HRESULT APIENTRY
@@ -292,7 +295,7 @@ t12CreateHeapAndResourceCore(D3D12DDI_HDEVICE hDevice,
          * tiled, never substituted with a linear shm impostor -- and the
          * KM allocation the swapchain machinery needs is carried by a
          * same-desc SHARED companion surface created beside it
-         * (t12CreateCompanion).  t12Present copies the frame into the
+         * (triton12CreateCompanion).  t12Present copies the frame into the
          * companion, so what DXGI/DWM consume is unchanged while the
          * game's ~hundreds of render targets per level load stay native.
          * Primaries (fullscreen scanout) keep the direct-shared shape: the
@@ -390,7 +393,7 @@ t12CreateHeapAndResourceCore(D3D12DDI_HDEVICE hDevice,
         }
         if (SUCCEEDED(hr) && shared) {
             if (companion) {
-                if (!t12CreateCompanion(p, r, &props, &desc)) {
+                if (FAILED(triton12CreateCompanion(p, r, &props, &desc))) {
                     /* Companion build failed: fall back to an eager
                      * direct share so the swapchain still works -- the
                      * resource becomes an impostor, which renders. */

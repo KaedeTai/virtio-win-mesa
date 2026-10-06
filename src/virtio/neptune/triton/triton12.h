@@ -165,9 +165,14 @@ typedef struct TRITON12_RESOURCE
      * linear surface instead, created beside them purely so the swapchain
      * machinery has a KM allocation to hold.  t12Present copies the
      * rendered frame into it before the drain-fence arm, so consumers
-     * (DWM, scanout) sample a GPU-complete frame.  NULL for buffers,
-     * primaries (still shared directly) and non-RT textures. */
+     * (DWM, scanout) sample a GPU-complete frame.  A non-RT texture gets
+     * one at its first present (t12Present).  NULL for buffers, primaries
+     * (still shared directly) and textures never presented. */
     ID3D12Resource              *pCompanion;
+    /* t12Present cannot build a companion for this present source: its
+     * shape has no shared surface, or the host refused the create.  Not
+     * retried; any other failure is retried at the next present. */
+    BOOL                         CompanionFailed;
     /* Cached host GPU VA (pfnCheckResourceVirtualAddress). */
     UINT64                       GpuVa;
     /* Reserved (tiled) resource created on the host with
@@ -366,6 +371,15 @@ BOOL triton12RegisterResidencyAlloc(PTRITON12_DEVICE p, PTRITON12_RESOURCE r);
  * or residency-only placeholder) and clear *phAllocation.  The runtime does
  * not free driver-minted allocations with the resource. */
 void triton12DeallocateKM(PTRITON12_DEVICE p, D3DKMT_HANDLE *phAllocation);
+
+/* Give r a shared linear companion surface whose blob backs its KM
+ * allocation (the present copies the frame into it); desc/props are
+ * the resource's own.  Replaces a residency-only placeholder.  Returns
+ * the host's answer to the create, or E_FAIL when registering the blob
+ * failed. */
+HRESULT triton12CreateCompanion(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
+                             const D3D12_HEAP_PROPERTIES *props,
+                             const D3D12_RESOURCE_DESC *desc);
 
 /* The bare allocation, for objects with no TRITON12_RESOURCE (standalone
  * heaps).  Returns 0 on failure. */
