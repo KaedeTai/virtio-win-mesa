@@ -23,6 +23,8 @@
 #include "neptune-protocol/npt_protocol_defs.h"
 #include "neptune-protocol/npt_protocol_directx_types.h"
 
+#include "virtio-gpu/virgl_hw.h"
+
 bool
 npt_shared_texture_export_blob(void *texture_wrapper,
                                struct npt_shared_texture_desc *desc)
@@ -116,6 +118,38 @@ npt_shared_texture_virgl_format(uint32_t dxgi_format)
       npt_log("shared texture: unmapped DXGI format %u, assuming BGRA8",
               dxgi_format);
       return 1;
+   }
+}
+
+uint32_t
+npt_shared_texture_virgl_copy_format(uint32_t dxgi_format)
+{
+   /* sRGB and TYPELESS sources take their bit-identical UNORM (or FLOAT)
+    * format: the copy moves raw bits, and an sRGB-typed source could be
+    * linearized by a blit-based host copy. */
+   switch (dxgi_format) {
+   case DXGI_FORMAT_B8G8R8A8_UNORM:
+   case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+   case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+      return VIRGL_FORMAT_B8G8R8A8_UNORM;
+   case DXGI_FORMAT_B8G8R8X8_UNORM:
+   case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+   case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+      return VIRGL_FORMAT_B8G8R8X8_UNORM;
+   case DXGI_FORMAT_R8G8B8A8_UNORM:
+   case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+   case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+      return VIRGL_FORMAT_R8G8B8A8_UNORM;
+   case DXGI_FORMAT_R10G10B10A2_UNORM:
+   case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+      return VIRGL_FORMAT_R10G10B10A2_UNORM;
+   case DXGI_FORMAT_R16G16B16A16_FLOAT:
+   case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+      return VIRGL_FORMAT_R16G16B16A16_FLOAT;
+   case DXGI_FORMAT_B5G6R5_UNORM:   return VIRGL_FORMAT_B5G6R5_UNORM;
+   case DXGI_FORMAT_B5G5R5A1_UNORM: return VIRGL_FORMAT_B5G5R5A1_UNORM;
+   case DXGI_FORMAT_B4G4R4A4_UNORM: return VIRGL_FORMAT_B4G4R4A4_UNORM;
+   default:                         return 0;
    }
 }
 
