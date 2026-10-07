@@ -164,10 +164,11 @@ typedef struct TRITON12_RESOURCE
      * NATIVE host textures; hKMAllocation names this same-desc SHARED
      * linear surface instead, created beside them purely so the swapchain
      * machinery has a KM allocation to hold.  t12Present copies the
-     * rendered frame into it before the drain-fence arm, so consumers
-     * (DWM, scanout) sample a GPU-complete frame.  A non-RT texture gets
-     * one at its first present (t12Present).  NULL for buffers, primaries
-     * (still shared directly) and textures never presented. */
+     * rendered frame into it ahead of the present's GPU-done gate, so
+     * consumers (DWM, scanout) sample a GPU-complete frame.  A non-RT
+     * texture gets one at its first present (t12Present).  NULL for
+     * buffers, primaries (still shared directly) and textures never
+     * presented. */
     ID3D12Resource              *pCompanion;
     /* t12Present cannot build a companion for this present source: its
      * shape has no shared surface, or the host refused the create.  Not
@@ -320,6 +321,10 @@ void triton12InstallDescriptorFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t);
 void triton12InstallResourceFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t);
 void triton12InstallQueueDeviceFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t);
 void triton12InstallQueueFuncs(D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001 *t);
+/* Park the queue's kernel context behind the GPU completion of everything
+ * submitted to its host queue so far (see tritonQueue12.c).  FALSE when no
+ * gate packet was submitted, so nothing holds the context back. */
+BOOL triton12QueueGate(PTRITON12_QUEUE q);
 void triton12InstallListDeviceFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t);
 void triton12InstallListFuncs(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *t);
 void triton12InstallPipelineFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t);

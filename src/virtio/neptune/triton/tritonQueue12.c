@@ -264,15 +264,15 @@ t12DestroyCommandQueue(D3D12DDI_HDEVICE hDevice, D3D12DDI_HCOMMANDQUEUE hQueue)
  * fires, so dxgkrnl's fence packets (and CPU waiters/GetCompletedValue)
  * only observe values the GPU truly reached.
  */
-static void
-t12QueueGate(PTRITON12_QUEUE q)
+BOOL
+triton12QueueGate(PTRITON12_QUEUE q)
 {
     if (!q->pDrainFence || !q->hKMContext || !q->pDev ||
         !q->pDev->KTCallbacks.pfnSubmitCommandCb) {
         static LONG miss;
         if (miss < 4) { InterlockedIncrement(&miss);
             TR_LOG("12.QueueGate: UNGATED queue %p (no fence/ctx/cb)", (void *)q); }
-        return;
+        return FALSE;
     }
 
     /* Interlocked: t12Present bumps DrainValue too, on the app's present
@@ -285,7 +285,7 @@ t12QueueGate(PTRITON12_QUEUE q)
     if (FAILED(hr)) {
         TR_LOG("12.QueueGate: drain Signal FAILED 0x%08lx v=%llu",
                (unsigned long)hr, (unsigned long long)v);
-        return;
+        return FALSE;
     }
     t12PublishDrainVisible(q, v);
 
@@ -295,7 +295,7 @@ t12QueueGate(PTRITON12_QUEUE q)
         if (armFail < 8) { InterlockedIncrement(&armFail);
             TR_LOG("12.QueueGate: gate arm FAILED v=%llu -- fences will run "
                    "EARLY for this batch", (unsigned long long)v); }
-        return;
+        return FALSE;
     }
 
     /* GATE packet: VIOGPU_COMMAND_HDR + token, carried by value in the
@@ -334,12 +334,13 @@ t12QueueGate(PTRITON12_QUEUE q)
         if (subFail < 8) { InterlockedIncrement(&subFail);
             TR_LOG("12.QueueGate: SubmitCommandCb FAILED 0x%08lx -- fences "
                    "will run EARLY for this batch", (unsigned long)hr); }
-    } else {
-        static LONG gateOk;
-        if (gateOk < 8) { InterlockedIncrement(&gateOk);
-            TR_LOG("12.QueueGate: GATED v=%llu kmdToken=%llu",
-                   (unsigned long long)v, (unsigned long long)kmdToken); }
+        return FALSE;
     }
+    static LONG gateOk;
+    if (gateOk < 8) { InterlockedIncrement(&gateOk);
+        TR_LOG("12.QueueGate: GATED v=%llu kmdToken=%llu",
+               (unsigned long long)v, (unsigned long long)kmdToken); }
+    return TRUE;
 }
 
 /*
@@ -459,7 +460,7 @@ t12ExecuteCommandLists(D3D12DDI_HCOMMANDQUEUE hQueue, UINT Count,
     TR_LOG_HOT("12.ExecuteCommandLists: %u list(s)", n);
     if (n) {
         ID3D12CommandQueue_ExecuteCommandLists(q->pQueue, n, lists);
-        t12QueueGate(q);
+        triton12QueueGate(q);
     }
     if (lists != stackLists)
         free(lists);

@@ -436,19 +436,47 @@ t12PtAccount(double sig, double arm, double wait, BOOL already, BOOL gated,
     }
 }
 
+/* Wait until the drain fence reaches v, polling its completed value on the
+ * queue's high-resolution 1 ms slices (Sleep(1) quantizes to the process
+ * timer resolution).  No completion event is registered: the
+ * SUBMIT_PRESENT_FENCE escape behind SetEventOnCompletion stamps this
+ * thread's present token, which only the flip arm in t12Present may do.
+ * Returns FALSE when the deadline passes first. */
+static BOOL
+t12PollDrain(PTRITON12_QUEUE q, UINT64 v, DWORD timeoutMs)
+{
+    const ULONGLONG deadline = GetTickCount64() + timeoutMs;
+    while (ID3D12Fence_GetCompletedValue(q->pDrainFence) < v) {
+        if (GetTickCount64() >= deadline)
+            return FALSE;
+        LARGE_INTEGER due;
+        due.QuadPart = -10000;   /* 1 ms, relative */
+        if (q->hPresentPaceTimer &&
+            SetWaitableTimer(q->hPresentPaceTimer, &due, 0, NULL, NULL, FALSE))
+            WaitForSingleObject(q->hPresentPaceTimer, 5);
+        else
+            Sleep(1);
+    }
+    return TRUE;
+}
+
 /* ---------- companion present copy ----------
  *
  * Companion-backed back buffers (tritonResource12.c) render into a NATIVE
  * host texture; the KM allocation the runtime's kernel present names is the
  * shared linear companion.  Copy the finished frame into it here, on the
- * presenting queue, BEFORE the drain-fence arm in t12Present: the arm's
- * signal is then queued behind this copy, so both the CPU wait and the KMD
- * packet gate that key on it stay GPU-true for the copy too -- the
- * compositor must never sample a mid-copy companion.
+ * presenting queue, BEFORE the present's GPU-done gate -- the drain-fence
+ * arm for a flip, the queue gate for a blt -- whose signal is then queued
+ * behind this copy, so the waits and KMD packet gates that key on it stay
+ * GPU-true for the copy too: the compositor must never sample a mid-copy
+ * companion.
  *
- * The DDI's own AddedGpuWork/hCommandList mechanism cannot be used for
- * this: the runtime executes that list only after pfnPresent returns,
- * which is after the arm -- the copy would land outside the gate.
+ * A flip present cannot use the DDI's own AddedGpuWork/hCommandList
+ * mechanism for this: the runtime executes that list only after
+ * pfnPresent returns, which is after the arm -- the copy would land
+ * outside the gate.  A blt present does use it (t12Present); its kernel
+ * packet is ordered by the queue gate the list's ExecuteCommandLists
+ * submits instead.
  *
  * Both resources sit in COMMON (PRESENT == COMMON) and the copy relies on
  * implicit state promotion; present-copy-test in d3dmetal-native verifies
@@ -618,18 +646,47 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
      * the copy at the end of the open list the runtime executes ahead of
      * the kernel present: a downlevel presenter (D3D9On12, D3D11On12)
      * records the frame's last writes there, so a copy issued now would
-     * read the previous frame. */
+     * read the previous frame.  This KMD claims neither DirectFlip nor
+     * independent flip, so the runtime delivers every D3D9On12, D3D11On12
+     * and native D3D12 present as a blt, windowed or fullscreen, and no
+     * presenter reaches the flip copy below.  A flip whose open list
+     * carries the frame's writes (a D3D11On12 swapchain records its clear,
+     * update and draw there) would show the previous frame. */
+    const BOOL blt = pArgs->Flags.Blt ? TRUE : FALSE;
     if (src && src->pCompanion && src->pResource) {
-        if (pArgs->Flags.Blt && l && l->pList && !l->AwaitingReset) {
+        if (blt && l && l->pList && !l->AwaitingReset) {
             ID3D12GraphicsCommandList_CopyResource(l->pList, src->pCompanion,
                                                    src->pResource);
             pOut->AddedGpuWork = TRUE;
         } else if (q->pQueue) {
             t12PresentCompanionCopy(q, src);
+            /* A blt present's copy went to the host queue directly, past
+             * the gate ExecuteCommandLists would have submitted behind it;
+             * submit that gate here so the kernel present waits for it.
+             * Without a gate nothing parks the kernel present, so wait on
+             * the CPU for the drain value already signalled behind the copy
+             * instead. */
+            if (blt && !triton12QueueGate(q) && q->pDrainFence &&
+                !t12PollDrain(q, q->DrainVisible, 1000))
+                npt_log("present: blt copy not done after 1s (v=%llu "
+                        "done=%llu); presenting anyway",
+                        (unsigned long long)q->DrainVisible,
+                        (unsigned long long)
+                            ID3D12Fence_GetCompletedValue(q->pDrainFence));
         }
     }
 
-    /* Arm the render->flip token for this frame, then wait for it.
+    /* A blt present is not gated here.  Its kernel packet never consumes
+     * the thread token the arm stamps (the KMD parks only flip packets on
+     * it), so arming would leave a stale stamp on this thread for a later
+     * flip to consume, and the frame's last writes sit in the open list
+     * the runtime executes between this DDI and the kernel present, after
+     * any arm issued now.  Its order comes from the queue gate instead:
+     * that ExecuteCommandLists submits a gate packet parked until the GPU
+     * has retired the list, and the KMD runs one DMA packet at a time, so
+     * the blt packet's host copy cannot start before the frame is done.
+     *
+     * Arm the render->flip token for this frame, then wait for it.
      *
      * ARM.  Without this the KMD's TakeThreadToken() finds no stamp for the
      * flip that follows, gates it on token 0 -- which always reads retired --
@@ -660,7 +717,7 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
      * carries a multi-ms floor, which polling the value on 1 ms slices
      * undercuts.  The wait is bounded so a lost completion degrades to a
      * late frame rather than a hung present. */
-    if (q->pQueue && q->pDrainFence && q->hPresentArmEvent) {
+    if (!blt && q->pQueue && q->pDrainFence && q->hPresentArmEvent) {
         const UINT64 v =
             (UINT64)InterlockedIncrement64((volatile LONG64 *)&q->DrainValue);
         const double t0 = TRITON_PT_NOW();
