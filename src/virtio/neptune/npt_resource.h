@@ -53,10 +53,22 @@ struct npt_d3d_map_slot {
 
 struct npt_d3d_map_ring {
    struct npt_com_base *com;
+   /* Deferred contexts on other threads map the same resource, so slot
+    * allocation, the choice of the next slot and the in-flight bookkeeping
+    * are serialized here.  A slot's shmem, res_id and offset never change
+    * once it is allocated, and a caller only names a slot it got back from
+    * a locked call (or slot 0 after alloc_shmem), so the accessors below
+    * read them without the lock. */
+   mtx_t lock;
+   /* Set with the first shmem; aligned_slot_size and max_slots are fixed
+    * from then on, so a Map that finds it set skips the lock. */
+   _Atomic bool ready;
    uint32_t aligned_slot_size;
    uint32_t max_slots;      /* growth cap, <= NPT_D3D_MAP_SLOT_MAX */
    uint32_t active_count;
-   uint32_t current_slot;
+   /* Written under the lock after the slot it names is allocated; the
+    * release store lets an unlocked reader use that slot. */
+   _Atomic uint32_t current_slot;
    bool     is_mapped;
    uint32_t last_map_access_flags;
    /* max_slots entries, allocated with the first shmem; NULL until then. */
@@ -80,27 +92,41 @@ void npt_d3d_map_ring_fini(struct npt_d3d_map_ring *r);
 static inline uint32_t
 npt_d3d_map_ring_slot_offset(const struct npt_d3d_map_ring *r, uint32_t slot)
 {
-   if (slot >= r->active_count) return 0;
+   if (!r->slots || slot >= r->max_slots) return 0;
    return r->slots[slot].offset;
 }
 
 static inline void *
 npt_d3d_map_ring_slot_ptr(const struct npt_d3d_map_ring *r, uint32_t slot)
 {
-   if (slot >= r->active_count || !r->slots[slot].shmem) return NULL;
+   if (!r->slots || slot >= r->max_slots || !r->slots[slot].shmem) return NULL;
    return (uint8_t *)r->slots[slot].shmem->mmap_ptr + r->slots[slot].offset;
 }
 
 static inline uint32_t
 npt_d3d_map_ring_slot_res_id(const struct npt_d3d_map_ring *r, uint32_t slot)
 {
-   if (slot >= r->active_count) return 0;
+   if (!r->slots || slot >= r->max_slots) return 0;
    return r->slots[slot].shmem_res_id;
 }
 
 /* Try the next slot in the ring; if it's in flight, grow up to the
- * ring's max_slots before falling back to blocking on pending_seqno. */
+ * ring's max_slots before falling back to blocking on pending_seqno.
+ * The block runs outside the lock: the host may reach that seqno only
+ * after another thread submits work (a fence it waits on), and that
+ * thread may be about to Map this resource. */
 uint32_t npt_d3d_map_ring_rotate_slot(struct npt_d3d_map_ring *r);
+
+static inline uint32_t
+npt_d3d_map_ring_current_slot(const struct npt_d3d_map_ring *r)
+{
+   return atomic_load_explicit(&r->current_slot, memory_order_acquire);
+}
+
+/* Only for a slot the caller already holds a locked answer for (slot 0
+ * after alloc_shmem). */
+void npt_d3d_map_ring_set_current_slot(struct npt_d3d_map_ring *r,
+                                       uint32_t slot);
 
 void npt_d3d_map_ring_mark_slot_submitted(struct npt_d3d_map_ring *r,
                                           uint32_t slot, uint32_t seqno,

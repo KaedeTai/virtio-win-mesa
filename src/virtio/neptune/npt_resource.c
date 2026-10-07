@@ -11,6 +11,7 @@
 #include "npt_shmem_pool.h"
 
 #include "util/list.h"
+#include "util/u_atomic.h"
 
 #include <stdlib.h>
 #if defined(_WIN32)
@@ -180,8 +181,10 @@ npt_d3d_map_ring_init(struct npt_d3d_map_ring *r, struct npt_com_base *com)
 {
    memset(r, 0, sizeof(*r));
    r->com = com;
+   mtx_init(&r->lock, mtx_plain);
 }
 
+/* Caller holds r->lock. */
 static bool
 alloc_slot_locked(struct npt_d3d_map_ring *r, uint32_t idx)
 {
@@ -223,46 +226,66 @@ alloc_slot_locked(struct npt_d3d_map_ring *r, uint32_t idx)
    return true;
 }
 
+static bool
+alloc_shmem_locked(struct npt_d3d_map_ring *r, uint32_t aligned_slot_size)
+{
+   if (r->aligned_slot_size && r->aligned_slot_size != aligned_slot_size) {
+      npt_log("d3d_map_ring: size drift %u->%u (unsupported)",
+              r->aligned_slot_size, aligned_slot_size);
+      return false;
+   }
+   if (!r->slots) {
+      /* How far a DISCARD-heavy resource may run ahead of the host before
+       * a rotate blocks on the slot the host has not consumed yet.  A
+       * title that maps small constant buffers a few hundred times a
+       * frame otherwise runs its render thread in lockstep with the host
+       * ring thread while neither is saturated.  Small slots cost little
+       * pool space, so they go deeper; large ones keep their pool
+       * footprint. */
+      const uint32_t max_slots =
+         aligned_slot_size <= 4096u  ? NPT_D3D_MAP_SLOT_MAX :
+         aligned_slot_size <= 65536u ? 16u : 8u;
+      struct npt_d3d_map_slot *slots = calloc(max_slots, sizeof(*slots));
+      if (!slots)
+         return false;
+      r->slots = slots;
+      r->max_slots = max_slots;
+      r->aligned_slot_size = aligned_slot_size;
+   }
+   for (uint32_t i = 0; i < NPT_D3D_MAP_SLOT_INIT; i++) {
+      if (!alloc_slot_locked(r, i))
+         return false;
+   }
+   atomic_store_explicit(&r->ready, true, memory_order_release);
+   return true;
+}
+
 bool
 npt_d3d_map_ring_alloc_shmem(struct npt_d3d_map_ring *r,
                              uint32_t aligned_slot_size)
 {
    if (!aligned_slot_size)
       return false;
-   if (r->aligned_slot_size && r->aligned_slot_size != aligned_slot_size) {
+   if (atomic_load_explicit(&r->ready, memory_order_acquire)) {
+      if (r->aligned_slot_size == aligned_slot_size)
+         return true;
       npt_log("d3d_map_ring: size drift %u->%u (unsupported)",
               r->aligned_slot_size, aligned_slot_size);
       return false;
    }
-   r->aligned_slot_size = aligned_slot_size;
-   /* How far a DISCARD-heavy resource may run ahead of the host before a
-    * rotate blocks on the slot the host has not consumed yet.  A title
-    * that maps small constant buffers a few hundred times a frame
-    * otherwise runs its render thread in lockstep with the host ring
-    * thread while neither is saturated.  Small slots cost little pool
-    * space, so they go deeper; large ones keep their pool footprint. */
-   r->max_slots = aligned_slot_size <= 4096u    ? NPT_D3D_MAP_SLOT_MAX :
-                  aligned_slot_size <= 65536u   ? 16u : 8u;
-   if (!r->slots) {
-      r->slots = calloc(r->max_slots, sizeof(*r->slots));
-      if (!r->slots) {
-         r->aligned_slot_size = 0;
-         r->max_slots = 0;
-         return false;
-      }
-   }
-   for (uint32_t i = 0; i < NPT_D3D_MAP_SLOT_INIT; i++) {
-      if (!alloc_slot_locked(r, i))
-         return false;
-   }
-   return true;
+   mtx_lock(&r->lock);
+   const bool ok = alloc_shmem_locked(r, aligned_slot_size);
+   mtx_unlock(&r->lock);
+   return ok;
 }
 
 void
 npt_d3d_map_ring_fini(struct npt_d3d_map_ring *r)
 {
-   if (!r->slots)
+   if (!r->slots) {
+      mtx_destroy(&r->lock);
       return;
+   }
    struct npt_renderer *rndr = r->com->base.device->renderer;
 
    /* No pending_seqno wait: rotate_slot is the only consumer and the
@@ -277,41 +300,71 @@ npt_d3d_map_ring_fini(struct npt_d3d_map_ring *r)
    r->active_count = 0;
    r->aligned_slot_size = 0;
    r->max_slots = 0;
-   r->current_slot = 0;
+   atomic_store_explicit(&r->current_slot, 0, memory_order_relaxed);
+   atomic_store_explicit(&r->ready, false, memory_order_relaxed);
+   mtx_destroy(&r->lock);
+}
+
+/* Caller holds r->lock, which is dropped and retaken around the wait. */
+static void
+wait_slot_locked(struct npt_d3d_map_ring *r, uint32_t slot)
+{
+   struct npt_d3d_map_slot *s = &r->slots[slot];
+   if (!s->in_flight)
+      return;
+   struct npt_ring *const pending_ring = s->pending_ring;
+   const uint32_t seqno = s->pending_seqno;
+   mtx_unlock(&r->lock);
+   npt_ring_wait_seqno(pending_ring ? pending_ring
+                                    : r->com->base.device->ring, seqno);
+   mtx_lock(&r->lock);
+   /* Another Unmap may have resubmitted the slot meanwhile. */
+   if (s->in_flight && s->pending_seqno == seqno &&
+       s->pending_ring == pending_ring) {
+      s->in_flight = false;
+      s->pending_ring = NULL;
+   }
 }
 
 uint32_t
 npt_d3d_map_ring_rotate_slot(struct npt_d3d_map_ring *r)
 {
-   if (!r->slots || !r->active_count)
+   mtx_lock(&r->lock);
+   if (!r->slots || !r->active_count) {
+      mtx_unlock(&r->lock);
       return 0;
+   }
 
    const uint32_t cnt = r->active_count;
-   const uint32_t next = cnt ? (r->current_slot + 1u) % cnt : 0u;
+   uint32_t next =
+      (atomic_load_explicit(&r->current_slot, memory_order_relaxed) + 1u) %
+      cnt;
 
-   /* Fast path: the wrap-around slot is already free. */
-   if (cnt && !r->slots[next].in_flight) {
-      r->current_slot = next;
-      return next;
-   }
-
-   /* Grow path: bring up a fresh slot at active_count. */
-   if (cnt < r->max_slots && alloc_slot_locked(r, cnt)) {
-      r->current_slot = cnt;
-      return cnt;
-   }
-
-   /* At cap (or grow failed): block on the wrap-around slot. */
    if (r->slots[next].in_flight) {
-      struct npt_ring *ring = r->slots[next].pending_ring
-         ? r->slots[next].pending_ring
-         : r->com->base.device->ring;
-      npt_ring_wait_seqno(ring, r->slots[next].pending_seqno);
-      r->slots[next].in_flight = false;
-      r->slots[next].pending_ring = NULL;
+      if (cnt < r->max_slots && alloc_slot_locked(r, cnt)) {
+         /* Grow path: bring up a fresh slot at active_count. */
+         next = cnt;
+      } else {
+         /* At cap (or grow failed): claim the wrap-around slot, so the
+          * next rotate moves past it, and wait for the host there. */
+         atomic_store_explicit(&r->current_slot, next, memory_order_release);
+         wait_slot_locked(r, next);
+         mtx_unlock(&r->lock);
+         return next;
+      }
    }
-   r->current_slot = next;
+   atomic_store_explicit(&r->current_slot, next, memory_order_release);
+   mtx_unlock(&r->lock);
    return next;
+}
+
+void
+npt_d3d_map_ring_set_current_slot(struct npt_d3d_map_ring *r, uint32_t slot)
+{
+   mtx_lock(&r->lock);
+   if (r->slots && slot < r->active_count)
+      atomic_store_explicit(&r->current_slot, slot, memory_order_release);
+   mtx_unlock(&r->lock);
 }
 
 void
@@ -319,11 +372,13 @@ npt_d3d_map_ring_mark_slot_submitted(struct npt_d3d_map_ring *r,
                                      uint32_t slot, uint32_t seqno,
                                      struct npt_ring *ring)
 {
-   if (slot >= r->active_count)
-      return;
-   r->slots[slot].pending_seqno = seqno;
-   r->slots[slot].pending_ring = ring;
-   r->slots[slot].in_flight = true;
+   mtx_lock(&r->lock);
+   if (r->slots && slot < r->active_count) {
+      r->slots[slot].pending_seqno = seqno;
+      r->slots[slot].pending_ring = ring;
+      r->slots[slot].in_flight = true;
+   }
+   mtx_unlock(&r->lock);
 }
 
 /* ==========================================================================
@@ -446,15 +501,15 @@ uint32_t
 npt_d3d11_buffer_get_current_slot(const struct npt_d3d11_buffer *b)
 {
    const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   return aux ? aux->map_ring.current_slot : 0;
+   return aux ? npt_d3d_map_ring_current_slot(&aux->map_ring) : 0;
 }
 
 void
 npt_d3d11_buffer_set_current_slot(struct npt_d3d11_buffer *b, uint32_t slot)
 {
    struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   if (aux && slot < aux->map_ring.active_count)
-      aux->map_ring.current_slot = slot;
+   if (aux)
+      npt_d3d_map_ring_set_current_slot(&aux->map_ring, slot);
 }
 
 uint32_t
@@ -1061,13 +1116,13 @@ void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t)
 }
 
 uint32_t npt_d3d11_texture_get_current_slot(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->map_ring.current_slot : 0; }
+{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_current_slot(&aux->map_ring) : 0; }
 
 void npt_d3d11_texture_set_current_slot(struct npt_d3d11_texture *t, uint32_t slot)
 {
    struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   if (aux && slot < aux->map_ring.active_count)
-      aux->map_ring.current_slot = slot;
+   if (aux)
+      npt_d3d_map_ring_set_current_slot(&aux->map_ring, slot);
 }
 
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t, uint32_t slot)
