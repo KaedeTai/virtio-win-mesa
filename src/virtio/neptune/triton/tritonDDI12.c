@@ -18,6 +18,9 @@
 #include "triton12_tables.h"
 #include "npt_env.h"
 
+BOOL
+npt_d3d12_host_takes_row_major_texture(void *device_wrapper);
+
 HRESULT
 npt_d3d12_create_device_internal(IUnknown *pAdapter,
                                  D3D_FEATURE_LEVEL MinimumFeatureLevel,
@@ -203,6 +206,12 @@ triton12HostCapsInit(PINIT_ONCE once, PVOID param, PVOID *ctx)
         return TRUE;
     ID3D12Device *dev = NULL;
     tritonHostCaps12Snapshot(s, &dev);
+    pAdapter->CpuVisibleTextures =
+        dev && npt_d3d12_host_takes_row_major_texture(dev);
+    TR_LOG("caps[d3d12]: textures on CPU-visible heaps %s",
+           pAdapter->CpuVisibleTextures ? "ROW_MAJOR" : "opaque");
+    /* Published only once the probe above is done with it: CreateDevice
+     * adopts pCapsDev without waiting for this snapshot. */
     pAdapter->pCapsDev = dev;
     pAdapter->pHostCaps12 = s;
     return TRUE;
@@ -217,6 +226,28 @@ triton12HostCaps(PTRITON12_ADAPTER pAdapter)
     InitOnceExecuteOnce(&pAdapter->HostCapsOnce, triton12HostCapsInit,
                         pAdapter, NULL);
     return pAdapter->pHostCaps12 ? pAdapter->pHostCaps12 : &kNone;
+}
+
+/* Whether to report a UMA adapter: the host says UMA, or textures on its
+ * CPU-visible custom heaps can be given a CPU address.  UMA is what invites
+ * apps to put textures on such heaps and upload them in place with
+ * WriteToSubresource; DEFAULT heaps stay CPU-inaccessible either way
+ * (GetCustomHeapProperties). */
+static BOOL
+t12AdapterIsUma(PTRITON12_ADAPTER pAdapter)
+{
+    const struct triton_host_caps12 *hc = triton12HostCaps(pAdapter);
+    return ((hc->have & TRITON_HC12_ARCH1) != 0 && hc->arch1.UMA) ||
+           pAdapter->CpuVisibleTextures;
+}
+
+BOOL
+triton12CpuVisibleTextures(PTRITON12_ADAPTER pAdapter)
+{
+    if (!pAdapter)
+        return FALSE;
+    triton12HostCaps(pAdapter);
+    return pAdapter->CpuVisibleTextures;
 }
 
 #define HC12(bit) ((hc->have & TRITON_HC12_##bit) != 0)
@@ -354,17 +385,24 @@ triton12GetCaps(D3D12DDI_HADAPTER hAdapter, const D3D12DDIARG_GETCAPS *pArgs)
         break;
     }
     case D3D12DDICAPS_TYPE_MEMORY_ARCHITECTURE: {
-        /* Virtual GPU over host system memory: the KMD's segment model
-         * is UMA whatever the host backend calls itself.  Not
-         * CacheCoherent: GpuMmu is bookkeeping-only and blob CPU access
-         * rides the KMD-owned BAR mapping. */
+        /* UMA where the host says UMA, or where it gives textures on
+         * CPU-visible custom heaps a CPU address (D3DMetal answers
+         * discrete on Apple's unified memory, and its apps upload such
+         * textures in place, the UMA path).  A discrete host whose
+         * textures have no CPU address stays discrete.  IOCoherent is
+         * unconditional: the runtime fails device creation
+         * (DRIVER_INTERNAL_ERROR) when it is clear.  Not CacheCoherent:
+         * GpuMmu is bookkeeping-only and blob CPU access rides the
+         * KMD-owned BAR mapping. */
         D3D12DDI_MEMORY_ARCHITECTURE_CAPS *pCaps =
             (D3D12DDI_MEMORY_ARCHITECTURE_CAPS *)pArgs->pData;
         CAP12_FIXED("MEMORY_ARCHITECTURE.UMA", pCaps->UMA, ARCH1,
-                    hc->arch1.UMA, TRUE,
-                    "KMD segment model: guest blobs live in host system memory");
-        CAP12_FIXED("MEMORY_ARCHITECTURE.IOCoherent", pCaps->IOCoherent,
-                    ARCH1, hc->arch1.UMA, TRUE, "same as UMA");
+                    hc->arch1.UMA, t12AdapterIsUma(pAdapter),
+                    "UMA, or a host that gives textures a CPU address");
+        /* No API field carries IOCoherent, so there is no host value. */
+        TRITON_CAP_FIXED("d3d12", "MEMORY_ARCHITECTURE.IOCoherent",
+                         pCaps->IOCoherent, FALSE, 0, TRUE,
+                         "D3D12 requires it; device creation fails without");
         CAP12_FIXED("MEMORY_ARCHITECTURE.CacheCoherent", pCaps->CacheCoherent,
                     ARCH1, hc->arch1.CacheCoherentUMA, FALSE,
                     "BAR-mapped blob access has no GPU cache coherency contract");

@@ -1262,11 +1262,14 @@ static HRESULT APIENTRY tritonGetCaps(D3D10DDI_HADAPTER hAdapter,
         break;
     }
     case D3DWDDM2_0DDICAPS_MEMORY_ARCHITECTURE: {
-        /* Virtual GPU over host system memory: UMA.  Not CacheCoherent --
-         * the KMD's GpuMmu is bookkeeping-only and blob CPU access rides
-         * the KMD-owned BAR mapping, so no coherency contract with GPU
-         * caches can be promised.  Mirrors the accepted D3D12 answer on
-         * the same KMD. */
+        /* Virtual GPU over host system memory: UMA on every host.  D3D11
+         * maps a DEFAULT texture through the guest's map ring
+         * (MapOnDefaultTextures, npt_d3d11_texture_is_mappable), never
+         * through a host texture's own CPU address, so unlike D3D12 the
+         * answer does not depend on the host taking ROW_MAJOR textures.
+         * Not CacheCoherent -- the KMD's GpuMmu is bookkeeping-only and
+         * blob CPU access rides the KMD-owned BAR mapping, so no coherency
+         * contract with GPU caches can be promised. */
         D3DWDDM2_0DDI_MEMORY_ARCHITECTURE_CAPS *pCaps =
             (D3DWDDM2_0DDI_MEMORY_ARCHITECTURE_CAPS *)pArgs->pData;
         CAP11_FIXED("MEMORY_ARCHITECTURE.UMA", pCaps->UMA, OPTIONS2,
