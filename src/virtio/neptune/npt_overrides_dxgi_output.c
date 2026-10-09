@@ -77,7 +77,6 @@ static const GUID *const output_qi_chain[] = {
 
 struct npt_output_aux {
    _Atomic uint32_t populated;
-   uint64_t parent_adapter_host_id;
    uint32_t connector_index;
    /* "\\.\\DISPLAY{n}" in UTF-16LE, NUL-terminated. */
    WCHAR    device_name[32];
@@ -117,7 +116,6 @@ fill_device_name(WCHAR out[32], uint32_t connector_index)
 
 void
 npt_output_aux_populate(struct npt_com_base *out_com,
-                        struct npt_com_base *parent_adapter,
                         uint32_t connector_index,
                         const struct npt_output_info *info)
 {
@@ -132,7 +130,6 @@ npt_output_aux_populate(struct npt_com_base *out_com,
           memory_order_acq_rel, memory_order_acquire))
       return;
 
-   aux->parent_adapter_host_id = parent_adapter ? parent_adapter->base.id : 0;
    aux->connector_index = connector_index;
    fill_device_name(aux->device_name, connector_index);
    aux->desktop_x = info->desktop_x;
@@ -264,23 +261,19 @@ out_GetParent_override(void *self, REFIID riid, void **ppParent)
    if (!ppParent)
       return NPT_E_POINTER;
    *ppParent = NULL;
-   struct npt_output_aux *aux = out_aux(self);
-   if (!aux || !aux->parent_adapter_host_id)
+   /* The wrapper parent is the adapter EnumOutputs was called on.  The
+    * output holds it for the output's whole lifetime, so a public ref
+    * can be taken even after the app released the adapter. */
+   struct npt_com_base *adapter = ((struct npt_com_base *)self)->base.parent;
+   if (!adapter)
       return NPT_E_FAIL;
-   struct npt_device *dev = npt_com_self_device(self);
-   void *parent = npt_com_get_or_wrap(dev, &NPT_IID_IDXGIAdapter4,
-                                      aux->parent_adapter_host_id, NULL);
-   if (!parent)
-      return NPT_E_FAIL;
-   /* npt_com_get_or_wrap returns with an extra public ref; let QI
-    * either match the requested IID (no extra ref) or fall through to
-    * release. */
-   struct npt_com_base *parent_com = parent;
+   /* QueryInterface through a public ref: a host-backed QI memoizes on
+    * the adapter, and the memo is flushed when that ref drains. */
    const struct npt_idxgioutput_client_vtbl *vtbl =
-      (const struct npt_idxgioutput_client_vtbl *)parent_com->lpVtbl;
-   HRESULT hr = vtbl->QueryInterface(parent, riid, ppParent);
-   /* Drop the AddRef from get_or_wrap; QI added its own if it matched. */
-   vtbl->Release(parent);
+      (const struct npt_idxgioutput_client_vtbl *)adapter->lpVtbl;
+   vtbl->AddRef(adapter);
+   HRESULT hr = vtbl->QueryInterface(adapter, riid, ppParent);
+   vtbl->Release(adapter);
    return hr;
 }
 

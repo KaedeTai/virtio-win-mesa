@@ -137,8 +137,7 @@ adp_EnumOutputs_override(void *self, UINT Output, IDXGIOutput **ppOutput)
    if (!wrapper)
       return NPT_E_OUTOFMEMORY;
 
-   npt_output_aux_populate(wrapper, adp, Output,
-                           &aux->outputs.outputs[Output]);
+   npt_output_aux_populate(wrapper, Output, &aux->outputs.outputs[Output]);
    *ppOutput = (IDXGIOutput *)wrapper;
    return NPT_S_OK;
 }

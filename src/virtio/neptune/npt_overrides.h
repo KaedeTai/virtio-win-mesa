@@ -65,7 +65,6 @@ struct npt_output_info;
  * Called by IDXGIAdapter::EnumOutputs after npt_com_get_or_wrap. */
 void
 npt_output_aux_populate(struct npt_com_base *out_com,
-                        struct npt_com_base *parent_adapter,
                         uint32_t connector_index,
                         const struct npt_output_info *info);
 
