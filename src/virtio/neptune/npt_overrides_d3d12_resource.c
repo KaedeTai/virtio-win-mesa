@@ -83,8 +83,13 @@ struct npt_d3d12_resource_aux {
     * takes the ordinary pointer path. */
    bool cpu_layout_map;
 
-   /* D3D12 allows nested Map; only the outermost pair round-trips. */
-   uint32_t map_count;
+   /* D3D12 allows nested Map; only the outermost pair round-trips.
+    * Map and Unmap may run on several threads at once, so the sync and
+    * texture paths run under map_lock (taken before g_sync_map_lock);
+    * the persistent path only counts.  The flush reads the count without
+    * map_lock. */
+   _Atomic uint32_t map_count;
+   mtx_t map_lock;
 
    /* Persistent-map path.  shmem_heap is borrowed from hidden_heap's
     * aux; hidden_heap is an owned wrapper ref, kept so the heap -- and
@@ -175,7 +180,8 @@ npt_d3d12_sync_maps_flush(struct npt_ring *queue_ring)
    AcquireSRWLockExclusive(&g_sync_map_lock);
    for (struct npt_d3d12_resource_aux *aux = g_sync_map_head; aux;
         aux = aux->flush_next) {
-      if (!aux->map_count || !aux->self)
+      if (!atomic_load_explicit(&aux->map_count, memory_order_relaxed) ||
+          !aux->self)
          continue;
       /* Fire-and-forget on the QUEUE ring: ring FIFO orders the host
        * copy before the ExecuteCommandLists that follows on the same
@@ -213,7 +219,8 @@ npt_d3d12_resource_aux_init(struct npt_com_base *com,
    npt_d3d_map_ring_init(&aux->map_ring, com);
    aux->width = 0;
    aux->dimension = -1;
-   aux->map_count = 0;
+   atomic_init(&aux->map_count, 0);
+   mtx_init(&aux->map_lock, mtx_plain);
    aux->shmem_heap = NULL;
    aux->hidden_heap = NULL;
    aux->heap_offset = 0;
@@ -236,11 +243,10 @@ npt_d3d12_resource_aux_destroy(void *aux_raw)
    /* A persistently-mapped resource may die without a final Unmap (legal
     * per D3D12); its window pins die with it. */
    if (aux->shmem_heap != NULL) {
-      while (aux->map_count > 0) {
-         aux->map_count--;
+      for (uint32_t n = atomic_load(&aux->map_count); n; n--)
          npt_d3d12_heap_map_release(aux->shmem_heap);
-      }
    }
+   mtx_destroy(&aux->map_lock);
    /* COM_RELEASE for the resource was queued by npt_com_destroy before
     * this runs, so the host drops the placed resource before the heap:
     * the heap's release (possibly triggered here) then frees the
@@ -384,43 +390,10 @@ res12_row_major_bytes(const struct npt_d3d12_resource_aux *aux)
    return pitch * rows * slices;
 }
 
-static HRESULT NPT_STDMETHODCALLTYPE
-res12_Map_override(void *self, UINT Subresource,
-                   const D3D12_RANGE *pReadRange, void **ppData)
+static HRESULT
+res12_Map_locked(void *self, struct npt_d3d12_resource_aux *aux,
+                 UINT Subresource, void **ppData)
 {
-   (void)pReadRange;  /* Wire always maps READ|WRITE; see file header. */
-
-   struct npt_d3d12_resource_aux *aux = res12_aux(self);
-   if (!aux)
-      return NPT_E_NOTIMPL;
-
-   /* Persistent-map fast path: the host GPU aliases the shmem pages
-    * (VK_EXT_external_memory_host heap import), so no wire traffic per
-    * access.  The CPU window is pinned per Map and cached across map
-    * cycles; a window the trimmer reclaimed is re-established here
-    * (npt_d3d12_heap.c), possibly at a different address -- which D3D12
-    * permits across map spans. */
-   if (aux->shmem_heap) {
-      if (Subresource != 0)
-         return NPT_E_INVALIDARG;
-      uint8_t *base = npt_d3d12_heap_map_acquire(aux->shmem_heap);
-      if (base == NULL) {
-         /* Store exhausted by pinned windows.  E_OUTOFMEMORY for the
-          * same reason as the texture arm below: it is what the runtime
-          * itself reports when no CPU address can be produced. */
-         npt_log("ID3D12Resource::Map: no CPU window for a %" PRIu64
-                 "-byte heap (store exhausted)", aux->shmem_heap->size);
-         return NPT_E_OUTOFMEMORY;
-      }
-      aux->map_count++;
-      if (ppData)
-         *ppData = base + aux->heap_offset;
-      return NPT_S_OK;
-   }
-
-   if (!res12_ensure_desc(self, aux))
-      return NPT_E_FAIL;
-
    uint64_t map_bytes = aux->width;
 
    if (aux->dimension != D3D12_RESOURCE_DIMENSION_BUFFER) {
@@ -429,7 +402,7 @@ res12_Map_override(void *self, UINT Subresource,
        * Legal for any layout, and owns no shmem slot. */
       if (!ppData) {
          aux->cpu_layout_map = true;
-         aux->map_count++;
+         atomic_fetch_add_explicit(&aux->map_count, 1, memory_order_relaxed);
          return NPT_S_OK;
       }
       /* Pointer form.  D3D12 REQUIRES a texture on a CPU-accessible
@@ -467,9 +440,9 @@ res12_Map_override(void *self, UINT Subresource,
       return NPT_E_FAIL;
    }
 
-   if (aux->map_count > 0) {
+   if (atomic_load_explicit(&aux->map_count, memory_order_relaxed) > 0) {
       /* Nested map: same pointer, no round-trip. */
-      aux->map_count++;
+      atomic_fetch_add_explicit(&aux->map_count, 1, memory_order_relaxed);
       if (ppData)
          *ppData = npt_d3d_map_ring_slot_ptr(&aux->map_ring, 0);
       return NPT_S_OK;
@@ -493,37 +466,88 @@ res12_Map_override(void *self, UINT Subresource,
    if (NPT_FAILED(hr))
       return hr;
 
-   aux->map_count = 1;
+   atomic_store_explicit(&aux->map_count, 1, memory_order_relaxed);
    sync_map_list_add(aux, self);
    if (ppData)
       *ppData = npt_d3d_map_ring_slot_ptr(&aux->map_ring, 0);
    return NPT_S_OK;
 }
 
-static void NPT_STDMETHODCALLTYPE
-res12_Unmap_override(void *self, UINT Subresource,
-                     const D3D12_RANGE *pWrittenRange)
+static HRESULT NPT_STDMETHODCALLTYPE
+res12_Map_override(void *self, UINT Subresource,
+                   const D3D12_RANGE *pReadRange, void **ppData)
 {
+   (void)pReadRange;  /* Wire always maps READ|WRITE; see file header. */
+
    struct npt_d3d12_resource_aux *aux = res12_aux(self);
-   if (!aux || !aux->map_count) {
-      npt_log("ID3D12Resource::Unmap: not mapped");
-      return;
-   }
+   if (!aux)
+      return NPT_E_NOTIMPL;
+
+   /* Persistent-map fast path: the host GPU aliases the shmem pages
+    * (VK_EXT_external_memory_host heap import), so no wire traffic per
+    * access.  The CPU window is pinned per Map and cached across map
+    * cycles; a window the trimmer reclaimed is re-established here
+    * (npt_d3d12_heap.c), possibly at a different address -- which D3D12
+    * permits across map spans. */
    if (aux->shmem_heap) {
-      /* Persistent-map fast path: drop the window pin; the window itself
-       * stays cached until the trimmer wants it. */
-      aux->map_count--;
-      npt_d3d12_heap_map_release(aux->shmem_heap);
+      if (Subresource != 0)
+         return NPT_E_INVALIDARG;
+      uint8_t *base = npt_d3d12_heap_map_acquire(aux->shmem_heap);
+      if (base == NULL) {
+         /* Store exhausted by pinned windows.  E_OUTOFMEMORY for the
+          * same reason as the texture arm below: it is what the runtime
+          * itself reports when no CPU address can be produced. */
+         npt_log("ID3D12Resource::Map: no CPU window for a %" PRIu64
+                 "-byte heap (store exhausted)", aux->shmem_heap->size);
+         return NPT_E_OUTOFMEMORY;
+      }
+      atomic_fetch_add_explicit(&aux->map_count, 1, memory_order_relaxed);
+      if (ppData)
+         *ppData = base + aux->heap_offset;
+      return NPT_S_OK;
+   }
+
+   if (!res12_ensure_desc(self, aux))
+      return NPT_E_FAIL;
+
+   mtx_lock(&aux->map_lock);
+   const HRESULT hr = res12_Map_locked(self, aux, Subresource, ppData);
+   mtx_unlock(&aux->map_lock);
+   return hr;
+}
+
+/* Decrements map_count unless it is already 0; false then. */
+static bool
+res12_map_count_dec(struct npt_d3d12_resource_aux *aux, uint32_t *remaining)
+{
+   uint32_t n = atomic_load_explicit(&aux->map_count, memory_order_relaxed);
+   do {
+      if (!n)
+         return false;
+   } while (!atomic_compare_exchange_weak_explicit(&aux->map_count, &n, n - 1,
+                                                   memory_order_relaxed,
+                                                   memory_order_relaxed));
+   *remaining = n - 1;
+   return true;
+}
+
+static void
+res12_Unmap_locked(void *self, struct npt_d3d12_resource_aux *aux,
+                   UINT Subresource, const D3D12_RANGE *pWrittenRange)
+{
+   uint32_t remaining;
+   if (!res12_map_count_dec(aux, &remaining)) {
+      npt_log("ID3D12Resource::Unmap: not mapped");
       return;
    }
    if (aux->cpu_layout_map) {
       /* Texture CPU-access map: owns no shmem slot, and the pixels
        * already went over the wire in WriteToSubresource. */
-      if (--aux->map_count == 0)
+      if (remaining == 0)
          aux->cpu_layout_map = false;
       return;
    }
-   if (--aux->map_count > 0)
+   if (remaining > 0)
       return;
    sync_map_list_remove(aux);
 
@@ -546,6 +570,30 @@ res12_Unmap_override(void *self, UINT Subresource,
    if (NPT_FAILED(hr))
       npt_log("ID3D12Resource::Unmap: host unmap failed 0x%08x",
               (unsigned)hr);
+}
+
+static void NPT_STDMETHODCALLTYPE
+res12_Unmap_override(void *self, UINT Subresource,
+                     const D3D12_RANGE *pWrittenRange)
+{
+   struct npt_d3d12_resource_aux *aux = res12_aux(self);
+   if (!aux) {
+      npt_log("ID3D12Resource::Unmap: not mapped");
+      return;
+   }
+   if (aux->shmem_heap) {
+      /* Persistent-map fast path: drop the window pin; the window itself
+       * stays cached until the trimmer wants it. */
+      uint32_t remaining;
+      if (res12_map_count_dec(aux, &remaining))
+         npt_d3d12_heap_map_release(aux->shmem_heap);
+      else
+         npt_log("ID3D12Resource::Unmap: not mapped");
+      return;
+   }
+   mtx_lock(&aux->map_lock);
+   res12_Unmap_locked(self, aux, Subresource, pWrittenRange);
+   mtx_unlock(&aux->map_lock);
 }
 
 static D3D12_GPU_VIRTUAL_ADDRESS NPT_STDMETHODCALLTYPE
