@@ -143,17 +143,41 @@ t12IsSimpleTexture2D(const D3D12DDIARG_CREATERESOURCE_0003 *pRes)
            pRes->DepthOrArraySize <= 1;
 }
 
-/* The only shape D3D12 permits a ROW_MAJOR -- and therefore CPU-accessible
- * -- texture to have.  Anything else (mipped, arrayed, volume, multisampled,
- * or a render/depth target) can only be laid out opaquely, so answering
- * ROW_MAJOR for it would describe a resource that cannot exist. */
+/* Formats a ROW_MAJOR texture cannot take.  D3D12 forbids the YUV and
+ * palettized video formats (D3D12_TEXTURE_LAYOUT), and depth formats exist
+ * only for depth-stencil use, which the layout also forbids. */
+static BOOL
+t12RowMajorFormat(DXGI_FORMAT fmt)
+{
+    switch (fmt) {
+    case DXGI_FORMAT_AYUV: case DXGI_FORMAT_Y410: case DXGI_FORMAT_Y416:
+    case DXGI_FORMAT_NV12: case DXGI_FORMAT_P010: case DXGI_FORMAT_P016:
+    case DXGI_FORMAT_420_OPAQUE: case DXGI_FORMAT_YUY2:
+    case DXGI_FORMAT_Y210: case DXGI_FORMAT_Y216: case DXGI_FORMAT_NV11:
+    case DXGI_FORMAT_AI44: case DXGI_FORMAT_IA44: case DXGI_FORMAT_P8:
+    case DXGI_FORMAT_A8P8: case DXGI_FORMAT_P208: case DXGI_FORMAT_V208:
+    case DXGI_FORMAT_V408:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT: case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT: case DXGI_FORMAT_D16_UNORM:
+        return FALSE;
+    default:
+        return TRUE;
+    }
+}
+
+/* The only shape and formats D3D12 permits a ROW_MAJOR -- and therefore
+ * CPU-accessible -- texture to have.  Anything else (mipped, arrayed,
+ * volume, multisampled, a render/depth target, or a format above) can only
+ * be laid out opaquely, so answering ROW_MAJOR for it would describe a
+ * resource that cannot exist. */
 static BOOL
 t12RowMajorCapable(const D3D12DDIARG_CREATERESOURCE_0003 *pRes)
 {
     return t12IsSimpleTexture2D(pRes) &&
            pRes->SampleDesc.Count <= 1 &&
            !(pRes->Flags & (D3D12DDI_RESOURCE_FLAG_0003_RENDER_TARGET |
-                            D3D12DDI_RESOURCE_FLAG_0003_DEPTH_STENCIL));
+                            D3D12DDI_RESOURCE_FLAG_0003_DEPTH_STENCIL)) &&
+           t12RowMajorFormat(pRes->Format);
 }
 
 /* A texture on a CPU-visible custom heap is reached by the runtime through
