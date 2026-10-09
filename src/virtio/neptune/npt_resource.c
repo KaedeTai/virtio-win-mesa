@@ -5,6 +5,7 @@
 
 #include "npt_com.h"
 #include "npt_device.h"
+#include "npt_dispatch.h"
 #include "npt_renderer.h"
 #include "npt_resource.h"
 #include "npt_ring.h"
@@ -359,6 +360,15 @@ npt_d3d_map_ring_rotate_slot(struct npt_d3d_map_ring *r)
 }
 
 void
+npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot)
+{
+   mtx_lock(&r->lock);
+   if (r->slots && slot < r->active_count)
+      wait_slot_locked(r, slot);
+   mtx_unlock(&r->lock);
+}
+
+void
 npt_d3d_map_ring_set_current_slot(struct npt_d3d_map_ring *r, uint32_t slot)
 {
    mtx_lock(&r->lock);
@@ -395,6 +405,13 @@ static void
 npt_d3d11_buffer_aux_destroy(void *aux_raw)
 {
    struct npt_d3d11_buffer_aux *aux = aux_raw;
+   /* The host holds its own reference to each shmem's memory, so the
+    * blobs need not outlive the COM_RELEASE queued before this. */
+   for (uint32_t i = 0; i < NPT_D3D11_EXTERNAL_SLOT_MAX; i++) {
+      if (aux->external_slots[i])
+         npt_renderer_shmem_unref_async(aux->com->base.device->renderer,
+                                        aux->external_slots[i]);
+   }
    npt_d3d_map_ring_fini(&aux->map_ring);
    free(aux);
 }
@@ -405,6 +422,7 @@ npt_d3d11_buffer_aux_init(struct npt_com_base *com,
 {
    struct npt_d3d11_buffer_aux *aux = com->aux;
    aux->com = com;
+   aux->external_current = NPT_EXTERNAL_COOKIE_NONE;
    npt_d3d_map_ring_init(&aux->map_ring, com);
    com->aux_destroy = npt_d3d11_buffer_aux_destroy;
    (void)dev; (void)host_id;
@@ -444,6 +462,172 @@ npt_d3d11_buffer_get_byte_width(struct npt_d3d11_buffer *b)
 {
    struct npt_d3d11_buffer_aux *aux = buf_aux(b);
    return aux ? aux->byte_width : 0;
+}
+
+void
+npt_d3d11_buffer_set_external_eligible(struct npt_d3d11_buffer *b)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (aux)
+      atomic_store_explicit(&aux->external_eligible, true,
+                            memory_order_relaxed);
+}
+
+bool
+npt_d3d11_buffer_external_eligible(const struct npt_d3d11_buffer *b)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   return aux && atomic_load_explicit(&aux->external_eligible,
+                                      memory_order_relaxed);
+}
+
+void
+npt_d3d11_buffer_retire_external(struct npt_d3d11_buffer *b)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (aux)
+      atomic_store_explicit(&aux->external_retiring, true,
+                            memory_order_relaxed);
+}
+
+bool
+npt_d3d11_buffer_external_retiring(const struct npt_d3d11_buffer *b)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   return aux && atomic_load_explicit(&aux->external_retiring,
+                                      memory_order_relaxed);
+}
+
+void
+npt_d3d11_buffer_drop_external(struct npt_d3d11_buffer *b)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (!aux)
+      return;
+   aux->external_current = NPT_EXTERNAL_COOKIE_NONE;
+   atomic_store_explicit(&aux->external_eligible, false,
+                         memory_order_relaxed);
+}
+
+bool
+npt_d3d11_buffer_claim_external(struct npt_d3d11_buffer *b)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (!aux || aux->external_claimed)
+      return false;
+   aux->external_claimed = true;
+   return true;
+}
+
+bool
+npt_d3d11_buffer_external_claimed(const struct npt_d3d11_buffer *b)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   return aux && aux->external_claimed;
+}
+
+uint32_t
+npt_d3d11_buffer_external_current(const struct npt_d3d11_buffer *b)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   return aux ? aux->external_current : NPT_EXTERNAL_COOKIE_NONE;
+}
+
+void
+npt_d3d11_buffer_set_external_current(struct npt_d3d11_buffer *b,
+                                      uint32_t cookie)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (aux)
+      aux->external_current = cookie;
+}
+
+void
+npt_d3d11_buffer_set_mapped_in_place(struct npt_d3d11_buffer *b,
+                                     bool in_place)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (aux)
+      aux->mapped_in_place = in_place;
+}
+
+bool
+npt_d3d11_buffer_mapped_in_place(const struct npt_d3d11_buffer *b)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   return aux && aux->mapped_in_place;
+}
+
+void *
+npt_d3d11_buffer_external_slot_ptr(const struct npt_d3d11_buffer *b,
+                                   uint32_t cookie)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (!aux || cookie >= NPT_D3D11_EXTERNAL_SLOT_MAX ||
+       !aux->external_slots[cookie])
+      return NULL;
+   return aux->external_slots[cookie]->mmap_ptr;
+}
+
+/* Each slot pins a blob the size of the buffer for the buffer's
+ * lifetime, so a large buffer gets fewer. */
+static uint32_t
+external_slot_cap(uint32_t byte_width)
+{
+   return byte_width <= (4u << 20)  ? NPT_D3D11_EXTERNAL_SLOT_MAX :
+          byte_width <= (32u << 20) ? 4u : 3u;
+}
+
+bool
+npt_d3d11_buffer_add_external_slot(struct npt_d3d11_buffer *b,
+                                   struct npt_ring *ring)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (!aux || !ring || !aux->byte_width ||
+       aux->external_reserved >= external_slot_cap(aux->byte_width))
+      return false;
+
+   const uint32_t cookie = aux->external_reserved++;
+
+   /* The host wraps the blob as a no-copy GPU buffer, which wants a
+    * whole number of its pages: 16 KiB on Apple silicon. */
+   const size_t size = ((size_t)aux->byte_width + 16383u) & ~(size_t)16383u;
+   struct npt_renderer *rndr = aux->com->base.device->renderer;
+   struct npt_renderer_shmem *shmem = rndr->shmem_ops.create(rndr, size);
+   if (!shmem) {
+      /* With no shmem the host has nothing to rename onto. */
+      if (cookie == 0)
+         npt_d3d11_buffer_drop_external(b);
+      return false;
+   }
+
+   /* The bind names the blob's res_id: on transports where a create is
+    * not host-visible on return, the ring must first observe it. */
+   npt_ring_force_roundtrip(ring);
+
+   aux->external_slots[cookie] = shmem;
+   const HRESULT hr = npt_dispatch_bind_d3d11_buffer_shmem(
+      ring, aux->com->base.id, shmem->res_id, cookie, aux->byte_width);
+   if (NPT_FAILED(hr)) {
+      if (hr != NPT_E_NOTIMPL)
+         npt_log("buffer 0x%llx: external slot %u bind failed 0x%08x",
+                 (unsigned long long)aux->com->base.id, cookie,
+                 (unsigned)hr);
+      aux->external_slots[cookie] = NULL;
+      npt_renderer_shmem_unref_async(rndr, shmem);
+      if (cookie == 0)
+         npt_d3d11_buffer_drop_external(b);
+      return false;
+   }
+   return true;
+}
+
+void
+npt_d3d11_buffer_wait_slot(struct npt_d3d11_buffer *b, uint32_t slot)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (aux)
+      npt_d3d_map_ring_wait_slot(&aux->map_ring, slot);
 }
 
 bool

@@ -132,6 +132,10 @@ void npt_d3d_map_ring_mark_slot_submitted(struct npt_d3d_map_ring *r,
                                           uint32_t slot, uint32_t seqno,
                                           struct npt_ring *ring);
 
+/* Block until the host has consumed the Unmap last submitted from slot,
+ * for a caller about to write a slot it did not get from a rotate. */
+void npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot);
+
 /* ==========================================================================
  * ID3D11Buffer wrapper
  * ========================================================================== */
@@ -147,6 +151,63 @@ bool npt_d3d11_buffer_fill_desc(struct npt_d3d11_buffer *b,
 uint32_t npt_d3d11_buffer_get_byte_width(struct npt_d3d11_buffer *b);
 
 bool npt_d3d11_buffer_ensure_map_shmem(struct npt_d3d11_buffer *b);
+
+/* Host-shared storage (NPT_CAPSET_CAP_D3D11_EXTERNAL_BUFFERS).  The map
+ * ring's NO_OVERWRITE Map is free, but its Unmap has the host copy the
+ * whole buffer, since D3D11 never says which bytes were written; an app
+ * appending small chunks to a large ring buffer pays that copy on every
+ * append.  So an eligible buffer that sees a NO_OVERWRITE Map on the
+ * immediate context switches: the host gets guest shmems (cookies) to
+ * rename onto, the immediate context's DISCARD becomes a sync Map whose
+ * reply names the shmem it landed on, and its NO_OVERWRITE writes that
+ * shmem in place with no host traffic at all.  A buffer that only ever
+ * DISCARDs keeps the map ring, whose DISCARD needs no reply.
+ *
+ * Only the immediate context takes this path, and it alone reads or
+ * writes the claim, the current cookie and the slots.  A deferred
+ * context's DISCARD renames the host buffer when its command list
+ * executes, not when it is recorded, so once a deferred context maps the
+ * buffer a shmem written in place can stop being the buffer's storage.
+ * The buffer then leaves the path at the immediate context's next
+ * DISCARD: before it, a NO_OVERWRITE sent to the map ring would write a
+ * slot missing the bytes written in place.  It also leaves when a
+ * DISCARD finds every shmem in use and no more may be added, where the
+ * host copy is cheaper than a round trip on every DISCARD. */
+#define NPT_D3D11_EXTERNAL_BUFFER_MIN_BYTES (1u << 20)
+#define NPT_D3D11_EXTERNAL_SLOT_MAX 8u
+void npt_d3d11_buffer_set_external_eligible(struct npt_d3d11_buffer *b);
+bool npt_d3d11_buffer_external_eligible(const struct npt_d3d11_buffer *b);
+/* A deferred context mapped the buffer; any thread. */
+void npt_d3d11_buffer_retire_external(struct npt_d3d11_buffer *b);
+bool npt_d3d11_buffer_external_retiring(const struct npt_d3d11_buffer *b);
+/* Leave the path for good: the map ring serves every later Map. */
+void npt_d3d11_buffer_drop_external(struct npt_d3d11_buffer *b);
+/* True on the first call only: that NO_OVERWRITE switches the buffer. */
+bool npt_d3d11_buffer_claim_external(struct npt_d3d11_buffer *b);
+bool npt_d3d11_buffer_external_claimed(const struct npt_d3d11_buffer *b);
+/* Cookie of the shmem holding the current contents, or
+ * NPT_EXTERNAL_COOKIE_NONE when they are on the map ring. */
+uint32_t npt_d3d11_buffer_external_current(const struct npt_d3d11_buffer *b);
+void npt_d3d11_buffer_set_external_current(struct npt_d3d11_buffer *b,
+                                           uint32_t cookie);
+/* One more shmem for the host to rename onto; false at the buffer's
+ * slot cap or on any failure, after which it keeps whatever it has. */
+bool npt_d3d11_buffer_add_external_slot(struct npt_d3d11_buffer *b,
+                                        struct npt_ring *ring);
+void *npt_d3d11_buffer_external_slot_ptr(const struct npt_d3d11_buffer *b,
+                                         uint32_t cookie);
+/* The open Map is a NO_OVERWRITE on the current shmem: its Unmap sends
+ * nothing, since the host never saw the Map. */
+void npt_d3d11_buffer_set_mapped_in_place(struct npt_d3d11_buffer *b,
+                                          bool in_place);
+bool npt_d3d11_buffer_mapped_in_place(const struct npt_d3d11_buffer *b);
+void npt_d3d11_buffer_wait_slot(struct npt_d3d11_buffer *b, uint32_t slot);
+
+/* Contexts from CreateDeferredContext{,1,2,3} are tagged deferred before
+ * they reach the app; every other context wrapper is the device's
+ * immediate context.  A context with no tag storage is neither. */
+void npt_d3d11_context_set_deferred(void *context);
+bool npt_d3d11_context_is_immediate(void *context);
 /* Slot 0's res_id (sync MAP_RESOURCE always lands on slot 0). */
 uint32_t npt_d3d11_buffer_get_map_shmem_res_id(struct npt_d3d11_buffer *b);
 /* Per-slot res_id for async Unmap on the rename ring. */
@@ -332,6 +393,17 @@ struct npt_d3d11_buffer_aux {
    D3D11_BUFFER_DESC desc;
    bool has_desc;
    struct npt_d3d_map_ring map_ring;
+   /* Host-shared rename storage, indexed by cookie.  eligible and
+    * retiring are read on every context's thread; the rest belongs to the
+    * immediate context.  A slot is stored before the bind that lets the
+    * host hand it out (cleared if the bind fails). */
+   struct npt_renderer_shmem *external_slots[NPT_D3D11_EXTERNAL_SLOT_MAX];
+   uint32_t external_reserved;
+   _Atomic bool external_eligible;
+   _Atomic bool external_retiring;
+   bool external_claimed;
+   uint32_t external_current;
+   bool mapped_in_place;
 };
 
 void npt_d3d11_buffer_aux_init(struct npt_com_base *com,
