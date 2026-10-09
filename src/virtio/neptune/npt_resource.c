@@ -284,13 +284,14 @@ void
 npt_d3d_map_ring_fini(struct npt_d3d_map_ring *r)
 {
    if (!r->slots) {
+      free(r->records);
       mtx_destroy(&r->lock);
       return;
    }
    struct npt_renderer *rndr = r->com->base.device->renderer;
 
-   /* No pending_seqno wait: rotate_slot is the only consumer and the
-    * ring is going away.  Host-side ordering is covered by COM_RELEASE
+   /* No pending_seqno wait: a Map's slot choice is the only consumer and
+    * the ring is going away.  Host-side ordering is covered by COM_RELEASE
     * (queued in npt_com_destroy before this fini runs). */
    for (uint32_t i = 0; i < r->active_count; i++) {
       if (r->slots[i].shmem)
@@ -298,10 +299,13 @@ npt_d3d_map_ring_fini(struct npt_d3d_map_ring *r)
    }
    free(r->slots);
    r->slots = NULL;
+   free(r->records);
+   r->records = NULL;
+   r->record_count = r->record_cap = 0;
    r->active_count = 0;
    r->aligned_slot_size = 0;
    r->max_slots = 0;
-   atomic_store_explicit(&r->current_slot, 0, memory_order_relaxed);
+   r->current_slot = 0;
    atomic_store_explicit(&r->ready, false, memory_order_relaxed);
    mtx_destroy(&r->lock);
 }
@@ -327,36 +331,135 @@ wait_slot_locked(struct npt_d3d_map_ring *r, uint32_t slot)
    }
 }
 
-uint32_t
-npt_d3d_map_ring_rotate_slot(struct npt_d3d_map_ring *r)
+/* Caller holds r->lock. */
+static bool
+slot_held_locked(const struct npt_d3d_map_ring *r, uint32_t slot)
 {
-   mtx_lock(&r->lock);
-   if (!r->slots || !r->active_count) {
-      mtx_unlock(&r->lock);
-      return 0;
+   for (uint32_t i = 0; i < r->record_count; i++) {
+      if (!r->records[i].in_place && r->records[i].slot == slot)
+         return true;
    }
+   return false;
+}
+
+/* Caller holds r->lock.  *wait: the slot is still in flight, and the
+ * caller waits for it once its record holds the slot. */
+static uint32_t
+next_slot_locked(struct npt_d3d_map_ring *r, bool *wait)
+{
+   *wait = false;
+   if (!r->slots || !r->active_count)
+      return 0;
 
    const uint32_t cnt = r->active_count;
-   uint32_t next =
-      (atomic_load_explicit(&r->current_slot, memory_order_relaxed) + 1u) %
-      cnt;
+   uint32_t next = (r->current_slot + 1u) % cnt;
+   if (!r->slots[next].in_flight && !slot_held_locked(r, next))
+      return next;
 
-   if (r->slots[next].in_flight) {
-      if (cnt < r->max_slots && alloc_slot_locked(r, cnt)) {
-         /* Grow path: bring up a fresh slot at active_count. */
-         next = cnt;
-      } else {
-         /* At cap (or grow failed): claim the wrap-around slot, so the
-          * next rotate moves past it, and wait for the host there. */
-         atomic_store_explicit(&r->current_slot, next, memory_order_release);
-         wait_slot_locked(r, next);
-         mtx_unlock(&r->lock);
-         return next;
-      }
-   }
-   atomic_store_explicit(&r->current_slot, next, memory_order_release);
-   mtx_unlock(&r->lock);
+   /* Grow path: bring up a fresh slot at active_count. */
+   if (cnt < r->max_slots && alloc_slot_locked(r, cnt))
+      return cnt;
+
+   /* At cap (or grow failed): the first slot no open Map holds, waiting
+    * for the host there. */
+   for (uint32_t i = 0; i < cnt && slot_held_locked(r, next); i++)
+      next = (next + 1u) % cnt;
+   *wait = r->slots[next].in_flight;
    return next;
+}
+
+/* Caller holds r->lock. */
+static struct npt_d3d_map_record *
+find_record_locked(struct npt_d3d_map_ring *r, const void *context,
+                   uint32_t subresource)
+{
+   for (uint32_t i = 0; i < r->record_count; i++) {
+      if (r->records[i].context == context &&
+          r->records[i].subresource == subresource)
+         return &r->records[i];
+   }
+   return NULL;
+}
+
+bool
+npt_d3d_map_ring_open(struct npt_d3d_map_ring *r,
+                      struct npt_d3d_map_record *rec,
+                      enum npt_d3d_map_slot_choice choice)
+{
+   mtx_lock(&r->lock);
+   /* A Map with no Unmap is replaced by the new one. */
+   struct npt_d3d_map_record *slot_rec =
+      find_record_locked(r, rec->context, rec->subresource);
+   if (!slot_rec) {
+      if (r->record_count == r->record_cap) {
+         const uint32_t cap = r->record_cap ? r->record_cap * 2u : 2u;
+         struct npt_d3d_map_record *records =
+            realloc(r->records, cap * sizeof(*records));
+         if (!records) {
+            mtx_unlock(&r->lock);
+            return false;
+         }
+         r->records = records;
+         r->record_cap = cap;
+      }
+      slot_rec = &r->records[r->record_count++];
+   }
+   /* Holds no slot until the choice below is made. */
+   slot_rec->in_place = true;
+
+   bool wait = false;
+   switch (choice) {
+   case NPT_D3D_MAP_SLOT_ZERO:
+      rec->slot = 0;
+      r->current_slot = 0;
+      break;
+   case NPT_D3D_MAP_SLOT_CURRENT:
+      rec->slot = r->current_slot;
+      break;
+   case NPT_D3D_MAP_SLOT_NEXT:
+      rec->slot = next_slot_locked(r, &wait);
+      r->current_slot = rec->slot;
+      break;
+   }
+   *slot_rec = *rec;
+   /* The record holds the slot, so a rotate during the wait passes it. */
+   if (wait)
+      wait_slot_locked(r, rec->slot);
+   mtx_unlock(&r->lock);
+   return true;
+}
+
+bool
+npt_d3d_map_ring_find(struct npt_d3d_map_ring *r, const void *context,
+                      uint32_t subresource, struct npt_d3d_map_record *out)
+{
+   mtx_lock(&r->lock);
+   const struct npt_d3d_map_record *rec =
+      find_record_locked(r, context, subresource);
+   if (rec)
+      *out = *rec;
+   mtx_unlock(&r->lock);
+   return rec != NULL;
+}
+
+void
+npt_d3d_map_ring_close(struct npt_d3d_map_ring *r, const void *context,
+                       uint32_t subresource, struct npt_ring *ring,
+                       uint32_t seqno)
+{
+   mtx_lock(&r->lock);
+   struct npt_d3d_map_record *rec =
+      find_record_locked(r, context, subresource);
+   if (rec) {
+      if (ring && rec->slot < r->active_count) {
+         struct npt_d3d_map_slot *s = &r->slots[rec->slot];
+         s->pending_seqno = seqno;
+         s->pending_ring = ring;
+         s->in_flight = true;
+      }
+      *rec = r->records[--r->record_count];
+   }
+   mtx_unlock(&r->lock);
 }
 
 void
@@ -365,29 +468,6 @@ npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot)
    mtx_lock(&r->lock);
    if (r->slots && slot < r->active_count)
       wait_slot_locked(r, slot);
-   mtx_unlock(&r->lock);
-}
-
-void
-npt_d3d_map_ring_set_current_slot(struct npt_d3d_map_ring *r, uint32_t slot)
-{
-   mtx_lock(&r->lock);
-   if (r->slots && slot < r->active_count)
-      atomic_store_explicit(&r->current_slot, slot, memory_order_release);
-   mtx_unlock(&r->lock);
-}
-
-void
-npt_d3d_map_ring_mark_slot_submitted(struct npt_d3d_map_ring *r,
-                                     uint32_t slot, uint32_t seqno,
-                                     struct npt_ring *ring)
-{
-   mtx_lock(&r->lock);
-   if (r->slots && slot < r->active_count) {
-      r->slots[slot].pending_seqno = seqno;
-      r->slots[slot].pending_ring = ring;
-      r->slots[slot].in_flight = true;
-   }
    mtx_unlock(&r->lock);
 }
 
@@ -542,22 +622,6 @@ npt_d3d11_buffer_set_external_current(struct npt_d3d11_buffer *b,
       aux->external_current = cookie;
 }
 
-void
-npt_d3d11_buffer_set_mapped_in_place(struct npt_d3d11_buffer *b,
-                                     bool in_place)
-{
-   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   if (aux)
-      aux->mapped_in_place = in_place;
-}
-
-bool
-npt_d3d11_buffer_mapped_in_place(const struct npt_d3d11_buffer *b)
-{
-   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   return aux && aux->mapped_in_place;
-}
-
 void *
 npt_d3d11_buffer_external_slot_ptr(const struct npt_d3d11_buffer *b,
                                    uint32_t cookie)
@@ -654,17 +718,41 @@ npt_d3d11_buffer_get_slot_shmem_res_id(struct npt_d3d11_buffer *b, uint32_t slot
 }
 
 bool
-npt_d3d11_buffer_get_is_mapped(struct npt_d3d11_buffer *b)
+npt_d3d11_buffer_map_open(struct npt_d3d11_buffer *b, const void *context,
+                          enum npt_d3d_map_slot_choice choice,
+                          uint32_t access_flags, bool in_place,
+                          uint32_t *out_slot)
 {
    struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   return aux ? aux->map_ring.is_mapped : false;
+   if (!aux)
+      return false;
+   struct npt_d3d_map_record rec = {
+      .context = context,
+      .access_flags = access_flags,
+      .byte_size = aux->byte_width,
+      .in_place = in_place,
+   };
+   if (!npt_d3d_map_ring_open(&aux->map_ring, &rec, choice))
+      return false;
+   *out_slot = rec.slot;
+   return true;
+}
+
+bool
+npt_d3d11_buffer_map_find(struct npt_d3d11_buffer *b, const void *context,
+                          struct npt_d3d_map_record *out)
+{
+   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   return aux && npt_d3d_map_ring_find(&aux->map_ring, context, 0, out);
 }
 
 void
-npt_d3d11_buffer_set_is_mapped(struct npt_d3d11_buffer *b, bool mapped)
+npt_d3d11_buffer_map_close(struct npt_d3d11_buffer *b, const void *context,
+                           struct npt_ring *ring, uint32_t seqno)
 {
    struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   if (aux) aux->map_ring.is_mapped = mapped;
+   if (aux)
+      npt_d3d_map_ring_close(&aux->map_ring, context, 0, ring, seqno);
 }
 
 uint32_t
@@ -679,51 +767,6 @@ npt_d3d11_buffer_slot_ptr(const struct npt_d3d11_buffer *b, uint32_t slot)
 {
    const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
    return aux ? npt_d3d_map_ring_slot_ptr(&aux->map_ring, slot) : NULL;
-}
-
-uint32_t
-npt_d3d11_buffer_get_current_slot(const struct npt_d3d11_buffer *b)
-{
-   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   return aux ? npt_d3d_map_ring_current_slot(&aux->map_ring) : 0;
-}
-
-void
-npt_d3d11_buffer_set_current_slot(struct npt_d3d11_buffer *b, uint32_t slot)
-{
-   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   if (aux)
-      npt_d3d_map_ring_set_current_slot(&aux->map_ring, slot);
-}
-
-uint32_t
-npt_d3d11_buffer_rotate_slot(struct npt_d3d11_buffer *b)
-{
-   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   return aux ? npt_d3d_map_ring_rotate_slot(&aux->map_ring) : 0;
-}
-
-void
-npt_d3d11_buffer_mark_slot_submitted(struct npt_d3d11_buffer *b,
-                                     uint32_t slot, uint32_t seqno,
-                                     struct npt_ring *ring)
-{
-   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   if (aux) npt_d3d_map_ring_mark_slot_submitted(&aux->map_ring, slot, seqno, ring);
-}
-
-void
-npt_d3d11_buffer_set_last_map_access_flags(struct npt_d3d11_buffer *b, uint32_t flags)
-{
-   struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   if (aux) aux->map_ring.last_map_access_flags = flags;
-}
-
-uint32_t
-npt_d3d11_buffer_get_last_map_access_flags(const struct npt_d3d11_buffer *b)
-{
-   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
-   return aux ? aux->map_ring.last_map_access_flags : 0;
 }
 
 /* ==========================================================================
@@ -1299,16 +1342,6 @@ void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t)
    return aux ? npt_d3d_map_ring_slot_ptr(&aux->map_ring, 0) : NULL;
 }
 
-uint32_t npt_d3d11_texture_get_current_slot(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_current_slot(&aux->map_ring) : 0; }
-
-void npt_d3d11_texture_set_current_slot(struct npt_d3d11_texture *t, uint32_t slot)
-{
-   struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   if (aux)
-      npt_d3d_map_ring_set_current_slot(&aux->map_ring, slot);
-}
-
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t, uint32_t slot)
 { const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_slot_offset(&aux->map_ring, slot) : 0; }
 
@@ -1318,51 +1351,45 @@ void *npt_d3d11_texture_slot_ptr(const struct npt_d3d11_texture *t, uint32_t slo
    return aux ? npt_d3d_map_ring_slot_ptr(&aux->map_ring, slot) : NULL;
 }
 
-uint32_t npt_d3d11_texture_rotate_slot(struct npt_d3d11_texture *t)
+bool npt_d3d11_texture_map_open(struct npt_d3d11_texture *t,
+                                const void *context, uint32_t subresource,
+                                enum npt_d3d_map_slot_choice choice,
+                                uint32_t access_flags, uint32_t byte_size,
+                                uint32_t *out_slot)
 {
    struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   return aux ? npt_d3d_map_ring_rotate_slot(&aux->map_ring) : 0;
+   if (!aux)
+      return false;
+   struct npt_d3d_map_record rec = {
+      .context = context,
+      .subresource = subresource,
+      .access_flags = access_flags,
+      .byte_size = byte_size,
+   };
+   if (!npt_d3d_map_ring_open(&aux->map_ring, &rec, choice))
+      return false;
+   *out_slot = rec.slot;
+   return true;
 }
 
-void npt_d3d11_texture_mark_slot_submitted(struct npt_d3d11_texture *t,
-                                           uint32_t slot, uint32_t seqno,
-                                           struct npt_ring *ring)
+bool npt_d3d11_texture_map_find(struct npt_d3d11_texture *t,
+                                const void *context, uint32_t subresource,
+                                struct npt_d3d_map_record *out)
 {
    struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   if (aux) npt_d3d_map_ring_mark_slot_submitted(&aux->map_ring, slot, seqno, ring);
+   return aux && npt_d3d_map_ring_find(&aux->map_ring, context, subresource,
+                                       out);
 }
 
-bool npt_d3d11_texture_get_is_mapped(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->map_ring.is_mapped : false; }
-
-void npt_d3d11_texture_set_mapped_state(struct npt_d3d11_texture *t,
-                                        uint32_t subresource, uint32_t row_pitch,
-                                        uint32_t byte_size, uint32_t access_flags)
+void npt_d3d11_texture_map_close(struct npt_d3d11_texture *t,
+                                 const void *context, uint32_t subresource,
+                                 struct npt_ring *ring, uint32_t seqno)
 {
    struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   if (!aux) return;
-   aux->map_ring.is_mapped = true;
-   aux->map_ring.last_map_access_flags = access_flags;
-   aux->last_map_subresource = subresource;
-   aux->last_map_row_pitch = row_pitch;
-   aux->last_map_byte_size = byte_size;
+   if (aux)
+      npt_d3d_map_ring_close(&aux->map_ring, context, subresource, ring,
+                             seqno);
 }
-
-void npt_d3d11_texture_clear_mapped_state(struct npt_d3d11_texture *t)
-{
-   struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   if (!aux) return;
-   aux->map_ring.is_mapped = false;
-   aux->map_ring.last_map_access_flags = 0;
-   aux->last_map_byte_size = 0;
-}
-
-uint32_t npt_d3d11_texture_get_last_map_subresource(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->last_map_subresource : 0; }
-uint32_t npt_d3d11_texture_get_last_map_byte_size(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->last_map_byte_size : 0; }
-uint32_t npt_d3d11_texture_get_last_map_access_flags(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->map_ring.last_map_access_flags : 0; }
 
 uint32_t npt_d3d11_texture_get_cached_row_pitch(const struct npt_d3d11_texture *t)
 { const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->cached_row_pitch : 0; }

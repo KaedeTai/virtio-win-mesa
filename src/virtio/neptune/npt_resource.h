@@ -51,6 +51,28 @@ struct npt_d3d_map_slot {
    bool in_flight;
 };
 
+/* One open Map: the slot it was given and what its Unmap sends.  Several
+ * contexts can map one resource at once, and one context several
+ * subresources of a texture, so each Unmap closes its own Map's record. */
+struct npt_d3d_map_record {
+   const void *context;     /* the mapping context's key */
+   uint32_t subresource;
+   uint32_t slot;
+   /* 0: a sync Map, whose host map_state the Unmap reuses; else the host
+    * replays Map+memcpy+Unmap with these flags. */
+   uint32_t access_flags;
+   uint32_t byte_size;
+   /* NO_OVERWRITE on host-shared storage: holds no slot, and the Unmap
+    * sends nothing. */
+   bool in_place;
+};
+
+enum npt_d3d_map_slot_choice {
+   NPT_D3D_MAP_SLOT_ZERO,      /* sync MAP_RESOURCE */
+   NPT_D3D_MAP_SLOT_CURRENT,   /* WRITE_NO_OVERWRITE */
+   NPT_D3D_MAP_SLOT_NEXT,      /* WRITE_DISCARD */
+};
+
 struct npt_d3d_map_ring {
    struct npt_com_base *com;
    /* Deferred contexts on other threads map the same resource, so slot
@@ -66,13 +88,12 @@ struct npt_d3d_map_ring {
    uint32_t aligned_slot_size;
    uint32_t max_slots;      /* growth cap, <= NPT_D3D_MAP_SLOT_MAX */
    uint32_t active_count;
-   /* Written under the lock after the slot it names is allocated; the
-    * release store lets an unlocked reader use that slot. */
-   _Atomic uint32_t current_slot;
-   bool     is_mapped;
-   uint32_t last_map_access_flags;
+   uint32_t current_slot;
    /* max_slots entries, allocated with the first shmem; NULL until then. */
    struct npt_d3d_map_slot *slots;
+   /* Open Maps: record_count of record_cap entries. */
+   struct npt_d3d_map_record *records;
+   uint32_t record_count, record_cap;
 };
 
 /* Slot size depends on per-resource sizing (byte_width / row_pitch *
@@ -110,30 +131,34 @@ npt_d3d_map_ring_slot_res_id(const struct npt_d3d_map_ring *r, uint32_t slot)
    return r->slots[slot].shmem_res_id;
 }
 
-/* Try the next slot in the ring; if it's in flight, grow up to the
- * ring's max_slots before falling back to blocking on pending_seqno.
- * The block runs outside the lock: the host may reach that seqno only
- * after another thread submits work (a fence it waits on), and that
- * thread may be about to Map this resource. */
-uint32_t npt_d3d_map_ring_rotate_slot(struct npt_d3d_map_ring *r);
+/* Records *rec as the open Map of (rec->context, rec->subresource),
+ * replacing any earlier one, with the slot choice picks stored in
+ * rec->slot.  NEXT takes the slot after the current one unless it is in
+ * flight or another open Map holds it; then it grows up to max_slots
+ * before blocking on pending_seqno.  The block runs outside the lock:
+ * the host may reach that seqno only after another thread submits work
+ * (a fence it waits on), and that thread may be about to Map this
+ * resource.  False on allocation failure, with nothing recorded. */
+bool npt_d3d_map_ring_open(struct npt_d3d_map_ring *r,
+                           struct npt_d3d_map_record *rec,
+                           enum npt_d3d_map_slot_choice choice);
 
-static inline uint32_t
-npt_d3d_map_ring_current_slot(const struct npt_d3d_map_ring *r)
-{
-   return atomic_load_explicit(&r->current_slot, memory_order_acquire);
-}
+/* Copies the open Map of (context, subresource) into *out; false if
+ * there is none. */
+bool npt_d3d_map_ring_find(struct npt_d3d_map_ring *r, const void *context,
+                           uint32_t subresource,
+                           struct npt_d3d_map_record *out);
 
-/* Only for a slot the caller already holds a locked answer for (slot 0
- * after alloc_shmem). */
-void npt_d3d_map_ring_set_current_slot(struct npt_d3d_map_ring *r,
-                                       uint32_t slot);
-
-void npt_d3d_map_ring_mark_slot_submitted(struct npt_d3d_map_ring *r,
-                                          uint32_t slot, uint32_t seqno,
-                                          struct npt_ring *ring);
+/* Removes the open Map of (context, subresource).  With a ring, its
+ * Unmap was submitted there at seqno, and the slot goes in flight in the
+ * same step that drops the Map's hold on it, so no other Map is handed
+ * the slot before the host has copied out of it. */
+void npt_d3d_map_ring_close(struct npt_d3d_map_ring *r, const void *context,
+                            uint32_t subresource, struct npt_ring *ring,
+                            uint32_t seqno);
 
 /* Block until the host has consumed the Unmap last submitted from slot,
- * for a caller about to write a slot it did not get from a rotate. */
+ * for a caller about to write a slot NEXT did not choose. */
 void npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot);
 
 /* ==========================================================================
@@ -198,9 +223,6 @@ void *npt_d3d11_buffer_external_slot_ptr(const struct npt_d3d11_buffer *b,
                                          uint32_t cookie);
 /* The open Map is a NO_OVERWRITE on the current shmem: its Unmap sends
  * nothing, since the host never saw the Map. */
-void npt_d3d11_buffer_set_mapped_in_place(struct npt_d3d11_buffer *b,
-                                          bool in_place);
-bool npt_d3d11_buffer_mapped_in_place(const struct npt_d3d11_buffer *b);
 void npt_d3d11_buffer_wait_slot(struct npt_d3d11_buffer *b, uint32_t slot);
 
 /* Contexts from CreateDeferredContext{,1,2,3} are tagged deferred before
@@ -213,8 +235,19 @@ uint32_t npt_d3d11_buffer_get_map_shmem_res_id(struct npt_d3d11_buffer *b);
 /* Per-slot res_id for async Unmap on the rename ring. */
 uint32_t npt_d3d11_buffer_get_slot_shmem_res_id(struct npt_d3d11_buffer *b,
                                                 uint32_t slot);
-bool npt_d3d11_buffer_get_is_mapped(struct npt_d3d11_buffer *b);
-void npt_d3d11_buffer_set_is_mapped(struct npt_d3d11_buffer *b, bool mapped);
+
+/* A context's open Map of the buffer (npt_d3d_map_ring_open/find/close,
+ * subresource 0). */
+bool npt_d3d11_buffer_map_open(struct npt_d3d11_buffer *b, const void *context,
+                               enum npt_d3d_map_slot_choice choice,
+                               uint32_t access_flags, bool in_place,
+                               uint32_t *out_slot);
+bool npt_d3d11_buffer_map_find(struct npt_d3d11_buffer *b,
+                               const void *context,
+                               struct npt_d3d_map_record *out);
+void npt_d3d11_buffer_map_close(struct npt_d3d11_buffer *b,
+                                const void *context, struct npt_ring *ring,
+                                uint32_t seqno);
 
 /* Always 0 — slots own their shmem and start at offset 0.  Kept for
  * Unmap call-site symmetry. */
@@ -222,19 +255,6 @@ uint32_t npt_d3d11_buffer_slot_offset(const struct npt_d3d11_buffer *b,
                                       uint32_t slot);
 void *npt_d3d11_buffer_slot_ptr(const struct npt_d3d11_buffer *b,
                                 uint32_t slot);
-uint32_t npt_d3d11_buffer_get_current_slot(const struct npt_d3d11_buffer *b);
-void npt_d3d11_buffer_set_current_slot(struct npt_d3d11_buffer *b,
-                                       uint32_t slot);
-uint32_t npt_d3d11_buffer_rotate_slot(struct npt_d3d11_buffer *b);
-void npt_d3d11_buffer_mark_slot_submitted(struct npt_d3d11_buffer *b,
-                                          uint32_t slot, uint32_t seqno,
-                                          struct npt_ring *ring);
-
-/* 0 = last Map went through MAP_RESOURCE so the host already
- * populated map_state; non-zero = host replays Map+memcpy+Unmap. */
-void npt_d3d11_buffer_set_last_map_access_flags(struct npt_d3d11_buffer *b,
-                                                uint32_t flags);
-uint32_t npt_d3d11_buffer_get_last_map_access_flags(const struct npt_d3d11_buffer *b);
 
 /* ==========================================================================
  * ID3D11Texture{1,2,3}D wrapper
@@ -299,32 +319,25 @@ uint32_t npt_d3d11_texture_get_shmem_size(const struct npt_d3d11_texture *t);
 uint32_t npt_d3d11_texture_get_slot_size(const struct npt_d3d11_texture *t);
 void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t);
 
-/* Sync Maps always land on slot 0; rename-ring fast path rotates. */
-uint32_t npt_d3d11_texture_get_current_slot(const struct npt_d3d11_texture *t);
-void npt_d3d11_texture_set_current_slot(struct npt_d3d11_texture *t,
-                                        uint32_t slot);
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t,
                                        uint32_t slot);
 void *npt_d3d11_texture_slot_ptr(const struct npt_d3d11_texture *t,
                                  uint32_t slot);
-uint32_t npt_d3d11_texture_rotate_slot(struct npt_d3d11_texture *t);
-void npt_d3d11_texture_mark_slot_submitted(struct npt_d3d11_texture *t,
-                                           uint32_t slot, uint32_t seqno,
-                                           struct npt_ring *ring);
 
-/* access_flags=0 => sync Map populated host map_state and the host
- * uses it; non-zero => host replays Map+memcpy+Unmap with these
- * flags (cached-pitch fast path). */
-bool npt_d3d11_texture_get_is_mapped(const struct npt_d3d11_texture *t);
-void npt_d3d11_texture_set_mapped_state(struct npt_d3d11_texture *t,
-                                        uint32_t subresource,
-                                        uint32_t row_pitch,
-                                        uint32_t byte_size,
-                                        uint32_t access_flags);
-void npt_d3d11_texture_clear_mapped_state(struct npt_d3d11_texture *t);
-uint32_t npt_d3d11_texture_get_last_map_subresource(const struct npt_d3d11_texture *t);
-uint32_t npt_d3d11_texture_get_last_map_byte_size(const struct npt_d3d11_texture *t);
-uint32_t npt_d3d11_texture_get_last_map_access_flags(const struct npt_d3d11_texture *t);
+/* A context's open Map of one subresource
+ * (npt_d3d_map_ring_open/find/close).  Sync Maps land on slot 0; the
+ * cached-pitch fast path rotates. */
+bool npt_d3d11_texture_map_open(struct npt_d3d11_texture *t,
+                                const void *context, uint32_t subresource,
+                                enum npt_d3d_map_slot_choice choice,
+                                uint32_t access_flags, uint32_t byte_size,
+                                uint32_t *out_slot);
+bool npt_d3d11_texture_map_find(struct npt_d3d11_texture *t,
+                                const void *context, uint32_t subresource,
+                                struct npt_d3d_map_record *out);
+void npt_d3d11_texture_map_close(struct npt_d3d11_texture *t,
+                                 const void *context, uint32_t subresource,
+                                 struct npt_ring *ring, uint32_t seqno);
 
 /* 0 = uncached: next Map must take the sync path to learn the
  * host's pitches.  Once cached, Map returns a shmem pointer with no
@@ -403,14 +416,13 @@ struct npt_d3d11_buffer_aux {
    _Atomic bool external_retiring;
    bool external_claimed;
    uint32_t external_current;
-   bool mapped_in_place;
 };
 
 void npt_d3d11_buffer_aux_init(struct npt_com_base *com,
                                struct npt_device *dev, uint64_t host_id);
 
-/* Per-texture storage.  Cached desc + per-Map pitch bookkeeping +
- * the rename ring shared with the buffer aux. */
+/* Per-texture storage.  Cached desc, the host's map pitches and the
+ * rename ring shared with the buffer aux. */
 struct npt_d3d11_texture_aux {
    struct npt_com_base *com;
    uint32_t width, height, depth;
@@ -424,10 +436,6 @@ struct npt_d3d11_texture_aux {
    /* Pitches from the first sync MAP_RESOURCE; reused by the
     * WRITE_DISCARD / WRITE_NO_OVERWRITE fast path. */
    uint32_t cached_row_pitch, cached_depth_pitch;
-   /* Per-Map state for the matching Unmap. */
-   uint32_t last_map_subresource;
-   uint32_t last_map_row_pitch;
-   uint32_t last_map_byte_size;
    struct npt_d3d_map_ring map_ring;
 };
 

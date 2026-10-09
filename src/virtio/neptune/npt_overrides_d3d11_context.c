@@ -39,9 +39,8 @@ static const GUID *const context_tiers[] = {
    &NPT_IID_ID3D11DeviceContext4, NULL,
 };
 
-/* Shared by a context's tier aliases.  The device's immediate context is
- * reached through several wrappers (D3D11CreateDevice's, each
- * GetImmediateContextN tier), all untagged. */
+/* The immediate context is untagged; CreateDeferredContext tags its
+ * contexts before the app sees them. */
 struct npt_d3d11_context_aux {
    bool deferred;
 };
@@ -114,6 +113,13 @@ ctx_Map_buffer_shared_discard(void *self, struct npt_d3d11_buffer *b,
    struct npt_ring *ring = npt_com_self_ring(self);
    const uint64_t context_id = ((struct npt_com_base *)self)->base.id;
    const uint64_t buffer_id = ((struct npt_com_base *)b)->base.id;
+   const void *key = self;
+
+   uint32_t slot;
+   if (!npt_d3d11_buffer_map_open(b, key, NPT_D3D_MAP_SLOT_ZERO,
+                                  /*access_flags=*/0, /*in_place=*/false,
+                                  &slot))
+      return NPT_E_OUTOFMEMORY;
 
    /* D3D11_MAP_FLAG_DO_NOT_WAIT is invalid with WRITE_DISCARD, and the
     * map ring this Map stands in for never waits. */
@@ -128,8 +134,10 @@ ctx_Map_buffer_shared_discard(void *self, struct npt_d3d11_buffer *b,
       /*mip_height=*/0, /*mip_depth=*/0,
       npt_d3d11_buffer_slot_offset(b, 0),
       &row_pitch, &depth_pitch, &cookie);
-   if (NPT_FAILED(hr))
+   if (NPT_FAILED(hr)) {
+      npt_d3d11_buffer_map_close(b, key, NULL, 0);
       return hr;
+   }
 
    void *ptr = npt_d3d11_buffer_external_slot_ptr(b, cookie);
    if (ptr) {
@@ -144,12 +152,9 @@ ctx_Map_buffer_shared_discard(void *self, struct npt_d3d11_buffer *b,
       ptr = npt_d3d11_buffer_slot_ptr(b, 0);
    }
 
-   npt_d3d11_buffer_set_current_slot(b, 0);
    pMappedResource->pData = ptr;
    pMappedResource->RowPitch = row_pitch;
    pMappedResource->DepthPitch = depth_pitch;
-   npt_d3d11_buffer_set_last_map_access_flags(b, 0);
-   npt_d3d11_buffer_set_is_mapped(b, true);
    return NPT_S_OK;
 }
 
@@ -198,12 +203,18 @@ ctx_Map_buffer_shared(void *self, struct npt_d3d11_buffer *b,
       b, npt_d3d11_buffer_external_current(b));
    if (!ptr)
       return false;
+   uint32_t slot;
+   if (!npt_d3d11_buffer_map_open(b, self,
+                                  NPT_D3D_MAP_SLOT_CURRENT,
+                                  /*access_flags=*/0, /*in_place=*/true,
+                                  &slot)) {
+      *phr = NPT_E_OUTOFMEMORY;
+      return true;
+   }
    const uint32_t byte_width = npt_d3d11_buffer_get_byte_width(b);
    pMappedResource->pData = ptr;
    pMappedResource->RowPitch = byte_width;
    pMappedResource->DepthPitch = byte_width;
-   npt_d3d11_buffer_set_mapped_in_place(b, true);
-   npt_d3d11_buffer_set_is_mapped(b, true);
    *phr = NPT_S_OK;
    return true;
 }
@@ -222,26 +233,36 @@ ctx_Map_buffer(void *self, struct npt_d3d11_buffer *b, UINT Subresource,
    if (!npt_d3d11_buffer_ensure_map_shmem(b))
       return NPT_E_OUTOFMEMORY;
 
+   const void *key = self;
+   uint32_t slot;
+
    if (MapType == D3D11_MAP_WRITE_DISCARD ||
        MapType == D3D11_MAP_WRITE_NO_OVERWRITE) {
       HRESULT hr;
       if (ctx_Map_buffer_shared(self, b, Subresource, MapType, MapFlags,
                                 pMappedResource, &hr))
          return hr;
-      const uint32_t flags = npt_d3d11_map_to_access_flags(MapType);
-      if (MapType == D3D11_MAP_WRITE_DISCARD)
-         npt_d3d11_buffer_rotate_slot(b);
+      if (!npt_d3d11_buffer_map_open(
+             b, key,
+             MapType == D3D11_MAP_WRITE_DISCARD ? NPT_D3D_MAP_SLOT_NEXT
+                                                : NPT_D3D_MAP_SLOT_CURRENT,
+             npt_d3d11_map_to_access_flags(MapType), /*in_place=*/false,
+             &slot))
+         return NPT_E_OUTOFMEMORY;
       const uint32_t byte_width = npt_d3d11_buffer_get_byte_width(b);
-      pMappedResource->pData =
-         npt_d3d11_buffer_slot_ptr(b, npt_d3d11_buffer_get_current_slot(b));
+      pMappedResource->pData = npt_d3d11_buffer_slot_ptr(b, slot);
       pMappedResource->RowPitch = byte_width;
       pMappedResource->DepthPitch = byte_width;
-      npt_d3d11_buffer_set_last_map_access_flags(b, flags);
-      npt_d3d11_buffer_set_is_mapped(b, true);
       return NPT_S_OK;
    }
 
-   /* Sync round-trip, slot 0. */
+   /* Sync round-trip, slot 0.  access_flags=0 => Unmap reuses the
+    * sync-MAP map_state. */
+   if (!npt_d3d11_buffer_map_open(b, key, NPT_D3D_MAP_SLOT_ZERO,
+                                  /*access_flags=*/0, /*in_place=*/false,
+                                  &slot))
+      return NPT_E_OUTOFMEMORY;
+
    uint64_t context_id = ((struct npt_com_base *)self)->base.id;
    uint64_t buffer_id  = ((struct npt_com_base *)b)->base.id;
 
@@ -254,16 +275,14 @@ ctx_Map_buffer(void *self, struct npt_d3d11_buffer *b, UINT Subresource,
       /*mip_height=*/0, /*mip_depth=*/0,
       /*shmem_offset=*/npt_d3d11_buffer_slot_offset(b, 0),
       &row_pitch, &depth_pitch, NULL);
-   if (NPT_FAILED(hr))
+   if (NPT_FAILED(hr)) {
+      npt_d3d11_buffer_map_close(b, key, NULL, 0);
       return hr;
+   }
 
-   /* access_flags=0 => Unmap reuses sync-MAP map_state. */
-   npt_d3d11_buffer_set_current_slot(b, 0);
    pMappedResource->pData = npt_d3d11_buffer_slot_ptr(b, 0);
    pMappedResource->RowPitch = row_pitch;
    pMappedResource->DepthPitch = depth_pitch;
-   npt_d3d11_buffer_set_last_map_access_flags(b, 0);
-   npt_d3d11_buffer_set_is_mapped(b, true);
    return NPT_S_OK;
 }
 
@@ -284,6 +303,7 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
    if (!npt_d3d11_texture_ensure_map_shmem(t))
       return NPT_E_OUTOFMEMORY;
 
+   const void *key = self;
    const uint32_t per_slot    = npt_d3d11_texture_get_slot_size(t);
    const uint32_t shmem_total = npt_d3d11_texture_get_shmem_size(t);
    const uint32_t cached_rp   = npt_d3d11_texture_get_cached_row_pitch(t);
@@ -291,21 +311,22 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
    const bool can_async = (cached_rp != 0) &&
       (MapType == D3D11_MAP_WRITE_DISCARD ||
        MapType == D3D11_MAP_WRITE_NO_OVERWRITE);
+   uint32_t slot;
 
    if (can_async) {
       const uint32_t byte_size =
          npt_d3d11_texture_get_subresource_byte_size(t, Subresource,
                                                      cached_rp, cached_dp);
       if (byte_size && byte_size <= per_slot) {
-         if (MapType == D3D11_MAP_WRITE_DISCARD)
-            npt_d3d11_texture_rotate_slot(t);
-         const uint32_t slot = npt_d3d11_texture_get_current_slot(t);
+         if (!npt_d3d11_texture_map_open(
+                t, key, Subresource,
+                MapType == D3D11_MAP_WRITE_DISCARD ? NPT_D3D_MAP_SLOT_NEXT
+                                                   : NPT_D3D_MAP_SLOT_CURRENT,
+                npt_d3d11_map_to_access_flags(MapType), byte_size, &slot))
+            return NPT_E_OUTOFMEMORY;
          pMappedResource->pData = npt_d3d11_texture_slot_ptr(t, slot);
          pMappedResource->RowPitch = cached_rp;
          pMappedResource->DepthPitch = cached_dp;
-         npt_d3d11_texture_set_mapped_state(t, Subresource, cached_rp,
-                                            byte_size,
-                                            npt_d3d11_map_to_access_flags(MapType));
          return NPT_S_OK;
       }
       /* Cached pitch implies a byte_size that overruns one slot
@@ -313,10 +334,17 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
    }
 
    /* Sync MAP_RESOURCE on slot 0; host MAP dispatcher reads from
-    * offset 0.  Cache the returned pitches for the next fast-path. */
+    * offset 0.  Cache the returned pitches for the next fast-path.  The
+    * Unmap's byte_size is filled in once the host's pitches are known;
+    * access_flags=0 => Unmap reuses sync-MAP map_state. */
+   if (!npt_d3d11_texture_map_open(t, key, Subresource,
+                                   NPT_D3D_MAP_SLOT_ZERO,
+                                   /*access_flags=*/0, /*byte_size=*/0,
+                                   &slot))
+      return NPT_E_OUTOFMEMORY;
+
    uint64_t context_id  = ((struct npt_com_base *)self)->base.id;
    uint64_t resource_id = ((struct npt_com_base *)t)->base.id;
-   npt_d3d11_texture_set_current_slot(t, 0);
 
    /* Rows of memory, not texel rows: the host multiplies these by its
     * RowPitch, which already spans a row of blocks / luma texels. */
@@ -332,23 +360,27 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
       mip_rows, mip_d,
       /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, 0),
       &row_pitch, &depth_pitch, NULL);
-   if (NPT_FAILED(hr))
-      return hr;
 
    /* Bound Unmap memcpy at the host-pitch footprint.  Refuse if the
     * host's pitches imply a region larger than per_slot, or one that
     * cannot be sized at all -- silent overrun is worse than a clean
     * failure. */
-   const uint32_t byte_size =
+   const uint32_t byte_size = NPT_FAILED(hr) ? 0 :
       npt_d3d11_texture_get_subresource_byte_size(t, Subresource,
                                                   row_pitch, depth_pitch);
-   if (!byte_size || byte_size > per_slot) {
+   if (!NPT_FAILED(hr) && (!byte_size || byte_size > per_slot)) {
       npt_log("ctx_Map_texture: row_pitch=%u implies %u-byte mapped "
               "region, exceeds per-slot %u (shmem %u) -- refusing",
               row_pitch, byte_size, per_slot, shmem_total);
       memset(pMappedResource, 0, sizeof(*pMappedResource));
-      return NPT_E_FAIL;
+      hr = NPT_E_FAIL;
    }
+   if (NPT_FAILED(hr)) {
+      npt_d3d11_texture_map_close(t, key, Subresource, NULL, 0);
+      return hr;
+   }
+   npt_d3d11_texture_map_open(t, key, Subresource, NPT_D3D_MAP_SLOT_ZERO,
+                              /*access_flags=*/0, byte_size, &slot);
 
    /* RowPitch is stable per (resource, subresource); pitch drift
     * would trip the byte_size > per_slot guard above. */
@@ -357,77 +389,70 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
    pMappedResource->pData = npt_d3d11_texture_shmem_ptr(t);
    pMappedResource->RowPitch = row_pitch;
    pMappedResource->DepthPitch = depth_pitch;
-   /* access_flags=0 => Unmap reuses sync-MAP map_state. */
-   npt_d3d11_texture_set_mapped_state(t, Subresource, row_pitch,
-                                      byte_size, /*access_flags=*/0);
    return NPT_S_OK;
 }
 
 static void
 ctx_Unmap_buffer(void *self, struct npt_d3d11_buffer *b, UINT Subresource)
 {
-   if (npt_d3d11_buffer_mapped_in_place(b) &&
-       npt_d3d11_context_is_immediate(self)) {
-      npt_d3d11_buffer_set_mapped_in_place(b, false);
-      npt_d3d11_buffer_set_is_mapped(b, false);
+   const void *key = self;
+   struct npt_d3d_map_record rec;
+   if (!npt_d3d11_buffer_map_find(b, key, &rec))
+      return;
+   if (rec.in_place) {
+      npt_d3d11_buffer_map_close(b, key, NULL, 0);
       return;
    }
 
    struct npt_ring *ring = npt_com_self_ring(self);
-   const uint32_t slot = npt_d3d11_buffer_get_current_slot(b);
-   const uint32_t access_flags =
-      npt_d3d11_buffer_get_last_map_access_flags(b);
-
    uint32_t seqno = 0;
    npt_dispatch_resource_unmap_seqno(ring,
       ((struct npt_com_base *)self)->base.id,
       ((struct npt_com_base *)b)->base.id,
       Subresource,
-      npt_d3d11_buffer_get_slot_shmem_res_id(b, slot),
+      npt_d3d11_buffer_get_slot_shmem_res_id(b, rec.slot),
       npt_d3d11_buffer_get_byte_width(b),
-      npt_d3d11_buffer_slot_offset(b, slot),
-      access_flags,
+      npt_d3d11_buffer_slot_offset(b, rec.slot),
+      rec.access_flags,
       &seqno);
 
-   /* Sync Maps land on slot 0 and don't need rename-ring tracking. */
-   if (access_flags)
-      npt_d3d11_buffer_mark_slot_submitted(b, slot, seqno, ring);
-
-   npt_d3d11_buffer_set_is_mapped(b, false);
-   npt_d3d11_buffer_set_last_map_access_flags(b, 0);
+   /* Slot 0 of a sync Map goes in flight too: a DYNAMIC buffer's DISCARD
+    * on the map ring rotates through it. */
+   npt_d3d11_buffer_map_close(b, key, ring, seqno);
 }
 
 static void
-ctx_Unmap_texture(void *self, struct npt_d3d11_texture *t)
+ctx_Unmap_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource)
 {
-   struct npt_ring *ring = npt_com_self_ring(self);
-   const uint32_t access_flags = npt_d3d11_texture_get_last_map_access_flags(t);
-   const uint32_t slot = npt_d3d11_texture_get_current_slot(t);
+   const void *key = self;
+   struct npt_d3d_map_record rec;
+   if (!npt_d3d11_texture_map_find(t, key, Subresource, &rec))
+      return;
 
+   struct npt_ring *ring = npt_com_self_ring(self);
    uint32_t seqno = 0;
-   if (access_flags) {
+   if (rec.access_flags) {
       npt_dispatch_resource_unmap_seqno(ring,
          ((struct npt_com_base *)self)->base.id,
          ((struct npt_com_base *)t)->base.id,
-         npt_d3d11_texture_get_last_map_subresource(t),
-         npt_d3d11_texture_get_slot_shmem_res_id(t, slot),
-         npt_d3d11_texture_get_last_map_byte_size(t),
-         /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, slot),
-         access_flags,
+         rec.subresource,
+         npt_d3d11_texture_get_slot_shmem_res_id(t, rec.slot),
+         rec.byte_size,
+         /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, rec.slot),
+         rec.access_flags,
          &seqno);
-      npt_d3d11_texture_mark_slot_submitted(t, slot, seqno, ring);
+      npt_d3d11_texture_map_close(t, key, Subresource, ring, seqno);
    } else {
       npt_dispatch_resource_unmap(ring,
          ((struct npt_com_base *)self)->base.id,
          ((struct npt_com_base *)t)->base.id,
-         npt_d3d11_texture_get_last_map_subresource(t),
-         npt_d3d11_texture_get_slot_shmem_res_id(t, slot),
-         npt_d3d11_texture_get_last_map_byte_size(t),
-         /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, slot),
+         rec.subresource,
+         npt_d3d11_texture_get_slot_shmem_res_id(t, rec.slot),
+         rec.byte_size,
+         /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, rec.slot),
          /*access_flags=*/0);
+      npt_d3d11_texture_map_close(t, key, Subresource, NULL, 0);
    }
-
-   npt_d3d11_texture_clear_mapped_state(t);
 }
 
 /* Resources without a wrapper fall through to E_NOTIMPL / no-op. */
@@ -459,14 +484,13 @@ ctx_Unmap_override(void *self, ID3D11Resource *pResource, UINT Subresource)
 
    struct npt_d3d11_buffer *b = npt_d3d11_buffer_cast(pResource);
    if (b) {
-      if (npt_d3d11_buffer_get_is_mapped(b))
-         ctx_Unmap_buffer(self, b, Subresource);
+      ctx_Unmap_buffer(self, b, Subresource);
       return;
    }
 
    struct npt_d3d11_texture *t = npt_d3d11_texture_cast(pResource);
-   if (t && npt_d3d11_texture_get_is_mapped(t))
-      ctx_Unmap_texture(self, t);
+   if (t)
+      ctx_Unmap_texture(self, t, Subresource);
 }
 
 /*
