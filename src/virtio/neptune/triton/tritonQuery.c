@@ -585,11 +585,13 @@ tritonCheckMultisampleQualityLevels(D3D10DDI_HDEVICE hDevice, DXGI_FORMAT Format
     /* Answer from the same cached mask CheckFormatSupport builds, so quality
      * and the MULTISAMPLE_RENDERTARGET bit cannot diverge: D3DMetal reports
      * MSAA quality for R10G10B10_XR_BIAS_A2_UNORM while reporting zero format
-     * support for it, which the runtime rejects with 0x887a0020. */
+     * support for it, which the runtime rejects with 0x887a0020.  The same
+     * check covers a single sample: a format with no support answers no
+     * quality level for it, and SampleCount 0 has none on any format. */
     UINT support = 0;
     tritonCheckFormatSupport(hDevice, Format, &support);
     if (!(support & D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET))
-        *pNumQualityLevels = (SampleCount <= 1 && support) ? 1 : 0;
+        *pNumQualityLevels = (SampleCount == 1 && support) ? 1 : 0;
     else
         *pNumQualityLevels = tritonMsaaQuality(pD, Format, SampleCount);
     TR_LOG_HOT("CheckMSQL fmt=%u samples=%u -> q=%u",
