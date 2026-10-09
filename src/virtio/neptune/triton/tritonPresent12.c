@@ -529,21 +529,15 @@ t12PresentCompanionCopy(PTRITON12_QUEUE q, PTRITON12_RESOURCE src)
      * pull the commands out from under the GPU.  With a ring of 4 and the
      * present pacing depth this is virtually never waited on. */
     const UINT idx = q->CopyIdx++ % TRITON12_COPY_RING;
-    if (q->pDrainFence && q->CopyAllocValue[idx]) {
-        const ULONGLONG deadline = GetTickCount64() + 1000;
-        while (ID3D12Fence_GetCompletedValue(q->pDrainFence) <
-               q->CopyAllocValue[idx]) {
-            if (GetTickCount64() >= deadline) {
-                TR_LOG("12.CompanionCopy: allocator %u still in flight "
-                       "after 1s; skipping copy this frame", idx);
-                npt_log("companion-copy allocator %u STUCK 1s (v=%llu done=%llu)",
-                        idx, (unsigned long long)q->CopyAllocValue[idx],
-                        (unsigned long long)
-                            ID3D12Fence_GetCompletedValue(q->pDrainFence));
-                return;
-            }
-            Sleep(1);
-        }
+    if (q->pDrainFence && q->CopyAllocValue[idx] &&
+        !t12PollDrain(q, q->CopyAllocValue[idx], 1000)) {
+        TR_LOG("12.CompanionCopy: allocator %u still in flight "
+               "after 1s; skipping copy this frame", idx);
+        npt_log("companion-copy allocator %u STUCK 1s (v=%llu done=%llu)",
+                idx, (unsigned long long)q->CopyAllocValue[idx],
+                (unsigned long long)
+                    ID3D12Fence_GetCompletedValue(q->pDrainFence));
+        return;
     }
 
     if (FAILED(ID3D12CommandAllocator_Reset(q->pCopyAlloc[idx])) ||
