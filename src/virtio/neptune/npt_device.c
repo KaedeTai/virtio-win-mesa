@@ -64,18 +64,39 @@ npt_wrapper_cache_fini(struct npt_wrapper_cache *c)
    mtx_destroy(&c->mutex);
 }
 
-/* CAS-bump pub_ref guarding against resurrecting a pub_ref==0 wrapper
- * already in destruction.  NULL = caller treats as cache miss. */
+/* Take a public ref on a cached wrapper.  A wrapper whose public count
+ * has drained stays live while private holds remain (children holding
+ * their parent, or a Release that has not yet dropped its self hold),
+ * and is handed out again: first a private hold, taken only from a
+ * nonzero count not marked NPT_PRIV_REF_DYING, then the public ref, so
+ * the private hold becomes the 0->1 self hold npt_com_default_addref
+ * would take.  Once a final release has brought priv_ref to zero, or
+ * npt_com_destroy has marked it, the wrapper is never handed out again.
+ * The cache mutex, which npt_com_destroy's cache_remove also takes,
+ * keeps the wrapper from being freed meanwhile.  NULL = caller treats
+ * as cache miss. */
 static void *
 npt_wrapper_cache_try_acquire_locked(void *wrapper)
 {
    struct npt_com_base *com = wrapper;
-   uint32_t prev = atomic_load(&com->base.pub_ref);
-   while (prev != 0) {
-      if (atomic_compare_exchange_weak(&com->base.pub_ref, &prev, prev + 1))
+   uint32_t pub = atomic_load(&com->base.pub_ref);
+   while (pub != 0) {
+      if (atomic_compare_exchange_weak(&com->base.pub_ref, &pub, pub + 1))
          return com;
    }
-   return NULL;
+   uint32_t priv = atomic_load(&com->base.priv_ref);
+   do {
+      if (priv == 0 || (priv & NPT_PRIV_REF_DYING))
+         return NULL;
+   } while (!atomic_compare_exchange_weak(&com->base.priv_ref, &priv,
+                                          priv + 1));
+   if (atomic_fetch_add(&com->base.pub_ref, 1) != 0) {
+      /* A concurrent 0->1 AddRef took the self hold, so this private
+       * hold is surplus.  That caller reached the wrapper through a
+       * child's hold on it, which keeps the count above zero here. */
+      atomic_fetch_sub(&com->base.priv_ref, 1);
+   }
+   return com;
 }
 
 void *
@@ -137,7 +158,7 @@ npt_device_wrapper_cache_insert_if_absent(struct npt_device *dev,
    if (existing) {
       if (existing->wrapper != new_wrapper) {
          winner = npt_wrapper_cache_try_acquire_locked(existing->wrapper);
-         /* pub_ref==0 = mid-destruction: don't overwrite, caller retries. */
+         /* NULL = mid-destruction: don't overwrite, caller retries. */
          if (!winner && retry_needed)
             *retry_needed = true;
       }

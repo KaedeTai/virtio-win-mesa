@@ -103,9 +103,10 @@ npt_com_table_lookup_entry_mut(const GUID *iid)
  * no wire traffic.
  *
  * Each positive entry owns one public ref on the memoized wrapper.
- * The memo flushes when the source's public count drains (the caller
- * of a QI must itself hold a public ref, so no lookup can race the
- * flush) and again from npt_com_destroy for the force-destroy path;
+ * The memo flushes when the source's public count drains (a lookup
+ * takes its ref under the memo lock, so it cannot race the flush even
+ * on a wrapper the wrapper cache handed out again meanwhile) and again
+ * from npt_com_destroy for the force-destroy path;
  * there the release is gated on the wrapper cache still knowing the
  * wrapper, because the device-teardown drain frees wrappers in
  * arbitrary order. */
@@ -264,15 +265,18 @@ npt_com_get_or_wrap_or_release(struct npt_device *dev, const GUID *iid,
 static void
 npt_com_destroy(struct npt_com_base *com)
 {
-   /* Re-entry guard for npt_com_force_destroy, which tears a wrapper
-    * down while children may still hold it: the QI memo flush and
-    * aux_destroy below release other wrappers, and a child's final
-    * destruction drops its wrapper-lifetime parent hold.  Bumping
-    * priv_ref here keeps every such decrement above zero, so the cascade
-    * gate cannot re-enter destruction of this wrapper -- freeing aux/com
-    * while this call is still running.  A refcount-driven destroy starts
-    * only once no child holds this wrapper. */
-   atomic_fetch_add_explicit(&com->base.priv_ref, 1, memory_order_relaxed);
+   /* Mark the wrapper dying before anything else: the wrapper cache must
+    * not hand it out again while cache_remove is still ahead.  The mark
+    * is also the re-entry guard for npt_com_force_destroy, which tears a
+    * wrapper down while children may still hold it: the QI memo flush
+    * and aux_destroy below release other wrappers, and a child's final
+    * destruction drops its wrapper-lifetime parent hold.  With the mark
+    * every such decrement stays above zero, so the cascade gate cannot
+    * re-enter destruction of this wrapper -- freeing aux/com while this
+    * call is still running.  A refcount-driven destroy starts only once
+    * no child holds this wrapper. */
+   atomic_fetch_add_explicit(&com->base.priv_ref, NPT_PRIV_REF_DYING,
+                             memory_order_relaxed);
 
    /* Backstop for force-destroy, which bypasses default_release; a
     * release-driven destroy already flushed and this is a no-op. */
@@ -301,7 +305,8 @@ npt_com_destroy(struct npt_com_base *com)
    }
    if (com->aux_destroy)
       com->aux_destroy(com->aux);
-   atomic_fetch_sub_explicit(&com->base.priv_ref, 1, memory_order_relaxed);
+   atomic_fetch_sub_explicit(&com->base.priv_ref, NPT_PRIV_REF_DYING,
+                             memory_order_relaxed);
    const uint32_t device_refs =
       atomic_load_explicit(&com->base.device_ref_holds, memory_order_relaxed);
    free(com);
@@ -502,9 +507,11 @@ npt_com_get_or_wrap(struct npt_device *dev, const GUID *iid,
     * construct, publish atomically.  Races:
     *  - two ctors race: insert_if_absent returns the loser the winner
     *    so we discard our own.
-    *  - cache slot occupied by a dying wrapper (pub==0, mid-destroy):
-    *    insert_if_absent flags retry_needed; we yield and re-lookup
-    *    so the dying wrapper's cache_remove + COM_RELEASE stay paired.
+    *  - cache slot occupied by a dying wrapper (final release done, or
+    *    marked NPT_PRIV_REF_DYING): insert_if_absent flags retry_needed;
+    *    we yield and re-lookup so the dying wrapper's cache_remove +
+    *    COM_RELEASE stay paired.  A pub==0 wrapper still held by its
+    *    children is not dying; the cache hands it out again.
     */
    for (uint32_t tries = 0; tries < 8; tries++) {
       void *cached = npt_device_wrapper_cache_lookup(dev, host_id);
@@ -666,12 +673,13 @@ npt_com_query_interface_host(void *self, const GUID *riid, void **ppvObject)
    struct npt_com_qi_memo_entry *e = npt_com_qi_memo_find_locked(com, riid);
    if (e) {
       struct npt_com_base *w = e->wrapper;
+      /* A flush detaches the memo under this lock, so the memo's hold
+       * keeps w alive until this AddRef. */
+      if (w)
+         npt_com_vtbl_addref(w);
       mtx_unlock(&g_qi_memo_mutex);
       if (!w)
          return NPT_E_NOINTERFACE;
-      /* The caller holds a public ref on `com`, so the memo cannot
-       * flush (and w cannot die) between the unlock and this AddRef. */
-      npt_com_vtbl_addref(w);
       *ppvObject = w;
       return NPT_S_OK;
    }

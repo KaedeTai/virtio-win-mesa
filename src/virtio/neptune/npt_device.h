@@ -184,9 +184,9 @@ npt_device_wrapper_cache_lookup(struct npt_device *dev, uint64_t host_id);
 /*
  * Insert if absent, else bump the existing wrapper's pub_ref and
  * return it (caller must free its own).  NULL return either way:
- * `new_wrapper` won the race, OR the existing wrapper was un-
- * resurrectable (pub_ref==0) -- in which case *retry_needed is true
- * and the caller should yield and re-lookup.
+ * `new_wrapper` won the race, OR the existing wrapper is being
+ * destroyed -- in which case *retry_needed is true and the caller
+ * should yield and re-lookup.
  */
 void *
 npt_device_wrapper_cache_insert_if_absent(struct npt_device *dev,

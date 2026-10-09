@@ -23,6 +23,8 @@ struct npt_ring;
  * coupling).  Destruction only happens when both reach zero.  A child
  * wrapper holds a priv_ref on its parent for the child's entire wrapper
  * lifetime, including while pub_ref is zero but private holds keep it alive.
+ * The wrapper cache hands such a wrapper out again (pub_ref 0->1) as long
+ * as priv_ref is nonzero and not marked NPT_PRIV_REF_DYING.
  */
 struct npt_object {
    uint64_t id;
@@ -62,6 +64,11 @@ struct npt_object {
     * ring.  Set only by npt_com_pin_queue_ring. */
    bool private_instance_ring;
 };
+
+/* Added to priv_ref for the duration of npt_com_destroy, so no count it
+ * passes through reads as zero (re-entering destruction) or as a live
+ * wrapper the cache could hand out again. */
+#define NPT_PRIV_REF_DYING 0x80000000u
 
 static inline void
 npt_object_init(struct npt_object *obj, uint64_t host_id,
