@@ -1388,7 +1388,7 @@ t12MsaaQuality(PTRITON12_DEVICE p, DXGI_FORMAT Format, UINT SampleCount)
         break;
     default:
         if ((UINT)Format < 192u && s_msaa12Never[Format])
-            return (SampleCount <= 1) ? 1 : 0;
+            return SampleCount == 1 ? 1 : 0;
         break;
     }
 
