@@ -175,17 +175,21 @@ tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
     o->cpu_access_flags = d3d11Cpu;
     o->misc_flags       = d3d11Misc;
 
-    /* Publish the texture description for EVERY shared blob, not just scanout
-     * primaries: the KMD keys its blob-info-valid flag off ScanoutInfo.width,
-     * and without it DescribeAllocation returns STATUS_INVALID_PARAMETER and
-     * GetTransferLayout fails, so a windowed blt present emits
-     * VIRGL_CCMD_PIPE_RESOURCE_SET_TYPE with width/height/stride 0 and the
-     * host rejects both it and the resource_copy_region that follows.  This
-     * is pure description; claiming the scanout stays gated on `primary` via
+    /* Every shared blob carries a texture description: the KMD keys its
+     * blob-info-valid flag off ScanoutInfo.width, and without it
+     * DescribeAllocation returns STATUS_INVALID_PARAMETER and a windowed blt
+     * present types the source with width/height/stride 0, which the host
+     * rejects along with the copy.  A non-primary is typed with its exact
+     * copy format, so the blt reads it in the layout it was rendered in;
+     * only a format with no exact match (or a primary) takes the scanout
+     * mapping.  Claiming the scanout stays gated on `primary` via
      * o->primary and ai.Flags.Primary below. */
+    const uint32_t copyFmt = primary
+        ? 0 : npt_shared_texture_virgl_copy_format(hostFmt);
     o->ScanoutInfo.width      = r->Width;
     o->ScanoutInfo.height     = r->Height;
-    o->ScanoutInfo.format     = npt_shared_texture_virgl_format(hostFmt);
+    o->ScanoutInfo.format     =
+        copyFmt ? copyFmt : npt_shared_texture_virgl_format(hostFmt);
     o->ScanoutInfo.strides[0] = (ULONG)o->planes[0].pitch;
     o->ScanoutInfo.offsets[0] = (ULONG)o->planes[0].offset;
 
