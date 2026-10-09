@@ -478,8 +478,10 @@ t12PollDrain(PTRITON12_QUEUE q, UINT64 v, DWORD timeoutMs)
  * packet is ordered by the queue gate the list's ExecuteCommandLists
  * submits instead.
  *
- * Both resources sit in COMMON (PRESENT == COMMON) and the copy relies on
- * implicit state promotion; present-copy-test in d3dmetal-native verifies
+ * The copy relies on implicit state promotion with no barriers: the source
+ * sits in PRESENT (== COMMON), is promoted to COPY_SOURCE and decays back
+ * after the copy; the companion is promoted to COPY_DEST by its first copy
+ * and stays there.  present-copy-test in d3dmetal-native verifies
  * the host accepts exactly this shape (native optimally-tiled source,
  * substituted linear dest, no barriers).
  *
@@ -684,10 +686,8 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
      *
      * ARM.  Without this the KMD's TakeThreadToken() finds no stamp for the
      * flip that follows, gates it on token 0 -- which always reads retired --
-     * and promotes the scanout immediately.  The D3D11 path has always armed
-     * here (tritonPresentFlushAndGate in tritonDxgi.c, "so the KMD never
-     * scans out a half-written backbuffer"); D3D12 never did, so every D3D12
-     * title presented un-gated.
+     * and promotes the scanout immediately.  The D3D11 path arms the same
+     * token (tritonPresentFlushAndGate in tritonDxgi.c).
      *
      * Pairing is per-thread: the runtime calls pfnPresentCb on THIS thread
      * as soon as this DDI returns and DxgkDdiPresent runs synchronously in

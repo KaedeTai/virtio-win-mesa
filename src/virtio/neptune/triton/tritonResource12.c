@@ -221,9 +221,11 @@ t12ForceRowMajorOnCpuHeap(BOOL cpuVisibleTextures,
  * for it), whose blob then backs the KM allocation registered against the
  * GAME resource's runtime handle.  Its layout is always UNKNOWN: a
  * ROW_MAJOR texture is legal only on a cross-adapter heap.  The companion
- * starts and stays in COMMON; its only writer is the present's
- * CopyResource (t12Present), which relies on implicit COMMON-state
- * promotion (verified host-side by d3dmetal-native's present-copy-test). */
+ * is created in COMMON and its only writer is the present's CopyResource
+ * (t12Present), which relies on implicit state promotion (verified
+ * host-side by d3dmetal-native's present-copy-test): the first copy
+ * promotes it to COPY_DEST, and it stays there, since a texture written on
+ * a direct queue does not decay back to COMMON. */
 HRESULT
 triton12CreateCompanion(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
                         const D3D12_HEAP_PROPERTIES *props,

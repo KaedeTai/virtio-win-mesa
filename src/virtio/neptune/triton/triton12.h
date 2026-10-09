@@ -194,7 +194,9 @@ typedef struct TRITON12_RESOURCE
     BOOL                         TiledHost;
     /* hKMAllocation is the residency-only placeholder from
      * triton12RegisterResidencyAlloc rather than a shared blob: it names no
-     * memory and must never be handed to the present path. */
+     * memory, so a kernel present of it copies nothing.  t12Present gives
+     * a present source a companion in its place where the source's shape
+     * allows one. */
     BOOL                         ResidencyOnlyAlloc;
 } TRITON12_RESOURCE, *PTRITON12_RESOURCE;
 
