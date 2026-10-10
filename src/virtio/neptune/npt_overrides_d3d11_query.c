@@ -141,17 +141,12 @@ npt_d3d11_query_aux_cast(void *async)
 {
    if (!async)
       return NULL;
-   /* Identity check: family wrappers carry one of these per-tier vtbl
-    * pointers (overrides patch slots in place, never swap the storage),
-    * so vtbl equality means "this is a query family wrapper". */
-   const void **vt = ((struct npt_com_base *)async)->lpVtbl;
-   if (vt != (const void **)&npt_id3d11asynchronous_default_vtbl_storage &&
-       vt != (const void **)&npt_id3d11query_default_vtbl_storage &&
-       vt != (const void **)&npt_id3d11query1_default_vtbl_storage &&
-       vt != (const void **)&npt_id3d11predicate_default_vtbl_storage &&
-       vt != (const void **)&npt_id3d11counter_default_vtbl_storage)
+   /* A query-family wrapper owns a query aux; anything else the app
+    * passes as ID3D11Asynchronous does not. */
+   struct npt_com_base *com = async;
+   if (com->aux_destroy != query_aux_destroy)
       return NULL;
-   return ((struct npt_com_base *)async)->aux;
+   return com->aux;
 }
 
 static void
