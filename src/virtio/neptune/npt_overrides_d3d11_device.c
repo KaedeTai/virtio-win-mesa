@@ -6,7 +6,6 @@
  *  - CreateBuffer/CreateTexture*: pInitialData->pSysMem can't be
  *    auto-marshalled; create with NULL data + ship payload via
  *    RESOURCE_UPDATE.
- *  - GetImmediateContext{,1,2,3}: tier-aware accessor cache.
  *  - Device4::RegisterDeviceRemovedEvent: short-circuit to the
  *    host library's S_OK + cookie 0xdeadbeef stub.
  *  - Device4::UnregisterDeviceRemoved: noop.
@@ -18,21 +17,6 @@
 #include "npt_object.h"
 #include "npt_overrides.h"
 #include "npt_resource.h"
-
-/* Per-device storage: caches the immediate-context wrapper so repeat
- * GetImmediateContextN calls don't burn an async create + COM_RELEASE.
- * Tier-aware: a call asking for an equal-or-narrower tier returns the
- * cached wrapper (narrowing is ABI-safe); a wider-tier call evicts
- * and re-fetches.  Cache holds one pub_ref, dropped by aux_destroy. */
-struct npt_d3d11_device_aux {
-   mtx_t cache_mutex;
-   void *cached_imm_ctx;
-   /* 0..3; ignored when cached_imm_ctx == NULL. */
-   int cached_imm_ctx_tier;
-};
-
-static void npt_d3d11_device_aux_init(struct npt_com_base *com,
-                                      struct npt_device *dev, uint64_t host_id);
 
 #include "neptune-protocol/npt_protocol_client_id3d11device.h"
 #include "neptune-protocol/npt_protocol_guest_id3d11device.h"
@@ -64,12 +48,6 @@ static const GUID *const device_tiers[] = {
    &NPT_IID_ID3D11Device3, &NPT_IID_ID3D11Device4, &NPT_IID_ID3D11Device5,
    NULL,
 };
-
-static struct npt_d3d11_device_aux *
-dev_aux(void *self)
-{
-   return ((struct npt_com_base *)self)->aux;
-}
 
 /* A DYNAMIC buffer the host can rename onto guest shmems
  * (npt_d3d11_buffer_set_external_eligible).  Small ones stay on the map
@@ -491,130 +469,6 @@ dev4_UnregisterDeviceRemoved_override(void *self, DWORD dwCookie)
    (void)self; (void)dwCookie;
 }
 
-/*
- * GetImmediateContext{,1,2,3} cache: avoids an async Create + wrap +
- * COM_RELEASE per call.  Tier-aware: narrowing returns the cached
- * pointer; widening evicts and refetches with the right-tier vtbl.
- * Cache holds one pub_ref; aux_destroy drops it.
- */
-static void
-npt_d3d11_device_aux_destroy(void *aux_raw)
-{
-   struct npt_d3d11_device_aux *aux = aux_raw;
-   void *cached = aux->cached_imm_ctx;
-   aux->cached_imm_ctx = NULL;
-   mtx_destroy(&aux->cache_mutex);
-   if (cached)
-      npt_com_default_release(cached);
-   free(aux);
-}
-
-static void
-npt_d3d11_device_aux_init(struct npt_com_base *com,
-                          struct npt_device *dev, uint64_t host_id)
-{
-   struct npt_d3d11_device_aux *aux = com->aux;
-   com->aux_destroy = npt_d3d11_device_aux_destroy;
-   mtx_init(&aux->cache_mutex, mtx_plain);
-   aux->cached_imm_ctx = NULL;
-   aux->cached_imm_ctx_tier = 0;
-   (void)dev; (void)host_id;
-}
-
-/* All four tier signatures are ABI-identical (just **out type). */
-typedef void (NPT_STDMETHODCALLTYPE *dev_ctx_thunk_t)(void *self, void **out);
-
-static const dev_ctx_thunk_t dev_default_ctx_thunks[4] = {
-   (dev_ctx_thunk_t)npt_id3d11device_default_GetImmediateContext,
-   (dev_ctx_thunk_t)npt_id3d11device1_default_GetImmediateContext1,
-   (dev_ctx_thunk_t)npt_id3d11device2_default_GetImmediateContext2,
-   (dev_ctx_thunk_t)npt_id3d11device3_default_GetImmediateContext3,
-};
-
-static void
-dev_get_immediate_context_cached(void *self, int tier, void **ppOut)
-{
-   if (!ppOut)
-      return;
-   *ppOut = NULL;
-
-   struct npt_d3d11_device_aux *aux = dev_aux(self);
-   if (!aux) {
-      /* OOM at ctor: bypass cache and use the tier's default thunk. */
-      dev_default_ctx_thunks[tier](self, ppOut);
-      return;
-   }
-
-   mtx_lock(&aux->cache_mutex);
-   if (aux->cached_imm_ctx && aux->cached_imm_ctx_tier >= tier) {
-      void *cached = aux->cached_imm_ctx;
-      npt_com_default_addref(cached);
-      mtx_unlock(&aux->cache_mutex);
-      *ppOut = cached;
-      return;
-   }
-   mtx_unlock(&aux->cache_mutex);
-
-   /* Slow path: fetch the requested tier (pub_ref=1 caller hold). */
-   void *fresh = NULL;
-   dev_default_ctx_thunks[tier](self, &fresh);
-   if (!fresh)
-      return;
-
-   /* Either reuse a winner peer's >= tier wrapper or publish ours
-    * (which evicts any narrower cached wrapper). */
-   void *result = NULL;
-   void *evicted = NULL;
-   mtx_lock(&aux->cache_mutex);
-   if (aux->cached_imm_ctx && aux->cached_imm_ctx_tier >= tier) {
-      result = aux->cached_imm_ctx;
-      npt_com_default_addref(result);
-   } else {
-      evicted = aux->cached_imm_ctx;
-      aux->cached_imm_ctx = fresh;
-      aux->cached_imm_ctx_tier = tier;
-      npt_com_default_addref(fresh); /* cache's hold */
-      result = fresh;
-      fresh = NULL;
-   }
-   mtx_unlock(&aux->cache_mutex);
-
-   if (evicted)
-      npt_com_default_release(evicted);
-   if (fresh)
-      npt_com_default_release(fresh);
-
-   *ppOut = result;
-}
-
-static void NPT_STDMETHODCALLTYPE
-dev_GetImmediateContext_override(void *self,
-                                 ID3D11DeviceContext **ppImmediateContext)
-{
-   dev_get_immediate_context_cached(self, 0, (void **)ppImmediateContext);
-}
-
-static void NPT_STDMETHODCALLTYPE
-dev1_GetImmediateContext1_override(void *self,
-                                   ID3D11DeviceContext1 **ppImmediateContext)
-{
-   dev_get_immediate_context_cached(self, 1, (void **)ppImmediateContext);
-}
-
-static void NPT_STDMETHODCALLTYPE
-dev2_GetImmediateContext2_override(void *self,
-                                   ID3D11DeviceContext2 **ppImmediateContext)
-{
-   dev_get_immediate_context_cached(self, 2, (void **)ppImmediateContext);
-}
-
-static void NPT_STDMETHODCALLTYPE
-dev3_GetImmediateContext3_override(void *self,
-                                   ID3D11DeviceContext3 **ppImmediateContext)
-{
-   dev_get_immediate_context_cached(self, 3, (void **)ppImmediateContext);
-}
-
 /* Tag each deferred context before the app sees it
  * (npt_d3d11_context_is_immediate). */
 static HRESULT
@@ -684,24 +538,14 @@ npt_overrides_d3d11_device_init(void)
                                        dev_CreateTexture2D_override);
    NPT_REGISTER_OVERRIDE_D3D11_DEVICE (CreateTexture3D,
                                        dev_CreateTexture3D_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE (GetImmediateContext,
-                                       dev_GetImmediateContext_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE1(GetImmediateContext1,
-                                       dev1_GetImmediateContext1_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE2(GetImmediateContext2,
-                                       dev2_GetImmediateContext2_override);
    NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(CreateTexture2D1,
                                        dev3_CreateTexture2D1_override);
    NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(CreateTexture3D1,
                                        dev3_CreateTexture3D1_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(GetImmediateContext3,
-                                       dev3_GetImmediateContext3_override);
    NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(RegisterDeviceRemovedEvent,
                                        dev4_RegisterDeviceRemovedEvent_override);
    NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(UnregisterDeviceRemoved,
                                        dev4_UnregisterDeviceRemoved_override);
 
-   npt_com_register_family(device_tiers,
-                           sizeof(struct npt_d3d11_device_aux),
-                           npt_d3d11_device_aux_init);
+   npt_com_register_family(device_tiers, 0, NULL);
 }
