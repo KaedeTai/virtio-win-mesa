@@ -470,20 +470,6 @@ npt_com_family_aux(void *self, void (*aux_destroy)(void *aux))
       return NULL;
    if (com->aux_destroy == aux_destroy)
       return com->aux;
-   /* Tier alias: aux_destroy was cleared and aux points at a same-
-    * family ancestor's aux (npt_com_get_or_wrap).  Confirm the shared
-    * aux really belongs to the requested family via that ancestor
-    * before handing it back, so a foreign-family alias never aliases in
-    * as ours. */
-   if (com->aux_destroy == NULL) {
-      for (struct npt_com_base *anc = com->base.parent; anc;
-           anc = anc->base.parent) {
-         if (!anc->aux_destroy)
-            continue;
-         return (anc->aux_destroy == aux_destroy && anc->aux == com->aux)
-                   ? com->aux : NULL;
-      }
-   }
    return NULL;
 }
 
@@ -588,9 +574,6 @@ npt_com_get_or_wrap(struct npt_device *dev, const GUID *iid,
 
       struct npt_com_base *com = wrapper;
 
-      /* Set parent BEFORE aux_init so per-family inits can detect a
-       * tier alias (parent in the same family) and share the parent's
-       * aux instead of standing up duplicate external resources. */
       com->base.parent = parent_wrapper;
       if (parent_wrapper)
          atomic_fetch_add(&parent_wrapper->base.priv_ref, 1);
@@ -603,27 +586,6 @@ npt_com_get_or_wrap(struct npt_device *dev, const GUID *iid,
          com->aux = calloc(1, entry->aux_size);
          if (com->aux && entry->aux_init)
             entry->aux_init(com, dev, host_id);
-         /* Tier alias: if a same-family ancestor already owns an aux,
-          * tear down our freshly-init aux and point at the ancestor's
-          * so per-tier wrappers share one set of external resources.
-          * The walk skips NULL-destroy intermediates so an
-          * alias-of-an-alias still finds the primary; a different-
-          * family ancestor has a non-matching destroy and stops the
-          * walk.  Aux destructors must be reentrant on a freshly-init
-          * aux. */
-         if (com->aux_destroy) {
-            for (struct npt_com_base *anc = parent_wrapper; anc;
-                 anc = anc->base.parent) {
-               if (!anc->aux_destroy)
-                  continue;
-               if (anc->aux_destroy == com->aux_destroy && anc->aux) {
-                  com->aux_destroy(com->aux);
-                  com->aux = anc->aux;
-                  com->aux_destroy = NULL;
-               }
-               break;
-            }
-         }
       }
 
       if (!com->base.instance_ring &&

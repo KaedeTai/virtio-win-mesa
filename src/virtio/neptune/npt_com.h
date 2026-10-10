@@ -323,13 +323,8 @@ npt_com_register_family(const GUID *const *tier_iids,
                         size_t aux_size,
                         npt_com_aux_init_fn aux_init);
 
-/* Resolve a wrapper's per-family aux, tolerating tier aliases.  A
- * QI-minted higher-tier wrapper (e.g. ID3D12Resource1 from an
- * ID3D12Resource) shares its primary's aux with aux_destroy cleared to
- * avoid a double free; a plain `aux_destroy == fn` test would reject
- * it.  Returns com->aux when self carries aux_destroy == fn, or when
- * self is such an alias whose same-family ancestor owns it; NULL
- * otherwise. */
+/* Resolve a wrapper's per-family aux: com->aux when self carries
+ * aux_destroy == fn, NULL otherwise. */
 void *
 npt_com_family_aux(void *self, void (*aux_destroy)(void *aux));
 
