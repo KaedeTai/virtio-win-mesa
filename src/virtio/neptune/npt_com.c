@@ -94,13 +94,14 @@ npt_com_table_lookup_entry_mut(const GUID *iid)
    return NULL;
 }
 
-/* == QueryInterface verdict memo ====================================
- * A host-backed QueryInterface is a synchronous ring round trip, and
- * COM identity rules fix an object's answer for a given IID for its
- * whole lifetime -- so both the verdict and the resulting wrapper are
- * memoized on the source wrapper.  Repeat QIs for the same (object,
- * IID) return the same interface pointer with a fresh public ref and
- * no wire traffic.
+/* == Memoized answers ===============================================
+ * A host-backed QueryInterface and a getter whose answer is fixed for
+ * the object's lifetime (the registry's canonical "memo" methods) are
+ * synchronous ring round trips, and COM identity rules fix their
+ * answer -- so both the verdict and the resulting wrapper are memoized
+ * on the source wrapper, keyed by the command (0 for QueryInterface)
+ * and the IID.  Repeat calls return the same interface pointer with a
+ * fresh public ref and no wire traffic.
  *
  * Each positive entry owns one public ref on the memoized wrapper.
  * The memo flushes when the source's public count drains (a lookup
@@ -109,15 +110,18 @@ npt_com_table_lookup_entry_mut(const GUID *iid)
  * from npt_com_destroy for the force-destroy path;
  * there the release is gated on the wrapper cache still knowing the
  * wrapper, because the device-teardown drain frees wrappers in
- * arbitrary order. */
+ * arbitrary order.  An answer that is the source itself is never
+ * memoized: its ref would keep the public count from ever draining,
+ * and the wrapper's tier already records it. */
 
-struct npt_com_qi_memo_entry {
-   struct npt_com_qi_memo_entry *next;
+struct npt_com_memo_entry {
+   struct npt_com_memo_entry *next;
+   uint32_t key;
    GUID iid;
    struct npt_com_base *wrapper; /* NULL = host answered E_NOINTERFACE */
 };
 
-static mtx_t g_qi_memo_mutex;
+static mtx_t g_memo_mutex;
 
 typedef uint32_t (NPT_STDMETHODCALLTYPE *npt_com_unknown_ref_fn)(void *);
 
@@ -133,11 +137,12 @@ npt_com_vtbl_release(struct npt_com_base *com)
    return ((npt_com_unknown_ref_fn)com->lpVtbl[2])(com);
 }
 
-static struct npt_com_qi_memo_entry *
-npt_com_qi_memo_find_locked(struct npt_com_base *com, const GUID *riid)
+static struct npt_com_memo_entry *
+npt_com_memo_find_locked(struct npt_com_base *com, uint32_t key,
+                         const GUID *riid)
 {
-   for (struct npt_com_qi_memo_entry *e = com->qi_memo; e; e = e->next)
-      if (npt_com_iid_equal(&e->iid, riid))
+   for (struct npt_com_memo_entry *e = com->memo; e; e = e->next)
+      if (e->key == key && npt_com_iid_equal(&e->iid, riid))
          return e;
    return NULL;
 }
@@ -145,14 +150,14 @@ npt_com_qi_memo_find_locked(struct npt_com_base *com, const GUID *riid)
 /* Idempotent; releases outside the lock so a memoized wrapper's own
  * teardown (which flushes its memo in turn) cannot self-deadlock. */
 static void
-npt_com_qi_memo_flush(struct npt_com_base *com)
+npt_com_memo_flush(struct npt_com_base *com)
 {
-   mtx_lock(&g_qi_memo_mutex);
-   struct npt_com_qi_memo_entry *e = com->qi_memo;
-   com->qi_memo = NULL;
-   mtx_unlock(&g_qi_memo_mutex);
+   mtx_lock(&g_memo_mutex);
+   struct npt_com_memo_entry *e = com->memo;
+   com->memo = NULL;
+   mtx_unlock(&g_memo_mutex);
    while (e) {
-      struct npt_com_qi_memo_entry *next = e->next;
+      struct npt_com_memo_entry *next = e->next;
       if (e->wrapper &&
           npt_device_wrapper_cache_is_live(com->base.device,
                                            e->wrapper->base.id, e->wrapper))
@@ -160,6 +165,50 @@ npt_com_qi_memo_flush(struct npt_com_base *com)
       free(e);
       e = next;
    }
+}
+
+void *
+npt_com_memo_lookup(void *self, uint32_t key, const GUID *riid)
+{
+   struct npt_com_base *com = self;
+   if (!com || !riid)
+      return NULL;
+   mtx_lock(&g_memo_mutex);
+   struct npt_com_memo_entry *e = npt_com_memo_find_locked(com, key, riid);
+   struct npt_com_base *w = e ? e->wrapper : NULL;
+   /* A flush detaches the memo under this lock, so the memo's hold
+    * keeps w alive until this AddRef. */
+   if (w)
+      npt_com_vtbl_addref(w);
+   mtx_unlock(&g_memo_mutex);
+   return w;
+}
+
+/* Records `wrapper` (NULL: the host answered E_NOINTERFACE) unless an
+ * entry already exists, in which case that one is authoritative. */
+void
+npt_com_memo_store(void *self, uint32_t key, const GUID *riid, void *wrapper)
+{
+   struct npt_com_base *com = self;
+   if (!com || !riid || wrapper == self)
+      return;
+   struct npt_com_memo_entry *fresh = malloc(sizeof(*fresh));
+   if (!fresh)
+      return;
+   fresh->key = key;
+   fresh->iid = *riid;
+   fresh->wrapper = wrapper;
+   mtx_lock(&g_memo_mutex);
+   if (npt_com_memo_find_locked(com, key, riid)) {
+      mtx_unlock(&g_memo_mutex);
+      free(fresh);
+      return;
+   }
+   if (wrapper)
+      npt_com_vtbl_addref(wrapper); /* the memo's hold */
+   fresh->next = com->memo;
+   com->memo = fresh;
+   mtx_unlock(&g_memo_mutex);
 }
 
 /* Override families patch vtbls in place rather than registering a
@@ -227,11 +276,11 @@ npt_com_default_release(void *self)
    uint32_t prev = atomic_fetch_sub(&com->base.pub_ref, 1);
    const uint32_t cur = prev - 1;
    if (cur == 0) {
-      /* Drop the QI memo's wrapper holds while our own 0->1 priv hold
-       * is still in place: a memoized child reaching final destruction
-       * may drop its wrapper-lifetime parent hold on us, and this hold
-       * keeps the count above zero during the flush. */
-      npt_com_qi_memo_flush(com);
+      /* Drop the memo's wrapper holds while our own 0->1 priv hold is
+       * still in place: a memoized child reaching final destruction may
+       * drop its wrapper-lifetime parent or identity hold on us, and
+       * this hold keeps the count above zero during the flush. */
+      npt_com_memo_flush(com);
       /* 1->0: drop the matching private hold on self. */
       uint32_t priv = atomic_fetch_sub(&com->base.priv_ref, 1) - 1;
       if (priv == 0)
@@ -280,7 +329,7 @@ npt_com_destroy(struct npt_com_base *com)
 
    /* Backstop for force-destroy, which bypasses default_release; a
     * release-driven destroy already flushed and this is a no-op. */
-   npt_com_qi_memo_flush(com);
+   npt_com_memo_flush(com);
 
    /* Order: cache_remove (concurrent lookup misses us), COM_RELEASE,
     * DC/SC ring unref (after ring's batch sees the COM_RELEASE),
@@ -314,23 +363,31 @@ npt_com_destroy(struct npt_com_base *com)
       npt_device_release();
 }
 
-/* A child keeps its parent alive for the child's whole wrapper lifetime,
- * including periods where pub_ref is zero but descendants still hold
- * priv_refs on it.  Drop that hold only after the child is actually
- * destroyed, then propagate final destruction up the parent chain. */
+/* Drop one wrapper-lifetime hold on `held` and propagate final
+ * destruction when it was the last. */
+static void
+npt_com_drop_hold_cascade(struct npt_com_base *held)
+{
+   if (!held)
+      return;
+   uint32_t priv = atomic_fetch_sub(&held->base.priv_ref, 1) - 1;
+   if (priv == 0 && atomic_load(&held->base.pub_ref) == 0)
+      npt_com_destroy_cascade(held);
+}
+
+/* A child keeps its parent alive, and another family's view of an
+ * object keeps that object's identity alive, for the whole wrapper
+ * lifetime, including periods where pub_ref is zero but descendants
+ * still hold priv_refs on it.  Drop those holds only after the wrapper
+ * is actually destroyed, then propagate final destruction up. */
 static void
 npt_com_destroy_cascade(struct npt_com_base *com)
 {
    struct npt_com_base *parent = com->base.parent;
+   struct npt_com_base *identity = com->identity;
    npt_com_destroy(com);
-
-   if (!parent)
-      return;
-
-   uint32_t parent_priv =
-      atomic_fetch_sub(&parent->base.priv_ref, 1) - 1;
-   if (parent_priv == 0 && atomic_load(&parent->base.pub_ref) == 0)
-      npt_com_destroy_cascade(parent);
+   npt_com_drop_hold_cascade(parent);
+   npt_com_drop_hold_cascade(identity);
 }
 
 /*
@@ -650,13 +707,155 @@ npt_com_send_release(struct npt_device *dev, uint64_t host_id)
 /* On the object's own ring: FIFO behind its Create when both came from
  * this thread, and the host waits for the Create otherwise. */
 static HRESULT
-npt_com_send_query_interface(void *self, const GUID *iid, uint64_t guest_id)
+npt_com_send_query_interface(void *self, const GUID *iid, uint64_t guest_id,
+                             struct npt_wire_object_ref *ref)
 {
    struct npt_ring *ring = npt_com_self_ring(self);
    if (!ring)
       return NPT_E_FAIL;
    return npt_dispatch_com_query_interface(ring, npt_com_self_id(self), iid,
-                                           guest_id);
+                                           guest_id, ref);
+}
+
+/* Raise the wrapper's confirmed tier to the tier `iid` or `type` names
+ * in its family, when that is higher. */
+static void
+npt_com_confirm_tier(struct npt_com_base *com, const GUID *iid, uint32_t type)
+{
+   const struct npt_com_family *fam = com->family;
+   if (!fam)
+      return;
+   for (uint32_t k = 0; k < fam->tier_count; k++) {
+      if (!(iid && npt_com_iid_equal(fam->tier_iids[k], iid)) &&
+          !(type && (uint32_t)fam->tier_types[k] == type))
+         continue;
+      uint32_t cur = atomic_load_explicit(&com->tier, memory_order_relaxed);
+      while (cur < k &&
+             !atomic_compare_exchange_weak(&com->tier, &cur, k))
+         ;
+   }
+}
+
+/* Lower the wrapper's denied tier to `k` when that is lower. */
+static void
+npt_com_deny_tier(struct npt_com_base *com, uint32_t k)
+{
+   uint32_t cur = atomic_load_explicit(&com->tier_denied, memory_order_relaxed);
+   while (cur > k && !atomic_compare_exchange_weak(&com->tier_denied, &cur, k))
+      ;
+}
+
+/* Undo a wrapper that was built but never published to the cache. */
+static void
+npt_com_discard_unpublished(struct npt_device *dev, struct npt_com_base *com)
+{
+   if (com->identity) {
+      atomic_fetch_sub(&com->identity->base.priv_ref, 1);
+      com->identity = NULL;
+   }
+   if (com->base.instance_ring) {
+      if (com->base.instance_ring != dev->ring)
+         npt_com_release_dc_sc_ring(dev);
+      com->base.instance_ring = NULL;
+   }
+   atomic_store(&com->base.pub_ref, 0);
+   atomic_store(&com->base.priv_ref, 0);
+   if (com->aux_destroy)
+      com->aux_destroy(com->aux);
+   free(com);
+}
+
+void *
+npt_com_wrap_canonical(struct npt_device *dev,
+                       const struct npt_wire_object_ref *ref, const GUID *iid)
+{
+   if (!dev || !ref || !ref->id)
+      return NULL;
+   const uint64_t id = ref->id;
+
+   for (uint32_t tries = 0; tries < 8; tries++) {
+      struct npt_com_base *cached = npt_device_wrapper_cache_lookup(dev, id);
+      if (cached) {
+         npt_com_confirm_tier(cached, iid, ref->type);
+         /* The host counted this answer as one more registration of
+          * the id; the live wrapper already owns one.  Nothing on any
+          * ring names this registration, so the release needs no
+          * ordering. */
+         npt_ring_send_com_release_immediate(dev, id);
+         return cached;
+      }
+
+      /* No live wrapper: the one that held the id is being destroyed,
+       * and its release and this registration keep the host's count
+       * for the id above zero in either order.  Build the wrapper as
+       * the host's type, the most derived it has confirmed, so the
+       * family vtable covers every interface the object answers to. */
+      const GUID *ctor_iid =
+         npt_iid_from_object_type((npt_object_type)ref->type);
+      const struct npt_com_ctor_entry *entry =
+         ctor_iid ? npt_com_table_lookup_entry_mut(ctor_iid) : NULL;
+      if (!entry || !entry->iid || !entry->ctor) {
+         ctor_iid = iid;
+         entry = iid ? npt_com_table_lookup_entry_mut(iid) : NULL;
+      }
+      if (!entry || !entry->iid || !entry->ctor) {
+         npt_log("npt_com_wrap_canonical: no ctor for type %u",
+                 (unsigned)ref->type);
+         npt_ring_send_com_release_immediate(dev, id);
+         return NULL;
+      }
+
+      struct npt_com_base *com = entry->ctor(dev, id);
+      if (!com) {
+         npt_ring_send_com_release_immediate(dev, id);
+         return NULL;
+      }
+      /* Mirrors default_addref: priv_ref tracks the live pub_ref hold. */
+      atomic_fetch_add(&com->base.priv_ref, 1);
+      if (entry->aux_size) {
+         com->aux = calloc(1, entry->aux_size);
+         if (com->aux && entry->aux_init)
+            entry->aux_init(com, dev, id);
+      }
+      if (!com->base.instance_ring &&
+          npt_com_iid_needs_instance_ring(dev, ctor_iid))
+         com->base.instance_ring = npt_com_acquire_dc_sc_ring(dev);
+      npt_com_confirm_tier(com, iid, ref->type);
+      if (ref->primary_id && ref->primary_id != id) {
+         struct npt_com_base *primary =
+            npt_device_wrapper_cache_lookup(dev, ref->primary_id);
+         if (primary) {
+            atomic_fetch_add(&primary->base.priv_ref, 1);
+            com->identity = primary;
+            npt_com_vtbl_release(primary);
+         }
+      }
+
+      bool retry = false;
+      void *winner =
+         npt_device_wrapper_cache_insert_if_absent(dev, id, com, &retry);
+      if (winner) {
+         npt_com_discard_unpublished(dev, com);
+         npt_com_confirm_tier(winner, iid, ref->type);
+         npt_ring_send_com_release_immediate(dev, id);
+         return winner;
+      }
+      if (retry) {
+         npt_com_discard_unpublished(dev, com);
+         thrd_yield();
+         continue;
+      }
+      /* A wrapper minted from a reply has no parent to ride on: it
+       * holds the device the way an entry point's wrapper does. */
+      npt_device_acquire();
+      atomic_fetch_add_explicit(&com->base.device_ref_holds, 1,
+                                memory_order_relaxed);
+      return com;
+   }
+
+   npt_log("npt_com_wrap_canonical: gave up after 8 retries on id contention");
+   npt_ring_send_com_release_immediate(dev, id);
+   return NULL;
 }
 
 HRESULT
@@ -669,83 +868,127 @@ npt_com_query_interface_host(void *self, const GUID *riid, void **ppvObject)
    if (!riid || !self)
       return NPT_E_POINTER;
 
-   mtx_lock(&g_qi_memo_mutex);
-   struct npt_com_qi_memo_entry *e = npt_com_qi_memo_find_locked(com, riid);
+   mtx_lock(&g_memo_mutex);
+   struct npt_com_memo_entry *e = npt_com_memo_find_locked(com, 0, riid);
    if (e) {
       struct npt_com_base *w = e->wrapper;
       /* A flush detaches the memo under this lock, so the memo's hold
        * keeps w alive until this AddRef. */
       if (w)
          npt_com_vtbl_addref(w);
-      mtx_unlock(&g_qi_memo_mutex);
+      mtx_unlock(&g_memo_mutex);
       if (!w)
          return NPT_E_NOINTERFACE;
       *ppvObject = w;
       return NPT_S_OK;
    }
-   mtx_unlock(&g_qi_memo_mutex);
+   mtx_unlock(&g_memo_mutex);
 
-   /* One host round trip per (object, IID).  The guest id is
-    * pre-allocated and the wrapper built speculatively; on
-    * E_NOINTERFACE the id was never registered host-side and the
-    * wrapper's COM_RELEASE is a no-op there.  parent=self so the
-    * wrapper inherits the instance ring and shares family aux with
-    * the object it aliases. */
+   /* An interface the guest has no constructor for cannot be handed
+    * out, so the host is not asked to register it. */
+   const struct npt_com_ctor_entry *entry = npt_com_table_lookup_entry_mut(riid);
+   if (!entry || !entry->iid || !entry->ctor)
+      return NPT_E_NOINTERFACE;
+
+   /* One host round trip per (object, IID).  The guest id is the one
+    * the host registers the interface under when it is new to the
+    * guest; when it already holds the object under another id, the
+    * reply names that id instead and the guest id stays unused. */
    struct npt_device *dev = npt_com_self_device(self);
-   uint64_t guest_id = npt_com_allocate_next_id();
-   struct npt_com_base *wrapper =
-      npt_com_get_or_wrap(dev, riid, guest_id, com);
-   if (!wrapper)
-      return NPT_E_OUTOFMEMORY;
-   HRESULT hr = npt_com_send_query_interface(self,
-                                             riid, guest_id);
+   struct npt_wire_object_ref ref;
+   memset(&ref, 0, sizeof(ref));
+   HRESULT hr = npt_com_send_query_interface(self, riid,
+                                             npt_com_allocate_next_id(), &ref);
    if (hr != NPT_S_OK && hr != NPT_E_NOINTERFACE) {
       /* Transport failure: nothing was learned about the IID. */
-      npt_com_vtbl_release(wrapper);
       return hr;
    }
 
-   struct npt_com_qi_memo_entry *fresh = malloc(sizeof(*fresh));
-   struct npt_com_base *keep = NULL;
-   bool discard = false;
-   mtx_lock(&g_qi_memo_mutex);
-   struct npt_com_qi_memo_entry *prior =
-      npt_com_qi_memo_find_locked(com, riid);
+   struct npt_com_base *wrapper = NULL;
+   if (hr == NPT_S_OK) {
+      wrapper = npt_com_wrap_canonical(dev, &ref, riid);
+      if (!wrapper)
+         return NPT_E_OUTOFMEMORY;
+   }
+
+   mtx_lock(&g_memo_mutex);
+   struct npt_com_memo_entry *prior = npt_com_memo_find_locked(com, 0, riid);
    if (prior) {
       /* A concurrent probe won; its entry is authoritative. */
-      if (prior->wrapper) {
-         npt_com_vtbl_addref(prior->wrapper);
-         keep = prior->wrapper;
-      }
-      discard = true;
-   } else if (fresh) {
-      fresh->iid = *riid;
-      if (hr == NPT_S_OK) {
-         fresh->wrapper = wrapper;
-         npt_com_vtbl_addref(wrapper); /* the memo's hold */
-         keep = wrapper;
-      } else {
-         fresh->wrapper = NULL;
-         discard = true;
-      }
-      fresh->next = com->qi_memo;
-      com->qi_memo = fresh;
-      fresh = NULL;
-   } else {
-      /* Entry allocation failed: answer unmemoized. */
-      if (hr == NPT_S_OK)
-         keep = wrapper;
-      else
-         discard = true;
+      struct npt_com_base *keep = prior->wrapper;
+      if (keep)
+         npt_com_vtbl_addref(keep);
+      mtx_unlock(&g_memo_mutex);
+      if (wrapper)
+         npt_com_vtbl_release(wrapper);
+      if (!keep)
+         return NPT_E_NOINTERFACE;
+      *ppvObject = keep;
+      return NPT_S_OK;
    }
-   mtx_unlock(&g_qi_memo_mutex);
-   free(fresh);
-   if (discard)
-      npt_com_vtbl_release(wrapper);
-   if (!keep)
+   mtx_unlock(&g_memo_mutex);
+
+   npt_com_memo_store(self, 0, riid, wrapper);
+   if (!wrapper)
       return NPT_E_NOINTERFACE;
-   *ppvObject = keep;
+   *ppvObject = wrapper;
    return NPT_S_OK;
+}
+
+HRESULT
+npt_com_query_interface_family(void *self, const GUID *riid, void **out)
+{
+   struct npt_com_base *com = self;
+   if (!out)
+      return NPT_E_POINTER;
+   *out = NULL;
+   if (!riid || !self)
+      return NPT_E_POINTER;
+
+   if (npt_com_iid_equal(riid, &NPT_IID_IUnknown)) {
+      struct npt_com_base *target = com->identity ? com->identity : com;
+      npt_com_vtbl_addref(target);
+      *out = target;
+      return NPT_S_OK;
+   }
+
+   const struct npt_com_family *fam = com->family;
+   if (fam) {
+      for (const GUID *const *p = fam->ancestor_iids; *p; p++) {
+         if (npt_com_iid_equal(*p, riid)) {
+            npt_com_vtbl_addref(com);
+            *out = com;
+            return NPT_S_OK;
+         }
+      }
+      for (uint32_t k = 0; k < fam->tier_count; k++) {
+         if (!npt_com_iid_equal(fam->tier_iids[k], riid))
+            continue;
+         if (k <= atomic_load_explicit(&com->tier, memory_order_acquire)) {
+            npt_com_vtbl_addref(com);
+            *out = com;
+            return NPT_S_OK;
+         }
+         if (k >= atomic_load_explicit(&com->tier_denied,
+                                       memory_order_relaxed))
+            return NPT_E_NOINTERFACE;
+         /* The host confirms the tier by answering this wrapper's own
+          * id, which npt_com_wrap_canonical records; refusal is final
+          * for the object's lifetime. */
+         HRESULT hr = npt_com_query_interface_host(self, riid, out);
+         if (hr == NPT_E_NOINTERFACE)
+            npt_com_deny_tier(com, k);
+         return hr;
+      }
+   }
+   /* Another family's view of an object asks the object's primary
+    * wrapper for every interface outside its own family: the primary
+    * answers its own family from its tier, and memoizes the object's
+    * other views on itself alone.  Memos on the views would hold the
+    * primary and each other by public refs that never drain. */
+   if (com->identity)
+      return npt_com_query_interface_family(com->identity, riid, out);
+   return npt_com_query_interface_host(self, riid, out);
 }
 
 void
@@ -774,7 +1017,7 @@ npt_com_init_impl(void)
    /* env_init first so subsequent NPT_PERF(...) branches see the bitmask. */
    npt_env_init();
    npt_profile_init();
-   mtx_init(&g_qi_memo_mutex, mtx_plain);
+   mtx_init(&g_memo_mutex, mtx_plain);
 
    /* Default ctors must run before override installers below read the
     * populated default vtbls. */
@@ -784,7 +1027,6 @@ npt_com_init_impl(void)
    npt_overrides_d3d11_context_init();
    npt_overrides_d3d11_buffer_init();
    npt_overrides_d3d11_texture_init();
-   npt_overrides_d3d11_view_init();
    npt_overrides_dxgi_output_init();
    npt_overrides_dxgi_factory_init();
    npt_overrides_dxgi_factorymedia_init();

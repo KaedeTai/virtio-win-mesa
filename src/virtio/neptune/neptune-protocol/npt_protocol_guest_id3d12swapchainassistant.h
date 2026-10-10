@@ -158,6 +158,7 @@ struct npt_command_ID3D12SwapChainAssistant_GetSwapChainObject {
      * this field and inserts {_guest_id_ppv -> *ppv} in the
      * context object table. */
     uint64_t _guest_id_ppv;
+    struct npt_wire_object_ref _ref_ppv;
     HRESULT ret;
 };
 
@@ -214,15 +215,21 @@ npt_sizeof_ID3D12SwapChainAssistant_GetSwapChainObject_reply(const IID * riid,vo
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip riid (input only) */
-/* skip ppv (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppv: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D12SwapChainAssistant_GetSwapChainObject_reply(struct npt_cs_decoder *dec,
                                                              void ** ppv,
-                                                             HRESULT *ret)
+                                                             HRESULT *ret,
+                                                             struct npt_wire_object_ref *_refs,
+                                                             size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D12SwapChainAssistant,
@@ -242,7 +249,11 @@ npt_decode_ID3D12SwapChainAssistant_GetSwapChainObject_reply(struct npt_cs_decod
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppv (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -274,28 +285,20 @@ npt_submit_ID3D12SwapChainAssistant_GetSwapChainObject(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D12SwapChainAssistant_GetSwapChainObject(struct npt_ring *ring,
-                                                      npt_object_id object_id,
-                                                      const IID * riid,
-                                                      void ** ppv)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D12SwapChainAssistant_GetSwapChainObject(ring, 0, object_id, riid, ppv, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D12SwapChainAssistant_GetSwapChainObject(struct npt_ring *ring,
                                                      npt_object_id object_id,
                                                      const IID * riid,
-                                                     void ** ppv)
+                                                     void ** ppv,
+                                                     struct npt_wire_object_ref *_refs,
+                                                     size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D12SwapChainAssistant_GetSwapChainObject(ring, NPT_CMD_FLAG_REPLY, object_id, riid, ppv, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D12SwapChainAssistant_GetSwapChainObject_reply(dec, ppv, &_ret);
+        npt_decode_ID3D12SwapChainAssistant_GetSwapChainObject_reply(dec, ppv, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -318,11 +321,13 @@ struct npt_command_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue {
      * this field and inserts {_guest_id_ppvResource -> *ppvResource} in the
      * context object table. */
     uint64_t _guest_id_ppvResource;
+    struct npt_wire_object_ref _ref_ppvResource;
     /* Shadow: the guest-allocated id for ppvQueue arrives in the command
      * body (no reply round-trip).  The post-dispatch register pass reads
      * this field and inserts {_guest_id_ppvQueue -> *ppvQueue} in the
      * context object table. */
     uint64_t _guest_id_ppvQueue;
+    struct npt_wire_object_ref _ref_ppvQueue;
     HRESULT ret;
 };
 
@@ -395,9 +400,9 @@ npt_sizeof_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue_reply(cons
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip riidResource (input only) */
-/* skip ppvResource (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvResource: registered id */
 /* skip riidQueue (input only) */
-/* skip ppvQueue (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvQueue: registered id */
     return cmd_size;
 }
 
@@ -405,8 +410,14 @@ static inline void
 npt_decode_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue_reply(struct npt_cs_decoder *dec,
                                                                             void ** ppvResource,
                                                                             void ** ppvQueue,
-                                                                            HRESULT *ret)
+                                                                            HRESULT *ret,
+                                                                            struct npt_wire_object_ref *_refs,
+                                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D12SwapChainAssistant,
@@ -426,8 +437,16 @@ npt_decode_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue_reply(stru
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppvResource (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppvQueue (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -461,32 +480,22 @@ npt_submit_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue(struct npt
     }
 }
 
-static inline void
-npt_async_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue(struct npt_ring *ring,
-                                                                     npt_object_id object_id,
-                                                                     const IID * riidResource,
-                                                                     void ** ppvResource,
-                                                                     const IID * riidQueue,
-                                                                     void ** ppvQueue)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue(ring, 0, object_id, riidResource, ppvResource, riidQueue, ppvQueue, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue(struct npt_ring *ring,
                                                                     npt_object_id object_id,
                                                                     const IID * riidResource,
                                                                     void ** ppvResource,
                                                                     const IID * riidQueue,
-                                                                    void ** ppvQueue)
+                                                                    void ** ppvQueue,
+                                                                    struct npt_wire_object_ref *_refs,
+                                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue(ring, NPT_CMD_FLAG_REPLY, object_id, riidResource, ppvResource, riidQueue, ppvQueue, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue_reply(dec, ppvResource, ppvQueue, &_ret);
+        npt_decode_ID3D12SwapChainAssistant_GetCurrentResourceAndCommandQueue_reply(dec, ppvResource, ppvQueue, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

@@ -6198,6 +6198,7 @@ struct npt_command_ID3D11Device_GetImmediateContext {
      * this field and inserts {_guest_id_ppImmediateContext -> *ppImmediateContext} in the
      * context object table. */
     uint64_t _guest_id_ppImmediateContext;
+    struct npt_wire_object_ref _ref_ppImmediateContext;
 };
 
 static inline size_t
@@ -6246,14 +6247,20 @@ npt_sizeof_ID3D11Device_GetImmediateContext_reply(ID3D11DeviceContext ** ppImmed
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppImmediateContext (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppImmediateContext: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11Device_GetImmediateContext_reply(struct npt_cs_decoder *dec,
-                                                  ID3D11DeviceContext ** ppImmediateContext)
+                                                  ID3D11DeviceContext ** ppImmediateContext,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device,
@@ -6271,7 +6278,11 @@ npt_decode_ID3D11Device_GetImmediateContext_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11Device_GetImmediateContext));
         return;
     }
-/* skip ppImmediateContext (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -6303,24 +6314,17 @@ npt_submit_ID3D11Device_GetImmediateContext(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11Device_GetImmediateContext(struct npt_ring *ring,
-                                           npt_object_id object_id,
-                                           ID3D11DeviceContext ** ppImmediateContext)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11Device_GetImmediateContext(ring, 0, object_id, ppImmediateContext, &submit);
-}
-
-static inline void
 npt_call_ID3D11Device_GetImmediateContext(struct npt_ring *ring,
                                           npt_object_id object_id,
-                                          ID3D11DeviceContext ** ppImmediateContext)
+                                          ID3D11DeviceContext ** ppImmediateContext,
+                                          struct npt_wire_object_ref *_refs,
+                                          size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11Device_GetImmediateContext(ring, NPT_CMD_FLAG_REPLY, object_id, ppImmediateContext, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11Device_GetImmediateContext_reply(dec, ppImmediateContext);
+        npt_decode_ID3D11Device_GetImmediateContext_reply(dec, ppImmediateContext, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -6595,6 +6599,7 @@ struct npt_command_ID3D11Device1_GetImmediateContext1 {
      * this field and inserts {_guest_id_ppImmediateContext -> *ppImmediateContext} in the
      * context object table. */
     uint64_t _guest_id_ppImmediateContext;
+    struct npt_wire_object_ref _ref_ppImmediateContext;
 };
 
 static inline size_t
@@ -6643,14 +6648,20 @@ npt_sizeof_ID3D11Device1_GetImmediateContext1_reply(ID3D11DeviceContext1 ** ppIm
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppImmediateContext (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppImmediateContext: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11Device1_GetImmediateContext1_reply(struct npt_cs_decoder *dec,
-                                                    ID3D11DeviceContext1 ** ppImmediateContext)
+                                                    ID3D11DeviceContext1 ** ppImmediateContext,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device1,
@@ -6668,7 +6679,11 @@ npt_decode_ID3D11Device1_GetImmediateContext1_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11Device1_GetImmediateContext1));
         return;
     }
-/* skip ppImmediateContext (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -6700,24 +6715,17 @@ npt_submit_ID3D11Device1_GetImmediateContext1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11Device1_GetImmediateContext1(struct npt_ring *ring,
-                                             npt_object_id object_id,
-                                             ID3D11DeviceContext1 ** ppImmediateContext)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11Device1_GetImmediateContext1(ring, 0, object_id, ppImmediateContext, &submit);
-}
-
-static inline void
 npt_call_ID3D11Device1_GetImmediateContext1(struct npt_ring *ring,
                                             npt_object_id object_id,
-                                            ID3D11DeviceContext1 ** ppImmediateContext)
+                                            ID3D11DeviceContext1 ** ppImmediateContext,
+                                            struct npt_wire_object_ref *_refs,
+                                            size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11Device1_GetImmediateContext1(ring, NPT_CMD_FLAG_REPLY, object_id, ppImmediateContext, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11Device1_GetImmediateContext1_reply(dec, ppImmediateContext);
+        npt_decode_ID3D11Device1_GetImmediateContext1_reply(dec, ppImmediateContext, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -7768,6 +7776,7 @@ struct npt_command_ID3D11Device2_GetImmediateContext2 {
      * this field and inserts {_guest_id_ppImmediateContext -> *ppImmediateContext} in the
      * context object table. */
     uint64_t _guest_id_ppImmediateContext;
+    struct npt_wire_object_ref _ref_ppImmediateContext;
 };
 
 static inline size_t
@@ -7816,14 +7825,20 @@ npt_sizeof_ID3D11Device2_GetImmediateContext2_reply(ID3D11DeviceContext2 ** ppIm
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppImmediateContext (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppImmediateContext: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11Device2_GetImmediateContext2_reply(struct npt_cs_decoder *dec,
-                                                    ID3D11DeviceContext2 ** ppImmediateContext)
+                                                    ID3D11DeviceContext2 ** ppImmediateContext,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device2,
@@ -7841,7 +7856,11 @@ npt_decode_ID3D11Device2_GetImmediateContext2_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11Device2_GetImmediateContext2));
         return;
     }
-/* skip ppImmediateContext (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -7873,24 +7892,17 @@ npt_submit_ID3D11Device2_GetImmediateContext2(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11Device2_GetImmediateContext2(struct npt_ring *ring,
-                                             npt_object_id object_id,
-                                             ID3D11DeviceContext2 ** ppImmediateContext)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11Device2_GetImmediateContext2(ring, 0, object_id, ppImmediateContext, &submit);
-}
-
-static inline void
 npt_call_ID3D11Device2_GetImmediateContext2(struct npt_ring *ring,
                                             npt_object_id object_id,
-                                            ID3D11DeviceContext2 ** ppImmediateContext)
+                                            ID3D11DeviceContext2 ** ppImmediateContext,
+                                            struct npt_wire_object_ref *_refs,
+                                            size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11Device2_GetImmediateContext2(ring, NPT_CMD_FLAG_REPLY, object_id, ppImmediateContext, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11Device2_GetImmediateContext2_reply(dec, ppImmediateContext);
+        npt_decode_ID3D11Device2_GetImmediateContext2_reply(dec, ppImmediateContext, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9599,6 +9611,7 @@ struct npt_command_ID3D11Device3_GetImmediateContext3 {
      * this field and inserts {_guest_id_ppImmediateContext -> *ppImmediateContext} in the
      * context object table. */
     uint64_t _guest_id_ppImmediateContext;
+    struct npt_wire_object_ref _ref_ppImmediateContext;
 };
 
 static inline size_t
@@ -9647,14 +9660,20 @@ npt_sizeof_ID3D11Device3_GetImmediateContext3_reply(ID3D11DeviceContext3 ** ppIm
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppImmediateContext (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppImmediateContext: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11Device3_GetImmediateContext3_reply(struct npt_cs_decoder *dec,
-                                                    ID3D11DeviceContext3 ** ppImmediateContext)
+                                                    ID3D11DeviceContext3 ** ppImmediateContext,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device3,
@@ -9672,7 +9691,11 @@ npt_decode_ID3D11Device3_GetImmediateContext3_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11Device3_GetImmediateContext3));
         return;
     }
-/* skip ppImmediateContext (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -9704,24 +9727,17 @@ npt_submit_ID3D11Device3_GetImmediateContext3(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11Device3_GetImmediateContext3(struct npt_ring *ring,
-                                             npt_object_id object_id,
-                                             ID3D11DeviceContext3 ** ppImmediateContext)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11Device3_GetImmediateContext3(ring, 0, object_id, ppImmediateContext, &submit);
-}
-
-static inline void
 npt_call_ID3D11Device3_GetImmediateContext3(struct npt_ring *ring,
                                             npt_object_id object_id,
-                                            ID3D11DeviceContext3 ** ppImmediateContext)
+                                            ID3D11DeviceContext3 ** ppImmediateContext,
+                                            struct npt_wire_object_ref *_refs,
+                                            size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11Device3_GetImmediateContext3(ring, NPT_CMD_FLAG_REPLY, object_id, ppImmediateContext, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11Device3_GetImmediateContext3_reply(dec, ppImmediateContext);
+        npt_decode_ID3D11Device3_GetImmediateContext3_reply(dec, ppImmediateContext, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }

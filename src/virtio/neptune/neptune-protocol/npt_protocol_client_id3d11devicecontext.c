@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d11devicecontext.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,50 @@
 
 
 /* ================================================================== */
-/* ID3D11DeviceContext                                                       */
+/* Family id3d11devicecontext                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11devicecontext_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d11devicecontext_tiers[] = {
+    &NPT_IID_ID3D11DeviceContext,
+    &NPT_IID_ID3D11DeviceContext1,
+    &NPT_IID_ID3D11DeviceContext2,
+    &NPT_IID_ID3D11DeviceContext3,
+    &NPT_IID_ID3D11DeviceContext4,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d11devicecontext_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D11DEVICECONTEXT,
+    NPT_OBJECT_TYPE_ID3D11DEVICECONTEXT1,
+    NPT_OBJECT_TYPE_ID3D11DEVICECONTEXT2,
+    NPT_OBJECT_TYPE_ID3D11DEVICECONTEXT3,
+    NPT_OBJECT_TYPE_ID3D11DEVICECONTEXT4,
+};
+
+static const GUID *const npt_com_family_id3d11devicecontext_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11DeviceContext,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d11devicecontext = {
+    .name = "id3d11devicecontext",
+    .index = NPT_IFACE_FAMILY_ID3D11DEVICECONTEXT,
+    .tier_iids = npt_com_family_id3d11devicecontext_tiers,
+    .tier_types = npt_com_family_id3d11devicecontext_tier_types,
+    .tier_count = 5,
+    .ancestor_iids = npt_com_family_id3d11devicecontext_ancestors,
+    .vtbl = (const void **)&npt_id3d11devicecontext4_default_vtbl_storage,
+    .vtbl_install = npt_id3d11devicecontext4_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11devicecontext_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -55,6 +79,11 @@ npt_id3d11devicecontext_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D11DeviceContext (tier 0)                                  */
+/* ================================================================== */
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_VSSetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
@@ -477,46 +506,89 @@ npt_id3d11devicecontext_default_CSSetConstantBuffers(void *self, UINT StartSlot,
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_VSGetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
 {
-    npt_async_ID3D11DeviceContext_VSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_VSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_PSGetShaderResources(void *self, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView ** ppShaderResourceViews)
 {
-    npt_async_ID3D11DeviceContext_PSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppShaderResourceViews) {
-        const UINT _n_ppShaderResourceViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppShaderResourceViews; _i++) {
-            if (ppShaderResourceViews[_i])
-                ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ShaderResourceView,
-                    (uint64_t)(uintptr_t)ppShaderResourceViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppShaderResourceViews = ppShaderResourceViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppShaderResourceViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++)
+            ppShaderResourceViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_PSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ShaderResourceView);
+        else
+            ppShaderResourceViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_PSGetShader(void *self, ID3D11PixelShader ** ppPixelShader, ID3D11ClassInstance ** ppClassInstances, UINT * pNumClassInstances)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppClassInstances = ppClassInstances ? (UINT)(*pNumClassInstances) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppClassInstances;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppPixelShader)
+            *ppPixelShader = NULL;
+        for (UINT _i = 0; _i < _cap_ppClassInstances; _i++)
+            ppClassInstances[_i] = NULL;
+        return;
+    }
     ID3D11PixelShader *_raw_ppPixelShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -525,56 +597,82 @@ npt_id3d11devicecontext_default_PSGetShader(void *self, ID3D11PixelShader ** ppP
     ID3D11PixelShader **_orig_ppPixelShader = ppPixelShader;
     if (ppPixelShader)
         ppPixelShader = (ID3D11PixelShader **)&_raw_ppPixelShader;
-    npt_call_ID3D11DeviceContext_PSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppPixelShader,ppClassInstances,pNumClassInstances);
+    npt_call_ID3D11DeviceContext_PSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppPixelShader,ppClassInstances,pNumClassInstances,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppPixelShader) {
-        if (_raw_ppPixelShader)
-            *_orig_ppPixelShader = (ID3D11PixelShader *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11PixelShader,
-                (uint64_t)(uintptr_t)_raw_ppPixelShader,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppPixelShader = (ID3D11PixelShader *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11PixelShader);
         else
             *_orig_ppPixelShader = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppClassInstances) {
-        const UINT _n_ppClassInstances = (UINT)(*pNumClassInstances);
-        for (UINT _i = 0; _i < _n_ppClassInstances; _i++) {
-            if (ppClassInstances[_i])
-                ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ClassInstance,
-                    (uint64_t)(uintptr_t)ppClassInstances[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppClassInstances; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ClassInstance);
+        else
+            ppClassInstances[_i] = NULL;
     }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_PSGetSamplers(void *self, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState ** ppSamplers)
 {
-    npt_async_ID3D11DeviceContext_PSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSamplers) {
-        const UINT _n_ppSamplers = (UINT)(NumSamplers);
-        for (UINT _i = 0; _i < _n_ppSamplers; _i++) {
-            if (ppSamplers[_i])
-                ppSamplers[_i] = (ID3D11SamplerState *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11SamplerState,
-                    (uint64_t)(uintptr_t)ppSamplers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSamplers = ppSamplers ? (UINT)(NumSamplers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSamplers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSamplers; _i++)
+            ppSamplers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_PSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSamplers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSamplers[_i] = (ID3D11SamplerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11SamplerState);
+        else
+            ppSamplers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_VSGetShader(void *self, ID3D11VertexShader ** ppVertexShader, ID3D11ClassInstance ** ppClassInstances, UINT * pNumClassInstances)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppClassInstances = ppClassInstances ? (UINT)(*pNumClassInstances) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppClassInstances;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppVertexShader)
+            *ppVertexShader = NULL;
+        for (UINT _i = 0; _i < _cap_ppClassInstances; _i++)
+            ppClassInstances[_i] = NULL;
+        return;
+    }
     ID3D11VertexShader *_raw_ppVertexShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -583,56 +681,67 @@ npt_id3d11devicecontext_default_VSGetShader(void *self, ID3D11VertexShader ** pp
     ID3D11VertexShader **_orig_ppVertexShader = ppVertexShader;
     if (ppVertexShader)
         ppVertexShader = (ID3D11VertexShader **)&_raw_ppVertexShader;
-    npt_call_ID3D11DeviceContext_VSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppVertexShader,ppClassInstances,pNumClassInstances);
+    npt_call_ID3D11DeviceContext_VSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppVertexShader,ppClassInstances,pNumClassInstances,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppVertexShader) {
-        if (_raw_ppVertexShader)
-            *_orig_ppVertexShader = (ID3D11VertexShader *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11VertexShader,
-                (uint64_t)(uintptr_t)_raw_ppVertexShader,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppVertexShader = (ID3D11VertexShader *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11VertexShader);
         else
             *_orig_ppVertexShader = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppClassInstances) {
-        const UINT _n_ppClassInstances = (UINT)(*pNumClassInstances);
-        for (UINT _i = 0; _i < _n_ppClassInstances; _i++) {
-            if (ppClassInstances[_i])
-                ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ClassInstance,
-                    (uint64_t)(uintptr_t)ppClassInstances[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppClassInstances; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ClassInstance);
+        else
+            ppClassInstances[_i] = NULL;
     }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_PSGetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
 {
-    npt_async_ID3D11DeviceContext_PSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_PSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_IAGetInputLayout(void *self, ID3D11InputLayout ** ppInputLayout)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11InputLayout *_raw_ppInputLayout = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -641,42 +750,58 @@ npt_id3d11devicecontext_default_IAGetInputLayout(void *self, ID3D11InputLayout *
     ID3D11InputLayout **_orig_ppInputLayout = ppInputLayout;
     if (ppInputLayout)
         ppInputLayout = (ID3D11InputLayout **)&_raw_ppInputLayout;
-    npt_async_ID3D11DeviceContext_IAGetInputLayout(npt_com_self_ring(self),npt_com_self_id(self),ppInputLayout);
+    npt_call_ID3D11DeviceContext_IAGetInputLayout(npt_com_self_ring(self),npt_com_self_id(self),ppInputLayout,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppInputLayout) {
-        if (_raw_ppInputLayout)
-            *_orig_ppInputLayout = (ID3D11InputLayout *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11InputLayout,
-                (uint64_t)(uintptr_t)_raw_ppInputLayout,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppInputLayout = (ID3D11InputLayout *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11InputLayout);
         else
             *_orig_ppInputLayout = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_IAGetVertexBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppVertexBuffers, UINT * pStrides, UINT * pOffsets)
 {
-    npt_call_ID3D11DeviceContext_IAGetVertexBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppVertexBuffers,pStrides,pOffsets);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppVertexBuffers) {
-        const UINT _n_ppVertexBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppVertexBuffers; _i++) {
-            if (ppVertexBuffers[_i])
-                ppVertexBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppVertexBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppVertexBuffers = ppVertexBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppVertexBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppVertexBuffers; _i++)
+            ppVertexBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_IAGetVertexBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppVertexBuffers,pStrides,pOffsets,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppVertexBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppVertexBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppVertexBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_IAGetIndexBuffer(void *self, ID3D11Buffer ** pIndexBuffer, DXGI_FORMAT * Format, UINT * Offset)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11Buffer *_raw_pIndexBuffer = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -685,42 +810,73 @@ npt_id3d11devicecontext_default_IAGetIndexBuffer(void *self, ID3D11Buffer ** pIn
     ID3D11Buffer **_orig_pIndexBuffer = pIndexBuffer;
     if (pIndexBuffer)
         pIndexBuffer = (ID3D11Buffer **)&_raw_pIndexBuffer;
-    npt_call_ID3D11DeviceContext_IAGetIndexBuffer(npt_com_self_ring(self),npt_com_self_id(self),pIndexBuffer,Format,Offset);
+    npt_call_ID3D11DeviceContext_IAGetIndexBuffer(npt_com_self_ring(self),npt_com_self_id(self),pIndexBuffer,Format,Offset,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_pIndexBuffer) {
-        if (_raw_pIndexBuffer)
-            *_orig_pIndexBuffer = (ID3D11Buffer *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11Buffer,
-                (uint64_t)(uintptr_t)_raw_pIndexBuffer,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_pIndexBuffer = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
         else
             *_orig_pIndexBuffer = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_GSGetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
 {
-    npt_async_ID3D11DeviceContext_GSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_GSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_GSGetShader(void *self, ID3D11GeometryShader ** ppGeometryShader, ID3D11ClassInstance ** ppClassInstances, UINT * pNumClassInstances)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppClassInstances = ppClassInstances ? (UINT)(*pNumClassInstances) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppClassInstances;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppGeometryShader)
+            *ppGeometryShader = NULL;
+        for (UINT _i = 0; _i < _cap_ppClassInstances; _i++)
+            ppClassInstances[_i] = NULL;
+        return;
+    }
     ID3D11GeometryShader *_raw_ppGeometryShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -729,31 +885,27 @@ npt_id3d11devicecontext_default_GSGetShader(void *self, ID3D11GeometryShader ** 
     ID3D11GeometryShader **_orig_ppGeometryShader = ppGeometryShader;
     if (ppGeometryShader)
         ppGeometryShader = (ID3D11GeometryShader **)&_raw_ppGeometryShader;
-    npt_call_ID3D11DeviceContext_GSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppGeometryShader,ppClassInstances,pNumClassInstances);
+    npt_call_ID3D11DeviceContext_GSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppGeometryShader,ppClassInstances,pNumClassInstances,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppGeometryShader) {
-        if (_raw_ppGeometryShader)
-            *_orig_ppGeometryShader = (ID3D11GeometryShader *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11GeometryShader,
-                (uint64_t)(uintptr_t)_raw_ppGeometryShader,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppGeometryShader = (ID3D11GeometryShader *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11GeometryShader);
         else
             *_orig_ppGeometryShader = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppClassInstances) {
-        const UINT _n_ppClassInstances = (UINT)(*pNumClassInstances);
-        for (UINT _i = 0; _i < _n_ppClassInstances; _i++) {
-            if (ppClassInstances[_i])
-                ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ClassInstance,
-                    (uint64_t)(uintptr_t)ppClassInstances[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppClassInstances; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ClassInstance);
+        else
+            ppClassInstances[_i] = NULL;
     }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -765,46 +917,74 @@ npt_id3d11devicecontext_default_IAGetPrimitiveTopology(void *self, D3D11_PRIMITI
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_VSGetShaderResources(void *self, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView ** ppShaderResourceViews)
 {
-    npt_async_ID3D11DeviceContext_VSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppShaderResourceViews) {
-        const UINT _n_ppShaderResourceViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppShaderResourceViews; _i++) {
-            if (ppShaderResourceViews[_i])
-                ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ShaderResourceView,
-                    (uint64_t)(uintptr_t)ppShaderResourceViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppShaderResourceViews = ppShaderResourceViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppShaderResourceViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++)
+            ppShaderResourceViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_VSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ShaderResourceView);
+        else
+            ppShaderResourceViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_VSGetSamplers(void *self, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState ** ppSamplers)
 {
-    npt_async_ID3D11DeviceContext_VSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSamplers) {
-        const UINT _n_ppSamplers = (UINT)(NumSamplers);
-        for (UINT _i = 0; _i < _n_ppSamplers; _i++) {
-            if (ppSamplers[_i])
-                ppSamplers[_i] = (ID3D11SamplerState *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11SamplerState,
-                    (uint64_t)(uintptr_t)ppSamplers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSamplers = ppSamplers ? (UINT)(NumSamplers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSamplers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSamplers; _i++)
+            ppSamplers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_VSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSamplers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSamplers[_i] = (ID3D11SamplerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11SamplerState);
+        else
+            ppSamplers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_GetPredication(void *self, ID3D11Predicate ** ppPredicate, BOOL * pPredicateValue)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11Predicate *_raw_ppPredicate = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -813,62 +993,106 @@ npt_id3d11devicecontext_default_GetPredication(void *self, ID3D11Predicate ** pp
     ID3D11Predicate **_orig_ppPredicate = ppPredicate;
     if (ppPredicate)
         ppPredicate = (ID3D11Predicate **)&_raw_ppPredicate;
-    npt_call_ID3D11DeviceContext_GetPredication(npt_com_self_ring(self),npt_com_self_id(self),ppPredicate,pPredicateValue);
+    npt_call_ID3D11DeviceContext_GetPredication(npt_com_self_ring(self),npt_com_self_id(self),ppPredicate,pPredicateValue,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppPredicate) {
-        if (_raw_ppPredicate)
-            *_orig_ppPredicate = (ID3D11Predicate *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11Predicate,
-                (uint64_t)(uintptr_t)_raw_ppPredicate,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppPredicate = (ID3D11Predicate *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Predicate);
         else
             *_orig_ppPredicate = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_GSGetShaderResources(void *self, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView ** ppShaderResourceViews)
 {
-    npt_async_ID3D11DeviceContext_GSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppShaderResourceViews) {
-        const UINT _n_ppShaderResourceViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppShaderResourceViews; _i++) {
-            if (ppShaderResourceViews[_i])
-                ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ShaderResourceView,
-                    (uint64_t)(uintptr_t)ppShaderResourceViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppShaderResourceViews = ppShaderResourceViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppShaderResourceViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++)
+            ppShaderResourceViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_GSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ShaderResourceView);
+        else
+            ppShaderResourceViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_GSGetSamplers(void *self, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState ** ppSamplers)
 {
-    npt_async_ID3D11DeviceContext_GSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSamplers) {
-        const UINT _n_ppSamplers = (UINT)(NumSamplers);
-        for (UINT _i = 0; _i < _n_ppSamplers; _i++) {
-            if (ppSamplers[_i])
-                ppSamplers[_i] = (ID3D11SamplerState *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11SamplerState,
-                    (uint64_t)(uintptr_t)ppSamplers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSamplers = ppSamplers ? (UINT)(NumSamplers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSamplers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSamplers; _i++)
+            ppSamplers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_GSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSamplers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSamplers[_i] = (ID3D11SamplerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11SamplerState);
+        else
+            ppSamplers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_OMGetRenderTargets(void *self, UINT NumViews, ID3D11RenderTargetView ** ppRenderTargetViews, ID3D11DepthStencilView ** ppDepthStencilView)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppRenderTargetViews = ppRenderTargetViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppRenderTargetViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppDepthStencilView)
+            *ppDepthStencilView = NULL;
+        for (UINT _i = 0; _i < _cap_ppRenderTargetViews; _i++)
+            ppRenderTargetViews[_i] = NULL;
+        return;
+    }
     ID3D11DepthStencilView *_raw_ppDepthStencilView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -877,36 +1101,52 @@ npt_id3d11devicecontext_default_OMGetRenderTargets(void *self, UINT NumViews, ID
     ID3D11DepthStencilView **_orig_ppDepthStencilView = ppDepthStencilView;
     if (ppDepthStencilView)
         ppDepthStencilView = (ID3D11DepthStencilView **)&_raw_ppDepthStencilView;
-    npt_async_ID3D11DeviceContext_OMGetRenderTargets(npt_com_self_ring(self),npt_com_self_id(self),NumViews,ppRenderTargetViews,ppDepthStencilView);
+    npt_call_ID3D11DeviceContext_OMGetRenderTargets(npt_com_self_ring(self),npt_com_self_id(self),NumViews,ppRenderTargetViews,ppDepthStencilView,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppRenderTargetViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppRenderTargetViews[_i] = (ID3D11RenderTargetView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11RenderTargetView);
+        else
+            ppRenderTargetViews[_i] = NULL;
+    }
     if (_orig_ppDepthStencilView) {
-        if (_raw_ppDepthStencilView)
-            *_orig_ppDepthStencilView = (ID3D11DepthStencilView *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DepthStencilView,
-                (uint64_t)(uintptr_t)_raw_ppDepthStencilView,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppDepthStencilView = (ID3D11DepthStencilView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DepthStencilView);
         else
             *_orig_ppDepthStencilView = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppRenderTargetViews) {
-        const UINT _n_ppRenderTargetViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppRenderTargetViews; _i++) {
-            if (ppRenderTargetViews[_i])
-                ppRenderTargetViews[_i] = (ID3D11RenderTargetView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11RenderTargetView,
-                    (uint64_t)(uintptr_t)ppRenderTargetViews[_i],
-                    (struct npt_com_base *)self);
-        }
-    }
+    _ref_i++;
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_OMGetRenderTargetsAndUnorderedAccessViews(void *self, UINT NumRTVs, ID3D11RenderTargetView ** ppRenderTargetViews, ID3D11DepthStencilView ** ppDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppRenderTargetViews = ppRenderTargetViews ? (UINT)(NumRTVs) : 0u;
+    const UINT _cap_ppUnorderedAccessViews = ppUnorderedAccessViews ? (UINT)(NumUAVs) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppRenderTargetViews + _cap_ppUnorderedAccessViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppDepthStencilView)
+            *ppDepthStencilView = NULL;
+        for (UINT _i = 0; _i < _cap_ppRenderTargetViews; _i++)
+            ppRenderTargetViews[_i] = NULL;
+        for (UINT _i = 0; _i < _cap_ppUnorderedAccessViews; _i++)
+            ppUnorderedAccessViews[_i] = NULL;
+        return;
+    }
     ID3D11DepthStencilView *_raw_ppDepthStencilView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -915,47 +1155,41 @@ npt_id3d11devicecontext_default_OMGetRenderTargetsAndUnorderedAccessViews(void *
     ID3D11DepthStencilView **_orig_ppDepthStencilView = ppDepthStencilView;
     if (ppDepthStencilView)
         ppDepthStencilView = (ID3D11DepthStencilView **)&_raw_ppDepthStencilView;
-    npt_async_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(npt_com_self_ring(self),npt_com_self_id(self),NumRTVs,ppRenderTargetViews,ppDepthStencilView,UAVStartSlot,NumUAVs,ppUnorderedAccessViews);
+    npt_call_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(npt_com_self_ring(self),npt_com_self_id(self),NumRTVs,ppRenderTargetViews,ppDepthStencilView,UAVStartSlot,NumUAVs,ppUnorderedAccessViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppRenderTargetViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppRenderTargetViews[_i] = (ID3D11RenderTargetView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11RenderTargetView);
+        else
+            ppRenderTargetViews[_i] = NULL;
+    }
     if (_orig_ppDepthStencilView) {
-        if (_raw_ppDepthStencilView)
-            *_orig_ppDepthStencilView = (ID3D11DepthStencilView *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DepthStencilView,
-                (uint64_t)(uintptr_t)_raw_ppDepthStencilView,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppDepthStencilView = (ID3D11DepthStencilView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DepthStencilView);
         else
             *_orig_ppDepthStencilView = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppRenderTargetViews) {
-        const UINT _n_ppRenderTargetViews = (UINT)(NumRTVs);
-        for (UINT _i = 0; _i < _n_ppRenderTargetViews; _i++) {
-            if (ppRenderTargetViews[_i])
-                ppRenderTargetViews[_i] = (ID3D11RenderTargetView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11RenderTargetView,
-                    (uint64_t)(uintptr_t)ppRenderTargetViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppUnorderedAccessViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppUnorderedAccessViews[_i] = (ID3D11UnorderedAccessView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11UnorderedAccessView);
+        else
+            ppUnorderedAccessViews[_i] = NULL;
     }
-    if (ppUnorderedAccessViews) {
-        const UINT _n_ppUnorderedAccessViews = (UINT)(NumUAVs);
-        for (UINT _i = 0; _i < _n_ppUnorderedAccessViews; _i++) {
-            if (ppUnorderedAccessViews[_i])
-                ppUnorderedAccessViews[_i] = (ID3D11UnorderedAccessView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11UnorderedAccessView,
-                    (uint64_t)(uintptr_t)ppUnorderedAccessViews[_i],
-                    (struct npt_com_base *)self);
-        }
-    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_OMGetBlendState(void *self, ID3D11BlendState ** ppBlendState, FLOAT * BlendFactor, UINT * pSampleMask)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11BlendState *_raw_ppBlendState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -964,22 +1198,25 @@ npt_id3d11devicecontext_default_OMGetBlendState(void *self, ID3D11BlendState ** 
     ID3D11BlendState **_orig_ppBlendState = ppBlendState;
     if (ppBlendState)
         ppBlendState = (ID3D11BlendState **)&_raw_ppBlendState;
-    npt_call_ID3D11DeviceContext_OMGetBlendState(npt_com_self_ring(self),npt_com_self_id(self),ppBlendState,BlendFactor,pSampleMask);
+    npt_call_ID3D11DeviceContext_OMGetBlendState(npt_com_self_ring(self),npt_com_self_id(self),ppBlendState,BlendFactor,pSampleMask,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppBlendState) {
-        if (_raw_ppBlendState)
-            *_orig_ppBlendState = (ID3D11BlendState *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11BlendState,
-                (uint64_t)(uintptr_t)_raw_ppBlendState,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppBlendState = (ID3D11BlendState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11BlendState);
         else
             *_orig_ppBlendState = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_OMGetDepthStencilState(void *self, ID3D11DepthStencilState ** ppDepthStencilState, UINT * pStencilRef)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11DepthStencilState *_raw_ppDepthStencilState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -988,42 +1225,58 @@ npt_id3d11devicecontext_default_OMGetDepthStencilState(void *self, ID3D11DepthSt
     ID3D11DepthStencilState **_orig_ppDepthStencilState = ppDepthStencilState;
     if (ppDepthStencilState)
         ppDepthStencilState = (ID3D11DepthStencilState **)&_raw_ppDepthStencilState;
-    npt_call_ID3D11DeviceContext_OMGetDepthStencilState(npt_com_self_ring(self),npt_com_self_id(self),ppDepthStencilState,pStencilRef);
+    npt_call_ID3D11DeviceContext_OMGetDepthStencilState(npt_com_self_ring(self),npt_com_self_id(self),ppDepthStencilState,pStencilRef,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppDepthStencilState) {
-        if (_raw_ppDepthStencilState)
-            *_orig_ppDepthStencilState = (ID3D11DepthStencilState *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DepthStencilState,
-                (uint64_t)(uintptr_t)_raw_ppDepthStencilState,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppDepthStencilState = (ID3D11DepthStencilState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DepthStencilState);
         else
             *_orig_ppDepthStencilState = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_SOGetTargets(void *self, UINT NumBuffers, ID3D11Buffer ** ppSOTargets)
 {
-    npt_async_ID3D11DeviceContext_SOGetTargets(npt_com_self_ring(self),npt_com_self_id(self),NumBuffers,ppSOTargets);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSOTargets) {
-        const UINT _n_ppSOTargets = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppSOTargets; _i++) {
-            if (ppSOTargets[_i])
-                ppSOTargets[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppSOTargets[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSOTargets = ppSOTargets ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSOTargets;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSOTargets; _i++)
+            ppSOTargets[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_SOGetTargets(npt_com_self_ring(self),npt_com_self_id(self),NumBuffers,ppSOTargets,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSOTargets; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSOTargets[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppSOTargets[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_RSGetState(void *self, ID3D11RasterizerState ** ppRasterizerState)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11RasterizerState *_raw_ppRasterizerState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1032,17 +1285,18 @@ npt_id3d11devicecontext_default_RSGetState(void *self, ID3D11RasterizerState ** 
     ID3D11RasterizerState **_orig_ppRasterizerState = ppRasterizerState;
     if (ppRasterizerState)
         ppRasterizerState = (ID3D11RasterizerState **)&_raw_ppRasterizerState;
-    npt_async_ID3D11DeviceContext_RSGetState(npt_com_self_ring(self),npt_com_self_id(self),ppRasterizerState);
+    npt_call_ID3D11DeviceContext_RSGetState(npt_com_self_ring(self),npt_com_self_id(self),ppRasterizerState,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppRasterizerState) {
-        if (_raw_ppRasterizerState)
-            *_orig_ppRasterizerState = (ID3D11RasterizerState *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11RasterizerState,
-                (uint64_t)(uintptr_t)_raw_ppRasterizerState,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppRasterizerState = (ID3D11RasterizerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11RasterizerState);
         else
             *_orig_ppRasterizerState = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -1060,26 +1314,56 @@ npt_id3d11devicecontext_default_RSGetScissorRects(void *self, UINT * pNumRects, 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_HSGetShaderResources(void *self, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView ** ppShaderResourceViews)
 {
-    npt_async_ID3D11DeviceContext_HSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppShaderResourceViews) {
-        const UINT _n_ppShaderResourceViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppShaderResourceViews; _i++) {
-            if (ppShaderResourceViews[_i])
-                ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ShaderResourceView,
-                    (uint64_t)(uintptr_t)ppShaderResourceViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppShaderResourceViews = ppShaderResourceViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppShaderResourceViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++)
+            ppShaderResourceViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_HSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ShaderResourceView);
+        else
+            ppShaderResourceViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_HSGetShader(void *self, ID3D11HullShader ** ppHullShader, ID3D11ClassInstance ** ppClassInstances, UINT * pNumClassInstances)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppClassInstances = ppClassInstances ? (UINT)(*pNumClassInstances) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppClassInstances;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppHullShader)
+            *ppHullShader = NULL;
+        for (UINT _i = 0; _i < _cap_ppClassInstances; _i++)
+            ppClassInstances[_i] = NULL;
+        return;
+    }
     ID3D11HullShader *_raw_ppHullShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1088,96 +1372,148 @@ npt_id3d11devicecontext_default_HSGetShader(void *self, ID3D11HullShader ** ppHu
     ID3D11HullShader **_orig_ppHullShader = ppHullShader;
     if (ppHullShader)
         ppHullShader = (ID3D11HullShader **)&_raw_ppHullShader;
-    npt_call_ID3D11DeviceContext_HSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppHullShader,ppClassInstances,pNumClassInstances);
+    npt_call_ID3D11DeviceContext_HSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppHullShader,ppClassInstances,pNumClassInstances,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppHullShader) {
-        if (_raw_ppHullShader)
-            *_orig_ppHullShader = (ID3D11HullShader *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11HullShader,
-                (uint64_t)(uintptr_t)_raw_ppHullShader,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppHullShader = (ID3D11HullShader *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11HullShader);
         else
             *_orig_ppHullShader = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppClassInstances) {
-        const UINT _n_ppClassInstances = (UINT)(*pNumClassInstances);
-        for (UINT _i = 0; _i < _n_ppClassInstances; _i++) {
-            if (ppClassInstances[_i])
-                ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ClassInstance,
-                    (uint64_t)(uintptr_t)ppClassInstances[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppClassInstances; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ClassInstance);
+        else
+            ppClassInstances[_i] = NULL;
     }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_HSGetSamplers(void *self, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState ** ppSamplers)
 {
-    npt_async_ID3D11DeviceContext_HSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSamplers) {
-        const UINT _n_ppSamplers = (UINT)(NumSamplers);
-        for (UINT _i = 0; _i < _n_ppSamplers; _i++) {
-            if (ppSamplers[_i])
-                ppSamplers[_i] = (ID3D11SamplerState *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11SamplerState,
-                    (uint64_t)(uintptr_t)ppSamplers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSamplers = ppSamplers ? (UINT)(NumSamplers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSamplers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSamplers; _i++)
+            ppSamplers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_HSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSamplers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSamplers[_i] = (ID3D11SamplerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11SamplerState);
+        else
+            ppSamplers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_HSGetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
 {
-    npt_async_ID3D11DeviceContext_HSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_HSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_DSGetShaderResources(void *self, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView ** ppShaderResourceViews)
 {
-    npt_async_ID3D11DeviceContext_DSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppShaderResourceViews) {
-        const UINT _n_ppShaderResourceViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppShaderResourceViews; _i++) {
-            if (ppShaderResourceViews[_i])
-                ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ShaderResourceView,
-                    (uint64_t)(uintptr_t)ppShaderResourceViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppShaderResourceViews = ppShaderResourceViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppShaderResourceViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++)
+            ppShaderResourceViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_DSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ShaderResourceView);
+        else
+            ppShaderResourceViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_DSGetShader(void *self, ID3D11DomainShader ** ppDomainShader, ID3D11ClassInstance ** ppClassInstances, UINT * pNumClassInstances)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppClassInstances = ppClassInstances ? (UINT)(*pNumClassInstances) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppClassInstances;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppDomainShader)
+            *ppDomainShader = NULL;
+        for (UINT _i = 0; _i < _cap_ppClassInstances; _i++)
+            ppClassInstances[_i] = NULL;
+        return;
+    }
     ID3D11DomainShader *_raw_ppDomainShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1186,116 +1522,181 @@ npt_id3d11devicecontext_default_DSGetShader(void *self, ID3D11DomainShader ** pp
     ID3D11DomainShader **_orig_ppDomainShader = ppDomainShader;
     if (ppDomainShader)
         ppDomainShader = (ID3D11DomainShader **)&_raw_ppDomainShader;
-    npt_call_ID3D11DeviceContext_DSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppDomainShader,ppClassInstances,pNumClassInstances);
+    npt_call_ID3D11DeviceContext_DSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppDomainShader,ppClassInstances,pNumClassInstances,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppDomainShader) {
-        if (_raw_ppDomainShader)
-            *_orig_ppDomainShader = (ID3D11DomainShader *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DomainShader,
-                (uint64_t)(uintptr_t)_raw_ppDomainShader,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppDomainShader = (ID3D11DomainShader *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DomainShader);
         else
             *_orig_ppDomainShader = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppClassInstances) {
-        const UINT _n_ppClassInstances = (UINT)(*pNumClassInstances);
-        for (UINT _i = 0; _i < _n_ppClassInstances; _i++) {
-            if (ppClassInstances[_i])
-                ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ClassInstance,
-                    (uint64_t)(uintptr_t)ppClassInstances[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppClassInstances; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ClassInstance);
+        else
+            ppClassInstances[_i] = NULL;
     }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_DSGetSamplers(void *self, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState ** ppSamplers)
 {
-    npt_async_ID3D11DeviceContext_DSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSamplers) {
-        const UINT _n_ppSamplers = (UINT)(NumSamplers);
-        for (UINT _i = 0; _i < _n_ppSamplers; _i++) {
-            if (ppSamplers[_i])
-                ppSamplers[_i] = (ID3D11SamplerState *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11SamplerState,
-                    (uint64_t)(uintptr_t)ppSamplers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSamplers = ppSamplers ? (UINT)(NumSamplers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSamplers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSamplers; _i++)
+            ppSamplers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_DSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSamplers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSamplers[_i] = (ID3D11SamplerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11SamplerState);
+        else
+            ppSamplers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_DSGetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
 {
-    npt_async_ID3D11DeviceContext_DSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_DSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_CSGetShaderResources(void *self, UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView ** ppShaderResourceViews)
 {
-    npt_async_ID3D11DeviceContext_CSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppShaderResourceViews) {
-        const UINT _n_ppShaderResourceViews = (UINT)(NumViews);
-        for (UINT _i = 0; _i < _n_ppShaderResourceViews; _i++) {
-            if (ppShaderResourceViews[_i])
-                ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ShaderResourceView,
-                    (uint64_t)(uintptr_t)ppShaderResourceViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppShaderResourceViews = ppShaderResourceViews ? (UINT)(NumViews) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppShaderResourceViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++)
+            ppShaderResourceViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_CSGetShaderResources(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumViews,ppShaderResourceViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppShaderResourceViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppShaderResourceViews[_i] = (ID3D11ShaderResourceView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ShaderResourceView);
+        else
+            ppShaderResourceViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_CSGetUnorderedAccessViews(void *self, UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
 {
-    npt_async_ID3D11DeviceContext_CSGetUnorderedAccessViews(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumUAVs,ppUnorderedAccessViews);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppUnorderedAccessViews) {
-        const UINT _n_ppUnorderedAccessViews = (UINT)(NumUAVs);
-        for (UINT _i = 0; _i < _n_ppUnorderedAccessViews; _i++) {
-            if (ppUnorderedAccessViews[_i])
-                ppUnorderedAccessViews[_i] = (ID3D11UnorderedAccessView *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11UnorderedAccessView,
-                    (uint64_t)(uintptr_t)ppUnorderedAccessViews[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppUnorderedAccessViews = ppUnorderedAccessViews ? (UINT)(NumUAVs) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppUnorderedAccessViews;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppUnorderedAccessViews; _i++)
+            ppUnorderedAccessViews[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_CSGetUnorderedAccessViews(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumUAVs,ppUnorderedAccessViews,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppUnorderedAccessViews; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppUnorderedAccessViews[_i] = (ID3D11UnorderedAccessView *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11UnorderedAccessView);
+        else
+            ppUnorderedAccessViews[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_CSGetShader(void *self, ID3D11ComputeShader ** ppComputeShader, ID3D11ClassInstance ** ppClassInstances, UINT * pNumClassInstances)
 {
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppClassInstances = ppClassInstances ? (UINT)(*pNumClassInstances) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 1 + _cap_ppClassInstances;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        if (ppComputeShader)
+            *ppComputeShader = NULL;
+        for (UINT _i = 0; _i < _cap_ppClassInstances; _i++)
+            ppClassInstances[_i] = NULL;
+        return;
+    }
     ID3D11ComputeShader *_raw_ppComputeShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1304,71 +1705,93 @@ npt_id3d11devicecontext_default_CSGetShader(void *self, ID3D11ComputeShader ** p
     ID3D11ComputeShader **_orig_ppComputeShader = ppComputeShader;
     if (ppComputeShader)
         ppComputeShader = (ID3D11ComputeShader **)&_raw_ppComputeShader;
-    npt_call_ID3D11DeviceContext_CSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppComputeShader,ppClassInstances,pNumClassInstances);
+    npt_call_ID3D11DeviceContext_CSGetShader(npt_com_self_ring(self),npt_com_self_id(self),ppComputeShader,ppClassInstances,pNumClassInstances,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppComputeShader) {
-        if (_raw_ppComputeShader)
-            *_orig_ppComputeShader = (ID3D11ComputeShader *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11ComputeShader,
-                (uint64_t)(uintptr_t)_raw_ppComputeShader,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppComputeShader = (ID3D11ComputeShader *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ComputeShader);
         else
             *_orig_ppComputeShader = NULL;
     }
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppClassInstances) {
-        const UINT _n_ppClassInstances = (UINT)(*pNumClassInstances);
-        for (UINT _i = 0; _i < _n_ppClassInstances; _i++) {
-            if (ppClassInstances[_i])
-                ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11ClassInstance,
-                    (uint64_t)(uintptr_t)ppClassInstances[_i],
-                    (struct npt_com_base *)self);
-        }
+    _ref_i++;
+    for (UINT _i = 0; _i < _cap_ppClassInstances; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppClassInstances[_i] = (ID3D11ClassInstance *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11ClassInstance);
+        else
+            ppClassInstances[_i] = NULL;
     }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_CSGetSamplers(void *self, UINT StartSlot, UINT NumSamplers, ID3D11SamplerState ** ppSamplers)
 {
-    npt_async_ID3D11DeviceContext_CSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppSamplers) {
-        const UINT _n_ppSamplers = (UINT)(NumSamplers);
-        for (UINT _i = 0; _i < _n_ppSamplers; _i++) {
-            if (ppSamplers[_i])
-                ppSamplers[_i] = (ID3D11SamplerState *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11SamplerState,
-                    (uint64_t)(uintptr_t)ppSamplers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppSamplers = ppSamplers ? (UINT)(NumSamplers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppSamplers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppSamplers; _i++)
+            ppSamplers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_CSGetSamplers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumSamplers,ppSamplers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppSamplers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppSamplers[_i] = (ID3D11SamplerState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11SamplerState);
+        else
+            ppSamplers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_CSGetConstantBuffers(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers)
 {
-    npt_async_ID3D11DeviceContext_CSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext_CSGetConstantBuffers(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -1400,6 +1823,8 @@ npt_id3d11devicecontext_default_GetContextFlags(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext_default_FinishCommandList(void *self, BOOL RestoreDeferredContextState, ID3D11CommandList ** ppCommandList)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11CommandList *_raw_ppCommandList = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1408,157 +1833,21 @@ npt_id3d11devicecontext_default_FinishCommandList(void *self, BOOL RestoreDeferr
     ID3D11CommandList **_orig_ppCommandList = ppCommandList;
     if (ppCommandList)
         ppCommandList = (ID3D11CommandList **)&_raw_ppCommandList;
-    npt_async_ID3D11DeviceContext_FinishCommandList(npt_com_self_ring(self),npt_com_self_id(self),RestoreDeferredContextState,ppCommandList);
+    HRESULT _ret = npt_call_ID3D11DeviceContext_FinishCommandList(npt_com_self_ring(self),npt_com_self_id(self),RestoreDeferredContextState,ppCommandList,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppCommandList) {
-        if (_raw_ppCommandList)
-            *_orig_ppCommandList = (ID3D11CommandList *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11CommandList,
-                (uint64_t)(uintptr_t)_raw_ppCommandList,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppCommandList = (ID3D11CommandList *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11CommandList);
         else
             *_orig_ppCommandList = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
-
-void
-npt_id3d11devicecontext_fill_default_vtbl(struct npt_id3d11devicecontext_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11devicecontext_default_QueryInterface;
-    dst->AddRef         = npt_id3d11devicecontext_default_AddRef;
-    dst->Release        = npt_id3d11devicecontext_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->VSSetConstantBuffers = npt_id3d11devicecontext_default_VSSetConstantBuffers;
-    dst->PSSetShaderResources = npt_id3d11devicecontext_default_PSSetShaderResources;
-    dst->PSSetShader = npt_id3d11devicecontext_default_PSSetShader;
-    dst->PSSetSamplers = npt_id3d11devicecontext_default_PSSetSamplers;
-    dst->VSSetShader = npt_id3d11devicecontext_default_VSSetShader;
-    dst->DrawIndexed = npt_id3d11devicecontext_default_DrawIndexed;
-    dst->Draw = npt_id3d11devicecontext_default_Draw;
-    dst->Map = npt_id3d11devicecontext_default_Map;
-    dst->Unmap = npt_id3d11devicecontext_default_Unmap;
-    dst->PSSetConstantBuffers = npt_id3d11devicecontext_default_PSSetConstantBuffers;
-    dst->IASetInputLayout = npt_id3d11devicecontext_default_IASetInputLayout;
-    dst->IASetVertexBuffers = npt_id3d11devicecontext_default_IASetVertexBuffers;
-    dst->IASetIndexBuffer = npt_id3d11devicecontext_default_IASetIndexBuffer;
-    dst->DrawIndexedInstanced = npt_id3d11devicecontext_default_DrawIndexedInstanced;
-    dst->DrawInstanced = npt_id3d11devicecontext_default_DrawInstanced;
-    dst->GSSetConstantBuffers = npt_id3d11devicecontext_default_GSSetConstantBuffers;
-    dst->GSSetShader = npt_id3d11devicecontext_default_GSSetShader;
-    dst->IASetPrimitiveTopology = npt_id3d11devicecontext_default_IASetPrimitiveTopology;
-    dst->VSSetShaderResources = npt_id3d11devicecontext_default_VSSetShaderResources;
-    dst->VSSetSamplers = npt_id3d11devicecontext_default_VSSetSamplers;
-    dst->Begin = npt_id3d11devicecontext_default_Begin;
-    dst->End = npt_id3d11devicecontext_default_End;
-    dst->GetData = npt_id3d11devicecontext_default_GetData;
-    dst->SetPredication = npt_id3d11devicecontext_default_SetPredication;
-    dst->GSSetShaderResources = npt_id3d11devicecontext_default_GSSetShaderResources;
-    dst->GSSetSamplers = npt_id3d11devicecontext_default_GSSetSamplers;
-    dst->OMSetRenderTargets = npt_id3d11devicecontext_default_OMSetRenderTargets;
-    dst->OMSetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMSetRenderTargetsAndUnorderedAccessViews;
-    dst->OMSetBlendState = npt_id3d11devicecontext_default_OMSetBlendState;
-    dst->OMSetDepthStencilState = npt_id3d11devicecontext_default_OMSetDepthStencilState;
-    dst->SOSetTargets = npt_id3d11devicecontext_default_SOSetTargets;
-    dst->DrawAuto = npt_id3d11devicecontext_default_DrawAuto;
-    dst->DrawIndexedInstancedIndirect = npt_id3d11devicecontext_default_DrawIndexedInstancedIndirect;
-    dst->DrawInstancedIndirect = npt_id3d11devicecontext_default_DrawInstancedIndirect;
-    dst->Dispatch = npt_id3d11devicecontext_default_Dispatch;
-    dst->DispatchIndirect = npt_id3d11devicecontext_default_DispatchIndirect;
-    dst->RSSetState = npt_id3d11devicecontext_default_RSSetState;
-    dst->RSSetViewports = npt_id3d11devicecontext_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d11devicecontext_default_RSSetScissorRects;
-    dst->CopySubresourceRegion = npt_id3d11devicecontext_default_CopySubresourceRegion;
-    dst->CopyResource = npt_id3d11devicecontext_default_CopyResource;
-    dst->UpdateSubresource = npt_id3d11devicecontext_default_UpdateSubresource;
-    dst->CopyStructureCount = npt_id3d11devicecontext_default_CopyStructureCount;
-    dst->ClearRenderTargetView = npt_id3d11devicecontext_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d11devicecontext_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d11devicecontext_default_ClearUnorderedAccessViewFloat;
-    dst->ClearDepthStencilView = npt_id3d11devicecontext_default_ClearDepthStencilView;
-    dst->GenerateMips = npt_id3d11devicecontext_default_GenerateMips;
-    dst->SetResourceMinLOD = npt_id3d11devicecontext_default_SetResourceMinLOD;
-    dst->GetResourceMinLOD = npt_id3d11devicecontext_default_GetResourceMinLOD;
-    dst->ResolveSubresource = npt_id3d11devicecontext_default_ResolveSubresource;
-    dst->ExecuteCommandList = npt_id3d11devicecontext_default_ExecuteCommandList;
-    dst->HSSetShaderResources = npt_id3d11devicecontext_default_HSSetShaderResources;
-    dst->HSSetShader = npt_id3d11devicecontext_default_HSSetShader;
-    dst->HSSetSamplers = npt_id3d11devicecontext_default_HSSetSamplers;
-    dst->HSSetConstantBuffers = npt_id3d11devicecontext_default_HSSetConstantBuffers;
-    dst->DSSetShaderResources = npt_id3d11devicecontext_default_DSSetShaderResources;
-    dst->DSSetShader = npt_id3d11devicecontext_default_DSSetShader;
-    dst->DSSetSamplers = npt_id3d11devicecontext_default_DSSetSamplers;
-    dst->DSSetConstantBuffers = npt_id3d11devicecontext_default_DSSetConstantBuffers;
-    dst->CSSetShaderResources = npt_id3d11devicecontext_default_CSSetShaderResources;
-    dst->CSSetUnorderedAccessViews = npt_id3d11devicecontext_default_CSSetUnorderedAccessViews;
-    dst->CSSetShader = npt_id3d11devicecontext_default_CSSetShader;
-    dst->CSSetSamplers = npt_id3d11devicecontext_default_CSSetSamplers;
-    dst->CSSetConstantBuffers = npt_id3d11devicecontext_default_CSSetConstantBuffers;
-    dst->VSGetConstantBuffers = npt_id3d11devicecontext_default_VSGetConstantBuffers;
-    dst->PSGetShaderResources = npt_id3d11devicecontext_default_PSGetShaderResources;
-    dst->PSGetShader = npt_id3d11devicecontext_default_PSGetShader;
-    dst->PSGetSamplers = npt_id3d11devicecontext_default_PSGetSamplers;
-    dst->VSGetShader = npt_id3d11devicecontext_default_VSGetShader;
-    dst->PSGetConstantBuffers = npt_id3d11devicecontext_default_PSGetConstantBuffers;
-    dst->IAGetInputLayout = npt_id3d11devicecontext_default_IAGetInputLayout;
-    dst->IAGetVertexBuffers = npt_id3d11devicecontext_default_IAGetVertexBuffers;
-    dst->IAGetIndexBuffer = npt_id3d11devicecontext_default_IAGetIndexBuffer;
-    dst->GSGetConstantBuffers = npt_id3d11devicecontext_default_GSGetConstantBuffers;
-    dst->GSGetShader = npt_id3d11devicecontext_default_GSGetShader;
-    dst->IAGetPrimitiveTopology = npt_id3d11devicecontext_default_IAGetPrimitiveTopology;
-    dst->VSGetShaderResources = npt_id3d11devicecontext_default_VSGetShaderResources;
-    dst->VSGetSamplers = npt_id3d11devicecontext_default_VSGetSamplers;
-    dst->GetPredication = npt_id3d11devicecontext_default_GetPredication;
-    dst->GSGetShaderResources = npt_id3d11devicecontext_default_GSGetShaderResources;
-    dst->GSGetSamplers = npt_id3d11devicecontext_default_GSGetSamplers;
-    dst->OMGetRenderTargets = npt_id3d11devicecontext_default_OMGetRenderTargets;
-    dst->OMGetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMGetRenderTargetsAndUnorderedAccessViews;
-    dst->OMGetBlendState = npt_id3d11devicecontext_default_OMGetBlendState;
-    dst->OMGetDepthStencilState = npt_id3d11devicecontext_default_OMGetDepthStencilState;
-    dst->SOGetTargets = npt_id3d11devicecontext_default_SOGetTargets;
-    dst->RSGetState = npt_id3d11devicecontext_default_RSGetState;
-    dst->RSGetViewports = npt_id3d11devicecontext_default_RSGetViewports;
-    dst->RSGetScissorRects = npt_id3d11devicecontext_default_RSGetScissorRects;
-    dst->HSGetShaderResources = npt_id3d11devicecontext_default_HSGetShaderResources;
-    dst->HSGetShader = npt_id3d11devicecontext_default_HSGetShader;
-    dst->HSGetSamplers = npt_id3d11devicecontext_default_HSGetSamplers;
-    dst->HSGetConstantBuffers = npt_id3d11devicecontext_default_HSGetConstantBuffers;
-    dst->DSGetShaderResources = npt_id3d11devicecontext_default_DSGetShaderResources;
-    dst->DSGetShader = npt_id3d11devicecontext_default_DSGetShader;
-    dst->DSGetSamplers = npt_id3d11devicecontext_default_DSGetSamplers;
-    dst->DSGetConstantBuffers = npt_id3d11devicecontext_default_DSGetConstantBuffers;
-    dst->CSGetShaderResources = npt_id3d11devicecontext_default_CSGetShaderResources;
-    dst->CSGetUnorderedAccessViews = npt_id3d11devicecontext_default_CSGetUnorderedAccessViews;
-    dst->CSGetShader = npt_id3d11devicecontext_default_CSGetShader;
-    dst->CSGetSamplers = npt_id3d11devicecontext_default_CSGetSamplers;
-    dst->CSGetConstantBuffers = npt_id3d11devicecontext_default_CSGetConstantBuffers;
-    dst->ClearState = npt_id3d11devicecontext_default_ClearState;
-    dst->Flush = npt_id3d11devicecontext_default_Flush;
-    dst->GetType = npt_id3d11devicecontext_default_GetType;
-    dst->GetContextFlags = npt_id3d11devicecontext_default_GetContextFlags;
-    dst->FinishCommandList = npt_id3d11devicecontext_default_FinishCommandList;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11devicecontext_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11devicecontext_client_vtbl npt_id3d11devicecontext_default_vtbl_storage;
-
-void
-npt_id3d11devicecontext_install_default_vtbl(void)
-{
-    npt_id3d11devicecontext_fill_default_vtbl(&npt_id3d11devicecontext_default_vtbl_storage);
-}
 
 void *
 npt_id3d11devicecontext_client_create(struct npt_device *dev, uint64_t host_id)
@@ -1567,50 +1856,17 @@ npt_id3d11devicecontext_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11devicecontext_default_vtbl_storage,
+        (const void **)&npt_id3d11devicecontext4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11devicecontext;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11DeviceContext1                                                       */
+/* ID3D11DeviceContext1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11devicecontext1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11DeviceContext,
-    &NPT_IID_ID3D11DeviceContext1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11devicecontext1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_CopySubresourceRegion1(void *self, ID3D11Resource * pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource * pSrcResource, UINT SrcSubresource, const D3D11_BOX * pSrcBox, UINT CopyFlags)
@@ -1686,126 +1942,206 @@ npt_id3d11devicecontext1_default_CSSetConstantBuffers1(void *self, UINT StartSlo
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_VSGetConstantBuffers1(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers, UINT * pFirstConstant, UINT * pNumConstants)
 {
-    npt_call_ID3D11DeviceContext1_VSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext1_VSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_HSGetConstantBuffers1(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers, UINT * pFirstConstant, UINT * pNumConstants)
 {
-    npt_call_ID3D11DeviceContext1_HSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext1_HSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_DSGetConstantBuffers1(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers, UINT * pFirstConstant, UINT * pNumConstants)
 {
-    npt_call_ID3D11DeviceContext1_DSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext1_DSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_GSGetConstantBuffers1(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers, UINT * pFirstConstant, UINT * pNumConstants)
 {
-    npt_call_ID3D11DeviceContext1_GSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext1_GSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_PSGetConstantBuffers1(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers, UINT * pFirstConstant, UINT * pNumConstants)
 {
-    npt_call_ID3D11DeviceContext1_PSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext1_PSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_CSGetConstantBuffers1(void *self, UINT StartSlot, UINT NumBuffers, ID3D11Buffer ** ppConstantBuffers, UINT * pFirstConstant, UINT * pNumConstants)
 {
-    npt_call_ID3D11DeviceContext1_CSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants);
-    /* Wrap output COM handle arrays in-place.  The encoder stashed the
-     * guest-allocated ids in each slot before the submit; convert them
-     * to wrappers now. */
-    if (ppConstantBuffers) {
-        const UINT _n_ppConstantBuffers = (UINT)(NumBuffers);
-        for (UINT _i = 0; _i < _n_ppConstantBuffers; _i++) {
-            if (ppConstantBuffers[_i])
-                ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_get_or_wrap(
-                    npt_com_self_device(self),
-                    &NPT_IID_ID3D11Buffer,
-                    (uint64_t)(uintptr_t)ppConstantBuffers[_i],
-                    (struct npt_com_base *)self);
-        }
+    /* One reply ref per output slot, in parameter order: one per single
+     * output, the capacity the caller passed per array. */
+    const UINT _cap_ppConstantBuffers = ppConstantBuffers ? (UINT)(NumBuffers) : 0u;
+    struct npt_wire_object_ref _refs_stack[NPT_CLIENT_REF_STACK_SLOTS];
+    struct npt_wire_object_ref *_refs = _refs_stack;
+    size_t _ref_cap = 0 + _cap_ppConstantBuffers;
+    if (_ref_cap > NPT_CLIENT_REF_STACK_SLOTS)
+        _refs = (struct npt_wire_object_ref *)calloc(_ref_cap, sizeof(*_refs));
+    else
+        memset(_refs_stack, 0, sizeof(_refs_stack));
+    if (!_refs) {
+        for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++)
+            ppConstantBuffers[_i] = NULL;
+        return;
     }
+    npt_call_ID3D11DeviceContext1_CSGetConstantBuffers1(npt_com_self_ring(self),npt_com_self_id(self),StartSlot,NumBuffers,ppConstantBuffers,pFirstConstant,pNumConstants,_refs,_ref_cap);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    for (UINT _i = 0; _i < _cap_ppConstantBuffers; _i++, _ref_i++) {
+        if (_refs[_ref_i].id)
+            ppConstantBuffers[_i] = (ID3D11Buffer *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11Buffer);
+        else
+            ppConstantBuffers[_i] = NULL;
+    }
+    if (_refs != _refs_stack)
+        free(_refs);
 }
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext1_default_SwapDeviceContextState(void *self, ID3DDeviceContextState * pState, ID3DDeviceContextState ** ppPreviousState)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3DDeviceContextState *_raw_ppPreviousState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1814,17 +2150,18 @@ npt_id3d11devicecontext1_default_SwapDeviceContextState(void *self, ID3DDeviceCo
     ID3DDeviceContextState **_orig_ppPreviousState = ppPreviousState;
     if (ppPreviousState)
         ppPreviousState = (ID3DDeviceContextState **)&_raw_ppPreviousState;
-    npt_async_ID3D11DeviceContext1_SwapDeviceContextState(npt_com_self_ring(self),npt_com_self_id(self),pState,ppPreviousState);
+    npt_call_ID3D11DeviceContext1_SwapDeviceContextState(npt_com_self_ring(self),npt_com_self_id(self),pState,ppPreviousState,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppPreviousState) {
-        if (_raw_ppPreviousState)
-            *_orig_ppPreviousState = (ID3DDeviceContextState *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3DDeviceContextState,
-                (uint64_t)(uintptr_t)_raw_ppPreviousState,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppPreviousState = (ID3DDeviceContextState *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3DDeviceContextState);
         else
             *_orig_ppPreviousState = NULL;
     }
+    _ref_i++;
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -1840,158 +2177,6 @@ npt_id3d11devicecontext1_default_DiscardView1(void *self, ID3D11View * pResource
 }
 
 
-void
-npt_id3d11devicecontext1_fill_default_vtbl(struct npt_id3d11devicecontext1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11devicecontext1_default_QueryInterface;
-    dst->AddRef         = npt_id3d11devicecontext1_default_AddRef;
-    dst->Release        = npt_id3d11devicecontext1_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->VSSetConstantBuffers = npt_id3d11devicecontext_default_VSSetConstantBuffers;
-    dst->PSSetShaderResources = npt_id3d11devicecontext_default_PSSetShaderResources;
-    dst->PSSetShader = npt_id3d11devicecontext_default_PSSetShader;
-    dst->PSSetSamplers = npt_id3d11devicecontext_default_PSSetSamplers;
-    dst->VSSetShader = npt_id3d11devicecontext_default_VSSetShader;
-    dst->DrawIndexed = npt_id3d11devicecontext_default_DrawIndexed;
-    dst->Draw = npt_id3d11devicecontext_default_Draw;
-    dst->Map = npt_id3d11devicecontext_default_Map;
-    dst->Unmap = npt_id3d11devicecontext_default_Unmap;
-    dst->PSSetConstantBuffers = npt_id3d11devicecontext_default_PSSetConstantBuffers;
-    dst->IASetInputLayout = npt_id3d11devicecontext_default_IASetInputLayout;
-    dst->IASetVertexBuffers = npt_id3d11devicecontext_default_IASetVertexBuffers;
-    dst->IASetIndexBuffer = npt_id3d11devicecontext_default_IASetIndexBuffer;
-    dst->DrawIndexedInstanced = npt_id3d11devicecontext_default_DrawIndexedInstanced;
-    dst->DrawInstanced = npt_id3d11devicecontext_default_DrawInstanced;
-    dst->GSSetConstantBuffers = npt_id3d11devicecontext_default_GSSetConstantBuffers;
-    dst->GSSetShader = npt_id3d11devicecontext_default_GSSetShader;
-    dst->IASetPrimitiveTopology = npt_id3d11devicecontext_default_IASetPrimitiveTopology;
-    dst->VSSetShaderResources = npt_id3d11devicecontext_default_VSSetShaderResources;
-    dst->VSSetSamplers = npt_id3d11devicecontext_default_VSSetSamplers;
-    dst->Begin = npt_id3d11devicecontext_default_Begin;
-    dst->End = npt_id3d11devicecontext_default_End;
-    dst->GetData = npt_id3d11devicecontext_default_GetData;
-    dst->SetPredication = npt_id3d11devicecontext_default_SetPredication;
-    dst->GSSetShaderResources = npt_id3d11devicecontext_default_GSSetShaderResources;
-    dst->GSSetSamplers = npt_id3d11devicecontext_default_GSSetSamplers;
-    dst->OMSetRenderTargets = npt_id3d11devicecontext_default_OMSetRenderTargets;
-    dst->OMSetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMSetRenderTargetsAndUnorderedAccessViews;
-    dst->OMSetBlendState = npt_id3d11devicecontext_default_OMSetBlendState;
-    dst->OMSetDepthStencilState = npt_id3d11devicecontext_default_OMSetDepthStencilState;
-    dst->SOSetTargets = npt_id3d11devicecontext_default_SOSetTargets;
-    dst->DrawAuto = npt_id3d11devicecontext_default_DrawAuto;
-    dst->DrawIndexedInstancedIndirect = npt_id3d11devicecontext_default_DrawIndexedInstancedIndirect;
-    dst->DrawInstancedIndirect = npt_id3d11devicecontext_default_DrawInstancedIndirect;
-    dst->Dispatch = npt_id3d11devicecontext_default_Dispatch;
-    dst->DispatchIndirect = npt_id3d11devicecontext_default_DispatchIndirect;
-    dst->RSSetState = npt_id3d11devicecontext_default_RSSetState;
-    dst->RSSetViewports = npt_id3d11devicecontext_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d11devicecontext_default_RSSetScissorRects;
-    dst->CopySubresourceRegion = npt_id3d11devicecontext_default_CopySubresourceRegion;
-    dst->CopyResource = npt_id3d11devicecontext_default_CopyResource;
-    dst->UpdateSubresource = npt_id3d11devicecontext_default_UpdateSubresource;
-    dst->CopyStructureCount = npt_id3d11devicecontext_default_CopyStructureCount;
-    dst->ClearRenderTargetView = npt_id3d11devicecontext_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d11devicecontext_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d11devicecontext_default_ClearUnorderedAccessViewFloat;
-    dst->ClearDepthStencilView = npt_id3d11devicecontext_default_ClearDepthStencilView;
-    dst->GenerateMips = npt_id3d11devicecontext_default_GenerateMips;
-    dst->SetResourceMinLOD = npt_id3d11devicecontext_default_SetResourceMinLOD;
-    dst->GetResourceMinLOD = npt_id3d11devicecontext_default_GetResourceMinLOD;
-    dst->ResolveSubresource = npt_id3d11devicecontext_default_ResolveSubresource;
-    dst->ExecuteCommandList = npt_id3d11devicecontext_default_ExecuteCommandList;
-    dst->HSSetShaderResources = npt_id3d11devicecontext_default_HSSetShaderResources;
-    dst->HSSetShader = npt_id3d11devicecontext_default_HSSetShader;
-    dst->HSSetSamplers = npt_id3d11devicecontext_default_HSSetSamplers;
-    dst->HSSetConstantBuffers = npt_id3d11devicecontext_default_HSSetConstantBuffers;
-    dst->DSSetShaderResources = npt_id3d11devicecontext_default_DSSetShaderResources;
-    dst->DSSetShader = npt_id3d11devicecontext_default_DSSetShader;
-    dst->DSSetSamplers = npt_id3d11devicecontext_default_DSSetSamplers;
-    dst->DSSetConstantBuffers = npt_id3d11devicecontext_default_DSSetConstantBuffers;
-    dst->CSSetShaderResources = npt_id3d11devicecontext_default_CSSetShaderResources;
-    dst->CSSetUnorderedAccessViews = npt_id3d11devicecontext_default_CSSetUnorderedAccessViews;
-    dst->CSSetShader = npt_id3d11devicecontext_default_CSSetShader;
-    dst->CSSetSamplers = npt_id3d11devicecontext_default_CSSetSamplers;
-    dst->CSSetConstantBuffers = npt_id3d11devicecontext_default_CSSetConstantBuffers;
-    dst->VSGetConstantBuffers = npt_id3d11devicecontext_default_VSGetConstantBuffers;
-    dst->PSGetShaderResources = npt_id3d11devicecontext_default_PSGetShaderResources;
-    dst->PSGetShader = npt_id3d11devicecontext_default_PSGetShader;
-    dst->PSGetSamplers = npt_id3d11devicecontext_default_PSGetSamplers;
-    dst->VSGetShader = npt_id3d11devicecontext_default_VSGetShader;
-    dst->PSGetConstantBuffers = npt_id3d11devicecontext_default_PSGetConstantBuffers;
-    dst->IAGetInputLayout = npt_id3d11devicecontext_default_IAGetInputLayout;
-    dst->IAGetVertexBuffers = npt_id3d11devicecontext_default_IAGetVertexBuffers;
-    dst->IAGetIndexBuffer = npt_id3d11devicecontext_default_IAGetIndexBuffer;
-    dst->GSGetConstantBuffers = npt_id3d11devicecontext_default_GSGetConstantBuffers;
-    dst->GSGetShader = npt_id3d11devicecontext_default_GSGetShader;
-    dst->IAGetPrimitiveTopology = npt_id3d11devicecontext_default_IAGetPrimitiveTopology;
-    dst->VSGetShaderResources = npt_id3d11devicecontext_default_VSGetShaderResources;
-    dst->VSGetSamplers = npt_id3d11devicecontext_default_VSGetSamplers;
-    dst->GetPredication = npt_id3d11devicecontext_default_GetPredication;
-    dst->GSGetShaderResources = npt_id3d11devicecontext_default_GSGetShaderResources;
-    dst->GSGetSamplers = npt_id3d11devicecontext_default_GSGetSamplers;
-    dst->OMGetRenderTargets = npt_id3d11devicecontext_default_OMGetRenderTargets;
-    dst->OMGetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMGetRenderTargetsAndUnorderedAccessViews;
-    dst->OMGetBlendState = npt_id3d11devicecontext_default_OMGetBlendState;
-    dst->OMGetDepthStencilState = npt_id3d11devicecontext_default_OMGetDepthStencilState;
-    dst->SOGetTargets = npt_id3d11devicecontext_default_SOGetTargets;
-    dst->RSGetState = npt_id3d11devicecontext_default_RSGetState;
-    dst->RSGetViewports = npt_id3d11devicecontext_default_RSGetViewports;
-    dst->RSGetScissorRects = npt_id3d11devicecontext_default_RSGetScissorRects;
-    dst->HSGetShaderResources = npt_id3d11devicecontext_default_HSGetShaderResources;
-    dst->HSGetShader = npt_id3d11devicecontext_default_HSGetShader;
-    dst->HSGetSamplers = npt_id3d11devicecontext_default_HSGetSamplers;
-    dst->HSGetConstantBuffers = npt_id3d11devicecontext_default_HSGetConstantBuffers;
-    dst->DSGetShaderResources = npt_id3d11devicecontext_default_DSGetShaderResources;
-    dst->DSGetShader = npt_id3d11devicecontext_default_DSGetShader;
-    dst->DSGetSamplers = npt_id3d11devicecontext_default_DSGetSamplers;
-    dst->DSGetConstantBuffers = npt_id3d11devicecontext_default_DSGetConstantBuffers;
-    dst->CSGetShaderResources = npt_id3d11devicecontext_default_CSGetShaderResources;
-    dst->CSGetUnorderedAccessViews = npt_id3d11devicecontext_default_CSGetUnorderedAccessViews;
-    dst->CSGetShader = npt_id3d11devicecontext_default_CSGetShader;
-    dst->CSGetSamplers = npt_id3d11devicecontext_default_CSGetSamplers;
-    dst->CSGetConstantBuffers = npt_id3d11devicecontext_default_CSGetConstantBuffers;
-    dst->ClearState = npt_id3d11devicecontext_default_ClearState;
-    dst->Flush = npt_id3d11devicecontext_default_Flush;
-    dst->GetType = npt_id3d11devicecontext_default_GetType;
-    dst->GetContextFlags = npt_id3d11devicecontext_default_GetContextFlags;
-    dst->FinishCommandList = npt_id3d11devicecontext_default_FinishCommandList;
-    dst->CopySubresourceRegion1 = npt_id3d11devicecontext1_default_CopySubresourceRegion1;
-    dst->UpdateSubresource1 = npt_id3d11devicecontext1_default_UpdateSubresource1;
-    dst->DiscardResource = npt_id3d11devicecontext1_default_DiscardResource;
-    dst->DiscardView = npt_id3d11devicecontext1_default_DiscardView;
-    dst->VSSetConstantBuffers1 = npt_id3d11devicecontext1_default_VSSetConstantBuffers1;
-    dst->HSSetConstantBuffers1 = npt_id3d11devicecontext1_default_HSSetConstantBuffers1;
-    dst->DSSetConstantBuffers1 = npt_id3d11devicecontext1_default_DSSetConstantBuffers1;
-    dst->GSSetConstantBuffers1 = npt_id3d11devicecontext1_default_GSSetConstantBuffers1;
-    dst->PSSetConstantBuffers1 = npt_id3d11devicecontext1_default_PSSetConstantBuffers1;
-    dst->CSSetConstantBuffers1 = npt_id3d11devicecontext1_default_CSSetConstantBuffers1;
-    dst->VSGetConstantBuffers1 = npt_id3d11devicecontext1_default_VSGetConstantBuffers1;
-    dst->HSGetConstantBuffers1 = npt_id3d11devicecontext1_default_HSGetConstantBuffers1;
-    dst->DSGetConstantBuffers1 = npt_id3d11devicecontext1_default_DSGetConstantBuffers1;
-    dst->GSGetConstantBuffers1 = npt_id3d11devicecontext1_default_GSGetConstantBuffers1;
-    dst->PSGetConstantBuffers1 = npt_id3d11devicecontext1_default_PSGetConstantBuffers1;
-    dst->CSGetConstantBuffers1 = npt_id3d11devicecontext1_default_CSGetConstantBuffers1;
-    dst->SwapDeviceContextState = npt_id3d11devicecontext1_default_SwapDeviceContextState;
-    dst->ClearView = npt_id3d11devicecontext1_default_ClearView;
-    dst->DiscardView1 = npt_id3d11devicecontext1_default_DiscardView1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11devicecontext1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11devicecontext1_client_vtbl npt_id3d11devicecontext1_default_vtbl_storage;
-
-void
-npt_id3d11devicecontext1_install_default_vtbl(void)
-{
-    npt_id3d11devicecontext1_fill_default_vtbl(&npt_id3d11devicecontext1_default_vtbl_storage);
-}
-
 void *
 npt_id3d11devicecontext1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1999,51 +2184,17 @@ npt_id3d11devicecontext1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11devicecontext1_default_vtbl_storage,
+        (const void **)&npt_id3d11devicecontext4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11devicecontext;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11DeviceContext2                                                       */
+/* ID3D11DeviceContext2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11devicecontext2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11DeviceContext,
-    &NPT_IID_ID3D11DeviceContext1,
-    &NPT_IID_ID3D11DeviceContext2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11devicecontext2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext2_default_UpdateTileMappings(void *self, ID3D11Resource * pTiledResource, UINT NumTiledResourceRegions, const D3D11_TILED_RESOURCE_COORDINATE * pTiledResourceRegionStartCoordinates, const D3D11_TILE_REGION_SIZE * pTiledResourceRegionSizes, ID3D11Buffer * pTilePool, UINT NumRanges, const UINT * pRangeFlags, const UINT * pTilePoolStartOffsets, const UINT * pRangeTileCounts, UINT Flags)
@@ -2122,168 +2273,6 @@ npt_id3d11devicecontext2_default_EndEvent(void *self)
 }
 
 
-void
-npt_id3d11devicecontext2_fill_default_vtbl(struct npt_id3d11devicecontext2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11devicecontext2_default_QueryInterface;
-    dst->AddRef         = npt_id3d11devicecontext2_default_AddRef;
-    dst->Release        = npt_id3d11devicecontext2_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->VSSetConstantBuffers = npt_id3d11devicecontext_default_VSSetConstantBuffers;
-    dst->PSSetShaderResources = npt_id3d11devicecontext_default_PSSetShaderResources;
-    dst->PSSetShader = npt_id3d11devicecontext_default_PSSetShader;
-    dst->PSSetSamplers = npt_id3d11devicecontext_default_PSSetSamplers;
-    dst->VSSetShader = npt_id3d11devicecontext_default_VSSetShader;
-    dst->DrawIndexed = npt_id3d11devicecontext_default_DrawIndexed;
-    dst->Draw = npt_id3d11devicecontext_default_Draw;
-    dst->Map = npt_id3d11devicecontext_default_Map;
-    dst->Unmap = npt_id3d11devicecontext_default_Unmap;
-    dst->PSSetConstantBuffers = npt_id3d11devicecontext_default_PSSetConstantBuffers;
-    dst->IASetInputLayout = npt_id3d11devicecontext_default_IASetInputLayout;
-    dst->IASetVertexBuffers = npt_id3d11devicecontext_default_IASetVertexBuffers;
-    dst->IASetIndexBuffer = npt_id3d11devicecontext_default_IASetIndexBuffer;
-    dst->DrawIndexedInstanced = npt_id3d11devicecontext_default_DrawIndexedInstanced;
-    dst->DrawInstanced = npt_id3d11devicecontext_default_DrawInstanced;
-    dst->GSSetConstantBuffers = npt_id3d11devicecontext_default_GSSetConstantBuffers;
-    dst->GSSetShader = npt_id3d11devicecontext_default_GSSetShader;
-    dst->IASetPrimitiveTopology = npt_id3d11devicecontext_default_IASetPrimitiveTopology;
-    dst->VSSetShaderResources = npt_id3d11devicecontext_default_VSSetShaderResources;
-    dst->VSSetSamplers = npt_id3d11devicecontext_default_VSSetSamplers;
-    dst->Begin = npt_id3d11devicecontext_default_Begin;
-    dst->End = npt_id3d11devicecontext_default_End;
-    dst->GetData = npt_id3d11devicecontext_default_GetData;
-    dst->SetPredication = npt_id3d11devicecontext_default_SetPredication;
-    dst->GSSetShaderResources = npt_id3d11devicecontext_default_GSSetShaderResources;
-    dst->GSSetSamplers = npt_id3d11devicecontext_default_GSSetSamplers;
-    dst->OMSetRenderTargets = npt_id3d11devicecontext_default_OMSetRenderTargets;
-    dst->OMSetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMSetRenderTargetsAndUnorderedAccessViews;
-    dst->OMSetBlendState = npt_id3d11devicecontext_default_OMSetBlendState;
-    dst->OMSetDepthStencilState = npt_id3d11devicecontext_default_OMSetDepthStencilState;
-    dst->SOSetTargets = npt_id3d11devicecontext_default_SOSetTargets;
-    dst->DrawAuto = npt_id3d11devicecontext_default_DrawAuto;
-    dst->DrawIndexedInstancedIndirect = npt_id3d11devicecontext_default_DrawIndexedInstancedIndirect;
-    dst->DrawInstancedIndirect = npt_id3d11devicecontext_default_DrawInstancedIndirect;
-    dst->Dispatch = npt_id3d11devicecontext_default_Dispatch;
-    dst->DispatchIndirect = npt_id3d11devicecontext_default_DispatchIndirect;
-    dst->RSSetState = npt_id3d11devicecontext_default_RSSetState;
-    dst->RSSetViewports = npt_id3d11devicecontext_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d11devicecontext_default_RSSetScissorRects;
-    dst->CopySubresourceRegion = npt_id3d11devicecontext_default_CopySubresourceRegion;
-    dst->CopyResource = npt_id3d11devicecontext_default_CopyResource;
-    dst->UpdateSubresource = npt_id3d11devicecontext_default_UpdateSubresource;
-    dst->CopyStructureCount = npt_id3d11devicecontext_default_CopyStructureCount;
-    dst->ClearRenderTargetView = npt_id3d11devicecontext_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d11devicecontext_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d11devicecontext_default_ClearUnorderedAccessViewFloat;
-    dst->ClearDepthStencilView = npt_id3d11devicecontext_default_ClearDepthStencilView;
-    dst->GenerateMips = npt_id3d11devicecontext_default_GenerateMips;
-    dst->SetResourceMinLOD = npt_id3d11devicecontext_default_SetResourceMinLOD;
-    dst->GetResourceMinLOD = npt_id3d11devicecontext_default_GetResourceMinLOD;
-    dst->ResolveSubresource = npt_id3d11devicecontext_default_ResolveSubresource;
-    dst->ExecuteCommandList = npt_id3d11devicecontext_default_ExecuteCommandList;
-    dst->HSSetShaderResources = npt_id3d11devicecontext_default_HSSetShaderResources;
-    dst->HSSetShader = npt_id3d11devicecontext_default_HSSetShader;
-    dst->HSSetSamplers = npt_id3d11devicecontext_default_HSSetSamplers;
-    dst->HSSetConstantBuffers = npt_id3d11devicecontext_default_HSSetConstantBuffers;
-    dst->DSSetShaderResources = npt_id3d11devicecontext_default_DSSetShaderResources;
-    dst->DSSetShader = npt_id3d11devicecontext_default_DSSetShader;
-    dst->DSSetSamplers = npt_id3d11devicecontext_default_DSSetSamplers;
-    dst->DSSetConstantBuffers = npt_id3d11devicecontext_default_DSSetConstantBuffers;
-    dst->CSSetShaderResources = npt_id3d11devicecontext_default_CSSetShaderResources;
-    dst->CSSetUnorderedAccessViews = npt_id3d11devicecontext_default_CSSetUnorderedAccessViews;
-    dst->CSSetShader = npt_id3d11devicecontext_default_CSSetShader;
-    dst->CSSetSamplers = npt_id3d11devicecontext_default_CSSetSamplers;
-    dst->CSSetConstantBuffers = npt_id3d11devicecontext_default_CSSetConstantBuffers;
-    dst->VSGetConstantBuffers = npt_id3d11devicecontext_default_VSGetConstantBuffers;
-    dst->PSGetShaderResources = npt_id3d11devicecontext_default_PSGetShaderResources;
-    dst->PSGetShader = npt_id3d11devicecontext_default_PSGetShader;
-    dst->PSGetSamplers = npt_id3d11devicecontext_default_PSGetSamplers;
-    dst->VSGetShader = npt_id3d11devicecontext_default_VSGetShader;
-    dst->PSGetConstantBuffers = npt_id3d11devicecontext_default_PSGetConstantBuffers;
-    dst->IAGetInputLayout = npt_id3d11devicecontext_default_IAGetInputLayout;
-    dst->IAGetVertexBuffers = npt_id3d11devicecontext_default_IAGetVertexBuffers;
-    dst->IAGetIndexBuffer = npt_id3d11devicecontext_default_IAGetIndexBuffer;
-    dst->GSGetConstantBuffers = npt_id3d11devicecontext_default_GSGetConstantBuffers;
-    dst->GSGetShader = npt_id3d11devicecontext_default_GSGetShader;
-    dst->IAGetPrimitiveTopology = npt_id3d11devicecontext_default_IAGetPrimitiveTopology;
-    dst->VSGetShaderResources = npt_id3d11devicecontext_default_VSGetShaderResources;
-    dst->VSGetSamplers = npt_id3d11devicecontext_default_VSGetSamplers;
-    dst->GetPredication = npt_id3d11devicecontext_default_GetPredication;
-    dst->GSGetShaderResources = npt_id3d11devicecontext_default_GSGetShaderResources;
-    dst->GSGetSamplers = npt_id3d11devicecontext_default_GSGetSamplers;
-    dst->OMGetRenderTargets = npt_id3d11devicecontext_default_OMGetRenderTargets;
-    dst->OMGetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMGetRenderTargetsAndUnorderedAccessViews;
-    dst->OMGetBlendState = npt_id3d11devicecontext_default_OMGetBlendState;
-    dst->OMGetDepthStencilState = npt_id3d11devicecontext_default_OMGetDepthStencilState;
-    dst->SOGetTargets = npt_id3d11devicecontext_default_SOGetTargets;
-    dst->RSGetState = npt_id3d11devicecontext_default_RSGetState;
-    dst->RSGetViewports = npt_id3d11devicecontext_default_RSGetViewports;
-    dst->RSGetScissorRects = npt_id3d11devicecontext_default_RSGetScissorRects;
-    dst->HSGetShaderResources = npt_id3d11devicecontext_default_HSGetShaderResources;
-    dst->HSGetShader = npt_id3d11devicecontext_default_HSGetShader;
-    dst->HSGetSamplers = npt_id3d11devicecontext_default_HSGetSamplers;
-    dst->HSGetConstantBuffers = npt_id3d11devicecontext_default_HSGetConstantBuffers;
-    dst->DSGetShaderResources = npt_id3d11devicecontext_default_DSGetShaderResources;
-    dst->DSGetShader = npt_id3d11devicecontext_default_DSGetShader;
-    dst->DSGetSamplers = npt_id3d11devicecontext_default_DSGetSamplers;
-    dst->DSGetConstantBuffers = npt_id3d11devicecontext_default_DSGetConstantBuffers;
-    dst->CSGetShaderResources = npt_id3d11devicecontext_default_CSGetShaderResources;
-    dst->CSGetUnorderedAccessViews = npt_id3d11devicecontext_default_CSGetUnorderedAccessViews;
-    dst->CSGetShader = npt_id3d11devicecontext_default_CSGetShader;
-    dst->CSGetSamplers = npt_id3d11devicecontext_default_CSGetSamplers;
-    dst->CSGetConstantBuffers = npt_id3d11devicecontext_default_CSGetConstantBuffers;
-    dst->ClearState = npt_id3d11devicecontext_default_ClearState;
-    dst->Flush = npt_id3d11devicecontext_default_Flush;
-    dst->GetType = npt_id3d11devicecontext_default_GetType;
-    dst->GetContextFlags = npt_id3d11devicecontext_default_GetContextFlags;
-    dst->FinishCommandList = npt_id3d11devicecontext_default_FinishCommandList;
-    dst->CopySubresourceRegion1 = npt_id3d11devicecontext1_default_CopySubresourceRegion1;
-    dst->UpdateSubresource1 = npt_id3d11devicecontext1_default_UpdateSubresource1;
-    dst->DiscardResource = npt_id3d11devicecontext1_default_DiscardResource;
-    dst->DiscardView = npt_id3d11devicecontext1_default_DiscardView;
-    dst->VSSetConstantBuffers1 = npt_id3d11devicecontext1_default_VSSetConstantBuffers1;
-    dst->HSSetConstantBuffers1 = npt_id3d11devicecontext1_default_HSSetConstantBuffers1;
-    dst->DSSetConstantBuffers1 = npt_id3d11devicecontext1_default_DSSetConstantBuffers1;
-    dst->GSSetConstantBuffers1 = npt_id3d11devicecontext1_default_GSSetConstantBuffers1;
-    dst->PSSetConstantBuffers1 = npt_id3d11devicecontext1_default_PSSetConstantBuffers1;
-    dst->CSSetConstantBuffers1 = npt_id3d11devicecontext1_default_CSSetConstantBuffers1;
-    dst->VSGetConstantBuffers1 = npt_id3d11devicecontext1_default_VSGetConstantBuffers1;
-    dst->HSGetConstantBuffers1 = npt_id3d11devicecontext1_default_HSGetConstantBuffers1;
-    dst->DSGetConstantBuffers1 = npt_id3d11devicecontext1_default_DSGetConstantBuffers1;
-    dst->GSGetConstantBuffers1 = npt_id3d11devicecontext1_default_GSGetConstantBuffers1;
-    dst->PSGetConstantBuffers1 = npt_id3d11devicecontext1_default_PSGetConstantBuffers1;
-    dst->CSGetConstantBuffers1 = npt_id3d11devicecontext1_default_CSGetConstantBuffers1;
-    dst->SwapDeviceContextState = npt_id3d11devicecontext1_default_SwapDeviceContextState;
-    dst->ClearView = npt_id3d11devicecontext1_default_ClearView;
-    dst->DiscardView1 = npt_id3d11devicecontext1_default_DiscardView1;
-    dst->UpdateTileMappings = npt_id3d11devicecontext2_default_UpdateTileMappings;
-    dst->CopyTileMappings = npt_id3d11devicecontext2_default_CopyTileMappings;
-    dst->CopyTiles = npt_id3d11devicecontext2_default_CopyTiles;
-    dst->UpdateTiles = npt_id3d11devicecontext2_default_UpdateTiles;
-    dst->ResizeTilePool = npt_id3d11devicecontext2_default_ResizeTilePool;
-    dst->TiledResourceBarrier = npt_id3d11devicecontext2_default_TiledResourceBarrier;
-    dst->IsAnnotationEnabled = npt_id3d11devicecontext2_default_IsAnnotationEnabled;
-    dst->SetMarkerInt = npt_id3d11devicecontext2_default_SetMarkerInt;
-    dst->BeginEventInt = npt_id3d11devicecontext2_default_BeginEventInt;
-    dst->EndEvent = npt_id3d11devicecontext2_default_EndEvent;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11devicecontext2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11devicecontext2_client_vtbl npt_id3d11devicecontext2_default_vtbl_storage;
-
-void
-npt_id3d11devicecontext2_install_default_vtbl(void)
-{
-    npt_id3d11devicecontext2_fill_default_vtbl(&npt_id3d11devicecontext2_default_vtbl_storage);
-}
-
 void *
 npt_id3d11devicecontext2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2291,52 +2280,17 @@ npt_id3d11devicecontext2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11devicecontext2_default_vtbl_storage,
+        (const void **)&npt_id3d11devicecontext4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11devicecontext;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11DeviceContext3                                                       */
+/* ID3D11DeviceContext3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11devicecontext3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11DeviceContext,
-    &NPT_IID_ID3D11DeviceContext1,
-    &NPT_IID_ID3D11DeviceContext2,
-    &NPT_IID_ID3D11DeviceContext3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11devicecontext3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext3_default_Flush1(void *self, D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
@@ -2357,171 +2311,6 @@ npt_id3d11devicecontext3_default_GetHardwareProtectionState(void *self, BOOL * p
 }
 
 
-void
-npt_id3d11devicecontext3_fill_default_vtbl(struct npt_id3d11devicecontext3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11devicecontext3_default_QueryInterface;
-    dst->AddRef         = npt_id3d11devicecontext3_default_AddRef;
-    dst->Release        = npt_id3d11devicecontext3_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->VSSetConstantBuffers = npt_id3d11devicecontext_default_VSSetConstantBuffers;
-    dst->PSSetShaderResources = npt_id3d11devicecontext_default_PSSetShaderResources;
-    dst->PSSetShader = npt_id3d11devicecontext_default_PSSetShader;
-    dst->PSSetSamplers = npt_id3d11devicecontext_default_PSSetSamplers;
-    dst->VSSetShader = npt_id3d11devicecontext_default_VSSetShader;
-    dst->DrawIndexed = npt_id3d11devicecontext_default_DrawIndexed;
-    dst->Draw = npt_id3d11devicecontext_default_Draw;
-    dst->Map = npt_id3d11devicecontext_default_Map;
-    dst->Unmap = npt_id3d11devicecontext_default_Unmap;
-    dst->PSSetConstantBuffers = npt_id3d11devicecontext_default_PSSetConstantBuffers;
-    dst->IASetInputLayout = npt_id3d11devicecontext_default_IASetInputLayout;
-    dst->IASetVertexBuffers = npt_id3d11devicecontext_default_IASetVertexBuffers;
-    dst->IASetIndexBuffer = npt_id3d11devicecontext_default_IASetIndexBuffer;
-    dst->DrawIndexedInstanced = npt_id3d11devicecontext_default_DrawIndexedInstanced;
-    dst->DrawInstanced = npt_id3d11devicecontext_default_DrawInstanced;
-    dst->GSSetConstantBuffers = npt_id3d11devicecontext_default_GSSetConstantBuffers;
-    dst->GSSetShader = npt_id3d11devicecontext_default_GSSetShader;
-    dst->IASetPrimitiveTopology = npt_id3d11devicecontext_default_IASetPrimitiveTopology;
-    dst->VSSetShaderResources = npt_id3d11devicecontext_default_VSSetShaderResources;
-    dst->VSSetSamplers = npt_id3d11devicecontext_default_VSSetSamplers;
-    dst->Begin = npt_id3d11devicecontext_default_Begin;
-    dst->End = npt_id3d11devicecontext_default_End;
-    dst->GetData = npt_id3d11devicecontext_default_GetData;
-    dst->SetPredication = npt_id3d11devicecontext_default_SetPredication;
-    dst->GSSetShaderResources = npt_id3d11devicecontext_default_GSSetShaderResources;
-    dst->GSSetSamplers = npt_id3d11devicecontext_default_GSSetSamplers;
-    dst->OMSetRenderTargets = npt_id3d11devicecontext_default_OMSetRenderTargets;
-    dst->OMSetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMSetRenderTargetsAndUnorderedAccessViews;
-    dst->OMSetBlendState = npt_id3d11devicecontext_default_OMSetBlendState;
-    dst->OMSetDepthStencilState = npt_id3d11devicecontext_default_OMSetDepthStencilState;
-    dst->SOSetTargets = npt_id3d11devicecontext_default_SOSetTargets;
-    dst->DrawAuto = npt_id3d11devicecontext_default_DrawAuto;
-    dst->DrawIndexedInstancedIndirect = npt_id3d11devicecontext_default_DrawIndexedInstancedIndirect;
-    dst->DrawInstancedIndirect = npt_id3d11devicecontext_default_DrawInstancedIndirect;
-    dst->Dispatch = npt_id3d11devicecontext_default_Dispatch;
-    dst->DispatchIndirect = npt_id3d11devicecontext_default_DispatchIndirect;
-    dst->RSSetState = npt_id3d11devicecontext_default_RSSetState;
-    dst->RSSetViewports = npt_id3d11devicecontext_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d11devicecontext_default_RSSetScissorRects;
-    dst->CopySubresourceRegion = npt_id3d11devicecontext_default_CopySubresourceRegion;
-    dst->CopyResource = npt_id3d11devicecontext_default_CopyResource;
-    dst->UpdateSubresource = npt_id3d11devicecontext_default_UpdateSubresource;
-    dst->CopyStructureCount = npt_id3d11devicecontext_default_CopyStructureCount;
-    dst->ClearRenderTargetView = npt_id3d11devicecontext_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d11devicecontext_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d11devicecontext_default_ClearUnorderedAccessViewFloat;
-    dst->ClearDepthStencilView = npt_id3d11devicecontext_default_ClearDepthStencilView;
-    dst->GenerateMips = npt_id3d11devicecontext_default_GenerateMips;
-    dst->SetResourceMinLOD = npt_id3d11devicecontext_default_SetResourceMinLOD;
-    dst->GetResourceMinLOD = npt_id3d11devicecontext_default_GetResourceMinLOD;
-    dst->ResolveSubresource = npt_id3d11devicecontext_default_ResolveSubresource;
-    dst->ExecuteCommandList = npt_id3d11devicecontext_default_ExecuteCommandList;
-    dst->HSSetShaderResources = npt_id3d11devicecontext_default_HSSetShaderResources;
-    dst->HSSetShader = npt_id3d11devicecontext_default_HSSetShader;
-    dst->HSSetSamplers = npt_id3d11devicecontext_default_HSSetSamplers;
-    dst->HSSetConstantBuffers = npt_id3d11devicecontext_default_HSSetConstantBuffers;
-    dst->DSSetShaderResources = npt_id3d11devicecontext_default_DSSetShaderResources;
-    dst->DSSetShader = npt_id3d11devicecontext_default_DSSetShader;
-    dst->DSSetSamplers = npt_id3d11devicecontext_default_DSSetSamplers;
-    dst->DSSetConstantBuffers = npt_id3d11devicecontext_default_DSSetConstantBuffers;
-    dst->CSSetShaderResources = npt_id3d11devicecontext_default_CSSetShaderResources;
-    dst->CSSetUnorderedAccessViews = npt_id3d11devicecontext_default_CSSetUnorderedAccessViews;
-    dst->CSSetShader = npt_id3d11devicecontext_default_CSSetShader;
-    dst->CSSetSamplers = npt_id3d11devicecontext_default_CSSetSamplers;
-    dst->CSSetConstantBuffers = npt_id3d11devicecontext_default_CSSetConstantBuffers;
-    dst->VSGetConstantBuffers = npt_id3d11devicecontext_default_VSGetConstantBuffers;
-    dst->PSGetShaderResources = npt_id3d11devicecontext_default_PSGetShaderResources;
-    dst->PSGetShader = npt_id3d11devicecontext_default_PSGetShader;
-    dst->PSGetSamplers = npt_id3d11devicecontext_default_PSGetSamplers;
-    dst->VSGetShader = npt_id3d11devicecontext_default_VSGetShader;
-    dst->PSGetConstantBuffers = npt_id3d11devicecontext_default_PSGetConstantBuffers;
-    dst->IAGetInputLayout = npt_id3d11devicecontext_default_IAGetInputLayout;
-    dst->IAGetVertexBuffers = npt_id3d11devicecontext_default_IAGetVertexBuffers;
-    dst->IAGetIndexBuffer = npt_id3d11devicecontext_default_IAGetIndexBuffer;
-    dst->GSGetConstantBuffers = npt_id3d11devicecontext_default_GSGetConstantBuffers;
-    dst->GSGetShader = npt_id3d11devicecontext_default_GSGetShader;
-    dst->IAGetPrimitiveTopology = npt_id3d11devicecontext_default_IAGetPrimitiveTopology;
-    dst->VSGetShaderResources = npt_id3d11devicecontext_default_VSGetShaderResources;
-    dst->VSGetSamplers = npt_id3d11devicecontext_default_VSGetSamplers;
-    dst->GetPredication = npt_id3d11devicecontext_default_GetPredication;
-    dst->GSGetShaderResources = npt_id3d11devicecontext_default_GSGetShaderResources;
-    dst->GSGetSamplers = npt_id3d11devicecontext_default_GSGetSamplers;
-    dst->OMGetRenderTargets = npt_id3d11devicecontext_default_OMGetRenderTargets;
-    dst->OMGetRenderTargetsAndUnorderedAccessViews = npt_id3d11devicecontext_default_OMGetRenderTargetsAndUnorderedAccessViews;
-    dst->OMGetBlendState = npt_id3d11devicecontext_default_OMGetBlendState;
-    dst->OMGetDepthStencilState = npt_id3d11devicecontext_default_OMGetDepthStencilState;
-    dst->SOGetTargets = npt_id3d11devicecontext_default_SOGetTargets;
-    dst->RSGetState = npt_id3d11devicecontext_default_RSGetState;
-    dst->RSGetViewports = npt_id3d11devicecontext_default_RSGetViewports;
-    dst->RSGetScissorRects = npt_id3d11devicecontext_default_RSGetScissorRects;
-    dst->HSGetShaderResources = npt_id3d11devicecontext_default_HSGetShaderResources;
-    dst->HSGetShader = npt_id3d11devicecontext_default_HSGetShader;
-    dst->HSGetSamplers = npt_id3d11devicecontext_default_HSGetSamplers;
-    dst->HSGetConstantBuffers = npt_id3d11devicecontext_default_HSGetConstantBuffers;
-    dst->DSGetShaderResources = npt_id3d11devicecontext_default_DSGetShaderResources;
-    dst->DSGetShader = npt_id3d11devicecontext_default_DSGetShader;
-    dst->DSGetSamplers = npt_id3d11devicecontext_default_DSGetSamplers;
-    dst->DSGetConstantBuffers = npt_id3d11devicecontext_default_DSGetConstantBuffers;
-    dst->CSGetShaderResources = npt_id3d11devicecontext_default_CSGetShaderResources;
-    dst->CSGetUnorderedAccessViews = npt_id3d11devicecontext_default_CSGetUnorderedAccessViews;
-    dst->CSGetShader = npt_id3d11devicecontext_default_CSGetShader;
-    dst->CSGetSamplers = npt_id3d11devicecontext_default_CSGetSamplers;
-    dst->CSGetConstantBuffers = npt_id3d11devicecontext_default_CSGetConstantBuffers;
-    dst->ClearState = npt_id3d11devicecontext_default_ClearState;
-    dst->Flush = npt_id3d11devicecontext_default_Flush;
-    dst->GetType = npt_id3d11devicecontext_default_GetType;
-    dst->GetContextFlags = npt_id3d11devicecontext_default_GetContextFlags;
-    dst->FinishCommandList = npt_id3d11devicecontext_default_FinishCommandList;
-    dst->CopySubresourceRegion1 = npt_id3d11devicecontext1_default_CopySubresourceRegion1;
-    dst->UpdateSubresource1 = npt_id3d11devicecontext1_default_UpdateSubresource1;
-    dst->DiscardResource = npt_id3d11devicecontext1_default_DiscardResource;
-    dst->DiscardView = npt_id3d11devicecontext1_default_DiscardView;
-    dst->VSSetConstantBuffers1 = npt_id3d11devicecontext1_default_VSSetConstantBuffers1;
-    dst->HSSetConstantBuffers1 = npt_id3d11devicecontext1_default_HSSetConstantBuffers1;
-    dst->DSSetConstantBuffers1 = npt_id3d11devicecontext1_default_DSSetConstantBuffers1;
-    dst->GSSetConstantBuffers1 = npt_id3d11devicecontext1_default_GSSetConstantBuffers1;
-    dst->PSSetConstantBuffers1 = npt_id3d11devicecontext1_default_PSSetConstantBuffers1;
-    dst->CSSetConstantBuffers1 = npt_id3d11devicecontext1_default_CSSetConstantBuffers1;
-    dst->VSGetConstantBuffers1 = npt_id3d11devicecontext1_default_VSGetConstantBuffers1;
-    dst->HSGetConstantBuffers1 = npt_id3d11devicecontext1_default_HSGetConstantBuffers1;
-    dst->DSGetConstantBuffers1 = npt_id3d11devicecontext1_default_DSGetConstantBuffers1;
-    dst->GSGetConstantBuffers1 = npt_id3d11devicecontext1_default_GSGetConstantBuffers1;
-    dst->PSGetConstantBuffers1 = npt_id3d11devicecontext1_default_PSGetConstantBuffers1;
-    dst->CSGetConstantBuffers1 = npt_id3d11devicecontext1_default_CSGetConstantBuffers1;
-    dst->SwapDeviceContextState = npt_id3d11devicecontext1_default_SwapDeviceContextState;
-    dst->ClearView = npt_id3d11devicecontext1_default_ClearView;
-    dst->DiscardView1 = npt_id3d11devicecontext1_default_DiscardView1;
-    dst->UpdateTileMappings = npt_id3d11devicecontext2_default_UpdateTileMappings;
-    dst->CopyTileMappings = npt_id3d11devicecontext2_default_CopyTileMappings;
-    dst->CopyTiles = npt_id3d11devicecontext2_default_CopyTiles;
-    dst->UpdateTiles = npt_id3d11devicecontext2_default_UpdateTiles;
-    dst->ResizeTilePool = npt_id3d11devicecontext2_default_ResizeTilePool;
-    dst->TiledResourceBarrier = npt_id3d11devicecontext2_default_TiledResourceBarrier;
-    dst->IsAnnotationEnabled = npt_id3d11devicecontext2_default_IsAnnotationEnabled;
-    dst->SetMarkerInt = npt_id3d11devicecontext2_default_SetMarkerInt;
-    dst->BeginEventInt = npt_id3d11devicecontext2_default_BeginEventInt;
-    dst->EndEvent = npt_id3d11devicecontext2_default_EndEvent;
-    dst->Flush1 = npt_id3d11devicecontext3_default_Flush1;
-    dst->SetHardwareProtectionState = npt_id3d11devicecontext3_default_SetHardwareProtectionState;
-    dst->GetHardwareProtectionState = npt_id3d11devicecontext3_default_GetHardwareProtectionState;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11devicecontext3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11devicecontext3_client_vtbl npt_id3d11devicecontext3_default_vtbl_storage;
-
-void
-npt_id3d11devicecontext3_install_default_vtbl(void)
-{
-    npt_id3d11devicecontext3_fill_default_vtbl(&npt_id3d11devicecontext3_default_vtbl_storage);
-}
-
 void *
 npt_id3d11devicecontext3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2529,53 +2318,17 @@ npt_id3d11devicecontext3_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11devicecontext3_default_vtbl_storage,
+        (const void **)&npt_id3d11devicecontext4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11devicecontext;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11DeviceContext4                                                       */
+/* ID3D11DeviceContext4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11devicecontext4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11DeviceContext,
-    &NPT_IID_ID3D11DeviceContext1,
-    &NPT_IID_ID3D11DeviceContext2,
-    &NPT_IID_ID3D11DeviceContext3,
-    &NPT_IID_ID3D11DeviceContext4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11devicecontext4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11devicecontext4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext4_default_Signal(void *self, ID3D11Fence * pFence, UINT64 Value)
@@ -2603,9 +2356,9 @@ npt_id3d11devicecontext4_default_Wait(void *self, ID3D11Fence * pFence, UINT64 V
 void
 npt_id3d11devicecontext4_fill_default_vtbl(struct npt_id3d11devicecontext4_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d11devicecontext4_default_QueryInterface;
-    dst->AddRef         = npt_id3d11devicecontext4_default_AddRef;
-    dst->Release        = npt_id3d11devicecontext4_default_Release;
+    dst->QueryInterface = npt_id3d11devicecontext_default_QueryInterface;
+    dst->AddRef         = npt_id3d11devicecontext_default_AddRef;
+    dst->Release        = npt_id3d11devicecontext_default_Release;
     dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
     dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
     dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
@@ -2755,7 +2508,7 @@ npt_id3d11devicecontext4_fill_default_vtbl(struct npt_id3d11devicecontext4_clien
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d11devicecontext4_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -2776,6 +2529,8 @@ npt_id3d11devicecontext4_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d11devicecontext4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11devicecontext;
+    p->tier = 4;
     return p;
 }
 

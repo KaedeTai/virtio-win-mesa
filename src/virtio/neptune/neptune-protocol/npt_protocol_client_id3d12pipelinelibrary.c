@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12pipelinelibrary.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,30 +22,45 @@
 
 
 /* ================================================================== */
-/* ID3D12PipelineLibrary                                                       */
+/* Family id3d12pipelinelibrary                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12pipelinelibrary_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12pipelinelibrary_tiers[] = {
+    &NPT_IID_ID3D12PipelineLibrary,
+    &NPT_IID_ID3D12PipelineLibrary1,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12pipelinelibrary_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12PIPELINELIBRARY,
+    NPT_OBJECT_TYPE_ID3D12PIPELINELIBRARY1,
+};
+
+static const GUID *const npt_com_family_id3d12pipelinelibrary_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D12Object,
     &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12PipelineLibrary,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12pipelinelibrary = {
+    .name = "id3d12pipelinelibrary",
+    .index = NPT_IFACE_FAMILY_ID3D12PIPELINELIBRARY,
+    .tier_iids = npt_com_family_id3d12pipelinelibrary_tiers,
+    .tier_types = npt_com_family_id3d12pipelinelibrary_tier_types,
+    .tier_count = 2,
+    .ancestor_iids = npt_com_family_id3d12pipelinelibrary_ancestors,
+    .vtbl = (const void **)&npt_id3d12pipelinelibrary1_default_vtbl_storage,
+    .vtbl_install = npt_id3d12pipelinelibrary1_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12pipelinelibrary_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12pipelinelibrary_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,6 +74,11 @@ npt_id3d12pipelinelibrary_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12PipelineLibrary (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12pipelinelibrary_default_StorePipeline(void *self, const WCHAR * pName, ID3D12PipelineState * pPipeline)
@@ -71,6 +94,8 @@ npt_id3d12pipelinelibrary_default_StorePipeline(void *self, const WCHAR * pName,
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12pipelinelibrary_default_LoadGraphicsPipeline(void *self, const WCHAR * pName, const D3D12_GRAPHICS_PIPELINE_STATE_DESC * pDesc, const IID * riid, void ** ppPipelineState)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppPipelineState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -79,27 +104,26 @@ npt_id3d12pipelinelibrary_default_LoadGraphicsPipeline(void *self, const WCHAR *
     void **_orig_ppPipelineState = ppPipelineState;
     if (ppPipelineState)
         ppPipelineState = (void **)&_raw_ppPipelineState;
-    npt_async_ID3D12PipelineLibrary_LoadGraphicsPipeline(npt_com_self_ring(self),npt_com_self_id(self),pName,pDesc,riid,ppPipelineState);
+    HRESULT _ret = npt_call_ID3D12PipelineLibrary_LoadGraphicsPipeline(npt_com_self_ring(self),npt_com_self_id(self),pName,pDesc,riid,ppPipelineState,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppPipelineState) {
-        if (_raw_ppPipelineState)
-            *_orig_ppPipelineState = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppPipelineState,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppPipelineState = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppPipelineState = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12pipelinelibrary_default_LoadComputePipeline(void *self, const WCHAR * pName, const D3D12_COMPUTE_PIPELINE_STATE_DESC * pDesc, const IID * riid, void ** ppPipelineState)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppPipelineState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -108,22 +132,19 @@ npt_id3d12pipelinelibrary_default_LoadComputePipeline(void *self, const WCHAR * 
     void **_orig_ppPipelineState = ppPipelineState;
     if (ppPipelineState)
         ppPipelineState = (void **)&_raw_ppPipelineState;
-    npt_async_ID3D12PipelineLibrary_LoadComputePipeline(npt_com_self_ring(self),npt_com_self_id(self),pName,pDesc,riid,ppPipelineState);
+    HRESULT _ret = npt_call_ID3D12PipelineLibrary_LoadComputePipeline(npt_com_self_ring(self),npt_com_self_id(self),pName,pDesc,riid,ppPipelineState,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppPipelineState) {
-        if (_raw_ppPipelineState)
-            *_orig_ppPipelineState = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppPipelineState,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppPipelineState = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppPipelineState = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 SIZE_T NPT_STDMETHODCALLTYPE
@@ -141,8 +162,56 @@ npt_id3d12pipelinelibrary_default_Serialize(void *self, void * pData, SIZE_T Dat
 }
 
 
+void *
+npt_id3d12pipelinelibrary_client_create(struct npt_device *dev, uint64_t host_id)
+{
+    struct npt_com_base *p = (struct npt_com_base *)npt_alloc(sizeof(*p));
+    if (!p)
+        return NULL;
+    npt_com_base_init(p,
+        (const void **)&npt_id3d12pipelinelibrary1_default_vtbl_storage,
+        dev, host_id);
+    p->family = &npt_com_family_id3d12pipelinelibrary;
+    p->tier = 0;
+    return p;
+}
+
+
+/* ================================================================== */
+/* ID3D12PipelineLibrary1 (tier 1)                                  */
+/* ================================================================== */
+
+HRESULT NPT_STDMETHODCALLTYPE
+npt_id3d12pipelinelibrary1_default_LoadPipeline(void *self, const WCHAR * pName, const D3D12_PIPELINE_STATE_STREAM_DESC * pDesc, const IID * riid, void ** ppPipelineState)
+{
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
+    void *_raw_ppPipelineState = NULL;
+    /* Redirect each single-output pointer to a local _raw_ slot so the
+     * encoder's stashed guest_id lands somewhere we can read after the
+     * submit returns; the original caller-side pointers are restored
+     * with the wrapped result at the end. */
+    void **_orig_ppPipelineState = ppPipelineState;
+    if (ppPipelineState)
+        ppPipelineState = (void **)&_raw_ppPipelineState;
+    HRESULT _ret = npt_call_ID3D12PipelineLibrary1_LoadPipeline(npt_com_self_ring(self),npt_com_self_id(self),pName,pDesc,riid,ppPipelineState,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
+    if (_orig_ppPipelineState) {
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppPipelineState = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
+        else
+            *_orig_ppPipelineState = NULL;
+    }
+    _ref_i++;
+    return _ret;
+}
+
+
 void
-npt_id3d12pipelinelibrary_fill_default_vtbl(struct npt_id3d12pipelinelibrary_client_vtbl *dst)
+npt_id3d12pipelinelibrary1_fill_default_vtbl(struct npt_id3d12pipelinelibrary1_client_vtbl *dst)
 {
     dst->QueryInterface = npt_id3d12pipelinelibrary_default_QueryInterface;
     dst->AddRef         = npt_id3d12pipelinelibrary_default_AddRef;
@@ -157,125 +226,11 @@ npt_id3d12pipelinelibrary_fill_default_vtbl(struct npt_id3d12pipelinelibrary_cli
     dst->LoadComputePipeline = npt_id3d12pipelinelibrary_default_LoadComputePipeline;
     dst->GetSerializedSize = npt_id3d12pipelinelibrary_default_GetSerializedSize;
     dst->Serialize = npt_id3d12pipelinelibrary_default_Serialize;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12pipelinelibrary_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12pipelinelibrary_client_vtbl npt_id3d12pipelinelibrary_default_vtbl_storage;
-
-void
-npt_id3d12pipelinelibrary_install_default_vtbl(void)
-{
-    npt_id3d12pipelinelibrary_fill_default_vtbl(&npt_id3d12pipelinelibrary_default_vtbl_storage);
-}
-
-void *
-npt_id3d12pipelinelibrary_client_create(struct npt_device *dev, uint64_t host_id)
-{
-    struct npt_com_base *p = (struct npt_com_base *)npt_alloc(sizeof(*p));
-    if (!p)
-        return NULL;
-    npt_com_base_init(p,
-        (const void **)&npt_id3d12pipelinelibrary_default_vtbl_storage,
-        dev, host_id);
-    return p;
-}
-
-
-/* ================================================================== */
-/* ID3D12PipelineLibrary1                                                       */
-/* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12pipelinelibrary1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12PipelineLibrary,
-    &NPT_IID_ID3D12PipelineLibrary1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12pipelinelibrary1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12pipelinelibrary1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12pipelinelibrary1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12pipelinelibrary1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12pipelinelibrary1_default_LoadPipeline(void *self, const WCHAR * pName, const D3D12_PIPELINE_STATE_STREAM_DESC * pDesc, const IID * riid, void ** ppPipelineState)
-{
-    void *_raw_ppPipelineState = NULL;
-    /* Redirect each single-output pointer to a local _raw_ slot so the
-     * encoder's stashed guest_id lands somewhere we can read after the
-     * submit returns; the original caller-side pointers are restored
-     * with the wrapped result at the end. */
-    void **_orig_ppPipelineState = ppPipelineState;
-    if (ppPipelineState)
-        ppPipelineState = (void **)&_raw_ppPipelineState;
-    npt_async_ID3D12PipelineLibrary1_LoadPipeline(npt_com_self_ring(self),npt_com_self_id(self),pName,pDesc,riid,ppPipelineState);
-    if (_orig_ppPipelineState) {
-        if (_raw_ppPipelineState)
-            *_orig_ppPipelineState = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppPipelineState,
-                (struct npt_com_base *)self);
-        else
-            *_orig_ppPipelineState = NULL;
-    }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
-}
-
-
-void
-npt_id3d12pipelinelibrary1_fill_default_vtbl(struct npt_id3d12pipelinelibrary1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12pipelinelibrary1_default_QueryInterface;
-    dst->AddRef         = npt_id3d12pipelinelibrary1_default_AddRef;
-    dst->Release        = npt_id3d12pipelinelibrary1_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->StorePipeline = npt_id3d12pipelinelibrary_default_StorePipeline;
-    dst->LoadGraphicsPipeline = npt_id3d12pipelinelibrary_default_LoadGraphicsPipeline;
-    dst->LoadComputePipeline = npt_id3d12pipelinelibrary_default_LoadComputePipeline;
-    dst->GetSerializedSize = npt_id3d12pipelinelibrary_default_GetSerializedSize;
-    dst->Serialize = npt_id3d12pipelinelibrary_default_Serialize;
     dst->LoadPipeline = npt_id3d12pipelinelibrary1_default_LoadPipeline;
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12pipelinelibrary1_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -296,6 +251,8 @@ npt_id3d12pipelinelibrary1_client_create(struct npt_device *dev, uint64_t host_i
     npt_com_base_init(p,
         (const void **)&npt_id3d12pipelinelibrary1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12pipelinelibrary;
+    p->tier = 1;
     return p;
 }
 

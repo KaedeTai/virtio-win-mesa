@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d11shaderresourceview.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,30 +22,45 @@
 
 
 /* ================================================================== */
-/* ID3D11ShaderResourceView                                                       */
+/* Family id3d11shaderresourceview                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11shaderresourceview_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d11shaderresourceview_tiers[] = {
+    &NPT_IID_ID3D11ShaderResourceView,
+    &NPT_IID_ID3D11ShaderResourceView1,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d11shaderresourceview_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D11SHADERRESOURCEVIEW,
+    NPT_OBJECT_TYPE_ID3D11SHADERRESOURCEVIEW1,
+};
+
+static const GUID *const npt_com_family_id3d11shaderresourceview_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D11DeviceChild,
     &NPT_IID_ID3D11View,
-    &NPT_IID_ID3D11ShaderResourceView,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d11shaderresourceview = {
+    .name = "id3d11shaderresourceview",
+    .index = NPT_IFACE_FAMILY_ID3D11SHADERRESOURCEVIEW,
+    .tier_iids = npt_com_family_id3d11shaderresourceview_tiers,
+    .tier_types = npt_com_family_id3d11shaderresourceview_tier_types,
+    .tier_count = 2,
+    .ancestor_iids = npt_com_family_id3d11shaderresourceview_ancestors,
+    .vtbl = (const void **)&npt_id3d11shaderresourceview1_default_vtbl_storage,
+    .vtbl_install = npt_id3d11shaderresourceview1_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11shaderresourceview_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11shaderresourceview_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -57,39 +75,17 @@ npt_id3d11shaderresourceview_default_Release(void *self)
     return npt_com_default_release(self);
 }
 
+
+/* ================================================================== */
+/* ID3D11ShaderResourceView (tier 0)                                  */
+/* ================================================================== */
+
 void NPT_STDMETHODCALLTYPE
 npt_id3d11shaderresourceview_default_GetDesc(void *self, D3D11_SHADER_RESOURCE_VIEW_DESC * pDesc)
 {
     npt_call_ID3D11ShaderResourceView_GetDesc(npt_com_self_ring(self),npt_com_self_id(self),pDesc);
 }
 
-
-void
-npt_id3d11shaderresourceview_fill_default_vtbl(struct npt_id3d11shaderresourceview_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11shaderresourceview_default_QueryInterface;
-    dst->AddRef         = npt_id3d11shaderresourceview_default_AddRef;
-    dst->Release        = npt_id3d11shaderresourceview_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->GetResource = npt_id3d11view_default_GetResource;
-    dst->GetDesc = npt_id3d11shaderresourceview_default_GetDesc;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11shaderresourceview_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11shaderresourceview_client_vtbl npt_id3d11shaderresourceview_default_vtbl_storage;
-
-void
-npt_id3d11shaderresourceview_install_default_vtbl(void)
-{
-    npt_id3d11shaderresourceview_fill_default_vtbl(&npt_id3d11shaderresourceview_default_vtbl_storage);
-}
 
 void *
 npt_id3d11shaderresourceview_client_create(struct npt_device *dev, uint64_t host_id)
@@ -98,51 +94,17 @@ npt_id3d11shaderresourceview_client_create(struct npt_device *dev, uint64_t host
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11shaderresourceview_default_vtbl_storage,
+        (const void **)&npt_id3d11shaderresourceview1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11shaderresourceview;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11ShaderResourceView1                                                       */
+/* ID3D11ShaderResourceView1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11shaderresourceview1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11View,
-    &NPT_IID_ID3D11ShaderResourceView,
-    &NPT_IID_ID3D11ShaderResourceView1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11shaderresourceview1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11shaderresourceview1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11shaderresourceview1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11shaderresourceview1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11shaderresourceview1_default_GetDesc1(void *self, D3D11_SHADER_RESOURCE_VIEW_DESC1 * pDesc1)
@@ -154,9 +116,9 @@ npt_id3d11shaderresourceview1_default_GetDesc1(void *self, D3D11_SHADER_RESOURCE
 void
 npt_id3d11shaderresourceview1_fill_default_vtbl(struct npt_id3d11shaderresourceview1_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d11shaderresourceview1_default_QueryInterface;
-    dst->AddRef         = npt_id3d11shaderresourceview1_default_AddRef;
-    dst->Release        = npt_id3d11shaderresourceview1_default_Release;
+    dst->QueryInterface = npt_id3d11shaderresourceview_default_QueryInterface;
+    dst->AddRef         = npt_id3d11shaderresourceview_default_AddRef;
+    dst->Release        = npt_id3d11shaderresourceview_default_Release;
     dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
     dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
     dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
@@ -167,7 +129,7 @@ npt_id3d11shaderresourceview1_fill_default_vtbl(struct npt_id3d11shaderresourcev
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d11shaderresourceview1_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -188,6 +150,8 @@ npt_id3d11shaderresourceview1_client_create(struct npt_device *dev, uint64_t hos
     npt_com_base_init(p,
         (const void **)&npt_id3d11shaderresourceview1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11shaderresourceview;
+    p->tier = 1;
     return p;
 }
 

@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgiadapter.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,50 @@
 
 
 /* ================================================================== */
-/* IDXGIAdapter                                                       */
+/* Family idxgiadapter                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiadapter_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgiadapter_tiers[] = {
+    &NPT_IID_IDXGIAdapter,
+    &NPT_IID_IDXGIAdapter1,
+    &NPT_IID_IDXGIAdapter2,
+    &NPT_IID_IDXGIAdapter3,
+    &NPT_IID_IDXGIAdapter4,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_idxgiadapter_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGIADAPTER,
+    NPT_OBJECT_TYPE_IDXGIADAPTER1,
+    NPT_OBJECT_TYPE_IDXGIADAPTER2,
+    NPT_OBJECT_TYPE_IDXGIADAPTER3,
+    NPT_OBJECT_TYPE_IDXGIADAPTER4,
+};
+
+static const GUID *const npt_com_family_idxgiadapter_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIAdapter,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgiadapter = {
+    .name = "idxgiadapter",
+    .index = NPT_IFACE_FAMILY_IDXGIADAPTER,
+    .tier_iids = npt_com_family_idxgiadapter_tiers,
+    .tier_types = npt_com_family_idxgiadapter_tier_types,
+    .tier_count = 5,
+    .ancestor_iids = npt_com_family_idxgiadapter_ancestors,
+    .vtbl = (const void **)&npt_idxgiadapter4_default_vtbl_storage,
+    .vtbl_install = npt_idxgiadapter4_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiadapter_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,9 +80,16 @@ npt_idxgiadapter_default_Release(void *self)
     return npt_com_default_release(self);
 }
 
+
+/* ================================================================== */
+/* IDXGIAdapter (tier 0)                                  */
+/* ================================================================== */
+
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter_default_EnumOutputs(void *self, UINT Output, IDXGIOutput ** ppOutput)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIOutput *_raw_ppOutput = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -67,22 +98,18 @@ npt_idxgiadapter_default_EnumOutputs(void *self, UINT Output, IDXGIOutput ** ppO
     IDXGIOutput **_orig_ppOutput = ppOutput;
     if (ppOutput)
         ppOutput = (IDXGIOutput **)&_raw_ppOutput;
-    HRESULT _ret = npt_call_IDXGIAdapter_EnumOutputs(npt_com_self_ring(self),npt_com_self_id(self),Output,ppOutput);
+    HRESULT _ret = npt_call_IDXGIAdapter_EnumOutputs(npt_com_self_ring(self),npt_com_self_id(self),Output,ppOutput,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppOutput) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppOutput)
-            *_orig_ppOutput = (IDXGIOutput *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIOutput,
-                (uint64_t)(uintptr_t)_raw_ppOutput,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppOutput = (IDXGIOutput *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIOutput);
         else
             *_orig_ppOutput = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
@@ -101,34 +128,6 @@ npt_idxgiadapter_default_CheckInterfaceSupport(void *self, const GUID * Interfac
 }
 
 
-void
-npt_idxgiadapter_fill_default_vtbl(struct npt_idxgiadapter_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiadapter_default_QueryInterface;
-    dst->AddRef         = npt_idxgiadapter_default_AddRef;
-    dst->Release        = npt_idxgiadapter_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumOutputs = npt_idxgiadapter_default_EnumOutputs;
-    dst->GetDesc = npt_idxgiadapter_default_GetDesc;
-    dst->CheckInterfaceSupport = npt_idxgiadapter_default_CheckInterfaceSupport;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiadapter_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiadapter_client_vtbl npt_idxgiadapter_default_vtbl_storage;
-
-void
-npt_idxgiadapter_install_default_vtbl(void)
-{
-    npt_idxgiadapter_fill_default_vtbl(&npt_idxgiadapter_default_vtbl_storage);
-}
-
 void *
 npt_idxgiadapter_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -136,50 +135,17 @@ npt_idxgiadapter_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiadapter_default_vtbl_storage,
+        (const void **)&npt_idxgiadapter4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiadapter;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIAdapter1                                                       */
+/* IDXGIAdapter1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiadapter1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIAdapter,
-    &NPT_IID_IDXGIAdapter1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiadapter1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter1_default_GetDesc1(void *self, DXGI_ADAPTER_DESC1 * pDesc)
@@ -189,35 +155,6 @@ npt_idxgiadapter1_default_GetDesc1(void *self, DXGI_ADAPTER_DESC1 * pDesc)
 }
 
 
-void
-npt_idxgiadapter1_fill_default_vtbl(struct npt_idxgiadapter1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiadapter1_default_QueryInterface;
-    dst->AddRef         = npt_idxgiadapter1_default_AddRef;
-    dst->Release        = npt_idxgiadapter1_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumOutputs = npt_idxgiadapter_default_EnumOutputs;
-    dst->GetDesc = npt_idxgiadapter_default_GetDesc;
-    dst->CheckInterfaceSupport = npt_idxgiadapter_default_CheckInterfaceSupport;
-    dst->GetDesc1 = npt_idxgiadapter1_default_GetDesc1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiadapter1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiadapter1_client_vtbl npt_idxgiadapter1_default_vtbl_storage;
-
-void
-npt_idxgiadapter1_install_default_vtbl(void)
-{
-    npt_idxgiadapter1_fill_default_vtbl(&npt_idxgiadapter1_default_vtbl_storage);
-}
-
 void *
 npt_idxgiadapter1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -225,51 +162,17 @@ npt_idxgiadapter1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiadapter1_default_vtbl_storage,
+        (const void **)&npt_idxgiadapter4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiadapter;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIAdapter2                                                       */
+/* IDXGIAdapter2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiadapter2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIAdapter,
-    &NPT_IID_IDXGIAdapter1,
-    &NPT_IID_IDXGIAdapter2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiadapter2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter2_default_GetDesc2(void *self, DXGI_ADAPTER_DESC2 * pDesc)
@@ -279,36 +182,6 @@ npt_idxgiadapter2_default_GetDesc2(void *self, DXGI_ADAPTER_DESC2 * pDesc)
 }
 
 
-void
-npt_idxgiadapter2_fill_default_vtbl(struct npt_idxgiadapter2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiadapter2_default_QueryInterface;
-    dst->AddRef         = npt_idxgiadapter2_default_AddRef;
-    dst->Release        = npt_idxgiadapter2_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumOutputs = npt_idxgiadapter_default_EnumOutputs;
-    dst->GetDesc = npt_idxgiadapter_default_GetDesc;
-    dst->CheckInterfaceSupport = npt_idxgiadapter_default_CheckInterfaceSupport;
-    dst->GetDesc1 = npt_idxgiadapter1_default_GetDesc1;
-    dst->GetDesc2 = npt_idxgiadapter2_default_GetDesc2;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiadapter2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiadapter2_client_vtbl npt_idxgiadapter2_default_vtbl_storage;
-
-void
-npt_idxgiadapter2_install_default_vtbl(void)
-{
-    npt_idxgiadapter2_fill_default_vtbl(&npt_idxgiadapter2_default_vtbl_storage);
-}
-
 void *
 npt_idxgiadapter2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -316,52 +189,17 @@ npt_idxgiadapter2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiadapter2_default_vtbl_storage,
+        (const void **)&npt_idxgiadapter4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiadapter;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIAdapter3                                                       */
+/* IDXGIAdapter3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiadapter3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIAdapter,
-    &NPT_IID_IDXGIAdapter1,
-    &NPT_IID_IDXGIAdapter2,
-    &NPT_IID_IDXGIAdapter3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiadapter3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter3_default_RegisterHardwareContentProtectionTeardownStatusEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
@@ -408,42 +246,6 @@ npt_idxgiadapter3_default_UnregisterVideoMemoryBudgetChangeNotification(void *se
 }
 
 
-void
-npt_idxgiadapter3_fill_default_vtbl(struct npt_idxgiadapter3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiadapter3_default_QueryInterface;
-    dst->AddRef         = npt_idxgiadapter3_default_AddRef;
-    dst->Release        = npt_idxgiadapter3_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumOutputs = npt_idxgiadapter_default_EnumOutputs;
-    dst->GetDesc = npt_idxgiadapter_default_GetDesc;
-    dst->CheckInterfaceSupport = npt_idxgiadapter_default_CheckInterfaceSupport;
-    dst->GetDesc1 = npt_idxgiadapter1_default_GetDesc1;
-    dst->GetDesc2 = npt_idxgiadapter2_default_GetDesc2;
-    dst->RegisterHardwareContentProtectionTeardownStatusEvent = npt_idxgiadapter3_default_RegisterHardwareContentProtectionTeardownStatusEvent;
-    dst->UnregisterHardwareContentProtectionTeardownStatus = npt_idxgiadapter3_default_UnregisterHardwareContentProtectionTeardownStatus;
-    dst->QueryVideoMemoryInfo = npt_idxgiadapter3_default_QueryVideoMemoryInfo;
-    dst->SetVideoMemoryReservation = npt_idxgiadapter3_default_SetVideoMemoryReservation;
-    dst->RegisterVideoMemoryBudgetChangeNotificationEvent = npt_idxgiadapter3_default_RegisterVideoMemoryBudgetChangeNotificationEvent;
-    dst->UnregisterVideoMemoryBudgetChangeNotification = npt_idxgiadapter3_default_UnregisterVideoMemoryBudgetChangeNotification;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiadapter3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiadapter3_client_vtbl npt_idxgiadapter3_default_vtbl_storage;
-
-void
-npt_idxgiadapter3_install_default_vtbl(void)
-{
-    npt_idxgiadapter3_fill_default_vtbl(&npt_idxgiadapter3_default_vtbl_storage);
-}
-
 void *
 npt_idxgiadapter3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -451,53 +253,17 @@ npt_idxgiadapter3_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiadapter3_default_vtbl_storage,
+        (const void **)&npt_idxgiadapter4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiadapter;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIAdapter4                                                       */
+/* IDXGIAdapter4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiadapter4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIAdapter,
-    &NPT_IID_IDXGIAdapter1,
-    &NPT_IID_IDXGIAdapter2,
-    &NPT_IID_IDXGIAdapter3,
-    &NPT_IID_IDXGIAdapter4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiadapter4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter4_default_GetDesc3(void *self, DXGI_ADAPTER_DESC3 * pDesc)
@@ -510,9 +276,9 @@ npt_idxgiadapter4_default_GetDesc3(void *self, DXGI_ADAPTER_DESC3 * pDesc)
 void
 npt_idxgiadapter4_fill_default_vtbl(struct npt_idxgiadapter4_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_idxgiadapter4_default_QueryInterface;
-    dst->AddRef         = npt_idxgiadapter4_default_AddRef;
-    dst->Release        = npt_idxgiadapter4_default_Release;
+    dst->QueryInterface = npt_idxgiadapter_default_QueryInterface;
+    dst->AddRef         = npt_idxgiadapter_default_AddRef;
+    dst->Release        = npt_idxgiadapter_default_Release;
     dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
     dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
     dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
@@ -532,7 +298,7 @@ npt_idxgiadapter4_fill_default_vtbl(struct npt_idxgiadapter4_client_vtbl *dst)
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgiadapter4_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -553,6 +319,8 @@ npt_idxgiadapter4_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgiadapter4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiadapter;
+    p->tier = 4;
     return p;
 }
 

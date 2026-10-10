@@ -31,6 +31,7 @@ struct npt_command_IDXGIDevice_GetAdapter {
      * this field and inserts {_guest_id_pAdapter -> *pAdapter} in the
      * context object table. */
     uint64_t _guest_id_pAdapter;
+    struct npt_wire_object_ref _ref_pAdapter;
     HRESULT ret;
 };
 
@@ -80,15 +81,21 @@ npt_sizeof_IDXGIDevice_GetAdapter_reply(IDXGIAdapter ** pAdapter)
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip pAdapter (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* pAdapter: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIDevice_GetAdapter_reply(struct npt_cs_decoder *dec,
                                         IDXGIAdapter ** pAdapter,
-                                        HRESULT *ret)
+                                        HRESULT *ret,
+                                        struct npt_wire_object_ref *_refs,
+                                        size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIDevice,
@@ -108,7 +115,11 @@ npt_decode_IDXGIDevice_GetAdapter_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip pAdapter (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -139,26 +150,19 @@ npt_submit_IDXGIDevice_GetAdapter(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIDevice_GetAdapter(struct npt_ring *ring,
-                                 npt_object_id object_id,
-                                 IDXGIAdapter ** pAdapter)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIDevice_GetAdapter(ring, 0, object_id, pAdapter, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIDevice_GetAdapter(struct npt_ring *ring,
                                 npt_object_id object_id,
-                                IDXGIAdapter ** pAdapter)
+                                IDXGIAdapter ** pAdapter,
+                                struct npt_wire_object_ref *_refs,
+                                size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIDevice_GetAdapter(ring, NPT_CMD_FLAG_REPLY, object_id, pAdapter, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIDevice_GetAdapter_reply(dec, pAdapter, &_ret);
+        npt_decode_IDXGIDevice_GetAdapter_reply(dec, pAdapter, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

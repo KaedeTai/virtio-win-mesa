@@ -8030,6 +8030,7 @@ struct npt_command_ID3D11DeviceContext_VSGetConstantBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -8089,14 +8090,20 @@ npt_sizeof_ID3D11DeviceContext_VSGetConstantBuffers_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_VSGetConstantBuffers_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11Buffer ** ppConstantBuffers)
+                                                          ID3D11Buffer ** ppConstantBuffers,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -8114,7 +8121,15 @@ npt_decode_ID3D11DeviceContext_VSGetConstantBuffers_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_VSGetConstantBuffers));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -8148,28 +8163,19 @@ npt_submit_ID3D11DeviceContext_VSGetConstantBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_VSGetConstantBuffers(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumBuffers,
-                                                   ID3D11Buffer ** ppConstantBuffers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_VSGetConstantBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_VSGetConstantBuffers(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumBuffers,
-                                                  ID3D11Buffer ** ppConstantBuffers)
+                                                  ID3D11Buffer ** ppConstantBuffers,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_VSGetConstantBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_VSGetConstantBuffers_reply(dec, ppConstantBuffers);
+        npt_decode_ID3D11DeviceContext_VSGetConstantBuffers_reply(dec, ppConstantBuffers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -8188,6 +8194,7 @@ struct npt_command_ID3D11DeviceContext_PSGetShaderResources {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppShaderResourceViews;
     uint32_t _guest_id_count_ppShaderResourceViews;
+    struct npt_wire_object_ref *_refs_ppShaderResourceViews;
 };
 
 static inline size_t
@@ -8247,14 +8254,20 @@ npt_sizeof_ID3D11DeviceContext_PSGetShaderResources_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumViews (input only) */
-/* skip ppShaderResourceViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppShaderResourceViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppShaderResourceViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_PSGetShaderResources_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                          ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -8272,7 +8285,15 @@ npt_decode_ID3D11DeviceContext_PSGetShaderResources_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_PSGetShaderResources));
         return;
     }
-/* skip ppShaderResourceViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -8306,28 +8327,19 @@ npt_submit_ID3D11DeviceContext_PSGetShaderResources(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_PSGetShaderResources(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumViews,
-                                                   ID3D11ShaderResourceView ** ppShaderResourceViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_PSGetShaderResources(ring, 0, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_PSGetShaderResources(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumViews,
-                                                  ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                  ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_PSGetShaderResources(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_PSGetShaderResources_reply(dec, ppShaderResourceViews);
+        npt_decode_ID3D11DeviceContext_PSGetShaderResources_reply(dec, ppShaderResourceViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -8346,11 +8358,13 @@ struct npt_command_ID3D11DeviceContext_PSGetShader {
      * this field and inserts {_guest_id_ppPixelShader -> *ppPixelShader} in the
      * context object table. */
     uint64_t _guest_id_ppPixelShader;
+    struct npt_wire_object_ref _ref_ppPixelShader;
     /* Shadow: per-element guest-allocated ids for ppClassInstances.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppClassInstances;
     uint32_t _guest_id_count_ppClassInstances;
+    struct npt_wire_object_ref *_refs_ppClassInstances;
 };
 
 static inline size_t
@@ -8418,8 +8432,8 @@ npt_sizeof_ID3D11DeviceContext_PSGetShader_reply(ID3D11PixelShader ** ppPixelSha
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppPixelShader (guest-allocated id, registered host-side; not in reply) */
-/* skip ppClassInstances (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppPixelShader: registered id */
+cmd_size += npt_sizeof_array_count(0) + (ppClassInstances ? (size_t)((pNumClassInstances ? *pNumClassInstances : 0)) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppClassInstances: registered ids */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -8429,8 +8443,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_PSGetShader_reply(struct npt_cs_decoder *dec,
                                                  ID3D11PixelShader ** ppPixelShader,
                                                  ID3D11ClassInstance ** ppClassInstances,
-                                                 UINT * pNumClassInstances)
+                                                 UINT * pNumClassInstances,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -8448,8 +8468,20 @@ npt_decode_ID3D11DeviceContext_PSGetShader_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_PSGetShader));
         return;
     }
-/* skip ppPixelShader (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppClassInstances (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     if (npt_decode_simple_pointer(dec)) {
         if (pNumClassInstances)
             npt_decode_UINT(dec, (UINT *)pNumClassInstances);
@@ -8487,28 +8519,19 @@ npt_submit_ID3D11DeviceContext_PSGetShader(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_PSGetShader(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          ID3D11PixelShader ** ppPixelShader,
-                                          ID3D11ClassInstance ** ppClassInstances,
-                                          UINT * pNumClassInstances)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_PSGetShader(ring, 0, object_id, ppPixelShader, ppClassInstances, pNumClassInstances, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_PSGetShader(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          ID3D11PixelShader ** ppPixelShader,
                                          ID3D11ClassInstance ** ppClassInstances,
-                                         UINT * pNumClassInstances)
+                                         UINT * pNumClassInstances,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_PSGetShader(ring, NPT_CMD_FLAG_REPLY, object_id, ppPixelShader, ppClassInstances, pNumClassInstances, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_PSGetShader_reply(dec, ppPixelShader, ppClassInstances, pNumClassInstances);
+        npt_decode_ID3D11DeviceContext_PSGetShader_reply(dec, ppPixelShader, ppClassInstances, pNumClassInstances, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -8527,6 +8550,7 @@ struct npt_command_ID3D11DeviceContext_PSGetSamplers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSamplers;
     uint32_t _guest_id_count_ppSamplers;
+    struct npt_wire_object_ref *_refs_ppSamplers;
 };
 
 static inline size_t
@@ -8586,14 +8610,20 @@ npt_sizeof_ID3D11DeviceContext_PSGetSamplers_reply(const UINT StartSlot,const UI
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumSamplers (input only) */
-/* skip ppSamplers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSamplers ? (size_t)(NumSamplers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSamplers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_PSGetSamplers_reply(struct npt_cs_decoder *dec,
-                                                   ID3D11SamplerState ** ppSamplers)
+                                                   ID3D11SamplerState ** ppSamplers,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -8611,7 +8641,15 @@ npt_decode_ID3D11DeviceContext_PSGetSamplers_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_PSGetSamplers));
         return;
     }
-/* skip ppSamplers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -8645,28 +8683,19 @@ npt_submit_ID3D11DeviceContext_PSGetSamplers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_PSGetSamplers(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            UINT StartSlot,
-                                            UINT NumSamplers,
-                                            ID3D11SamplerState ** ppSamplers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_PSGetSamplers(ring, 0, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_PSGetSamplers(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            UINT StartSlot,
                                            UINT NumSamplers,
-                                           ID3D11SamplerState ** ppSamplers)
+                                           ID3D11SamplerState ** ppSamplers,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_PSGetSamplers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_PSGetSamplers_reply(dec, ppSamplers);
+        npt_decode_ID3D11DeviceContext_PSGetSamplers_reply(dec, ppSamplers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -8685,11 +8714,13 @@ struct npt_command_ID3D11DeviceContext_VSGetShader {
      * this field and inserts {_guest_id_ppVertexShader -> *ppVertexShader} in the
      * context object table. */
     uint64_t _guest_id_ppVertexShader;
+    struct npt_wire_object_ref _ref_ppVertexShader;
     /* Shadow: per-element guest-allocated ids for ppClassInstances.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppClassInstances;
     uint32_t _guest_id_count_ppClassInstances;
+    struct npt_wire_object_ref *_refs_ppClassInstances;
 };
 
 static inline size_t
@@ -8757,8 +8788,8 @@ npt_sizeof_ID3D11DeviceContext_VSGetShader_reply(ID3D11VertexShader ** ppVertexS
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppVertexShader (guest-allocated id, registered host-side; not in reply) */
-/* skip ppClassInstances (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppVertexShader: registered id */
+cmd_size += npt_sizeof_array_count(0) + (ppClassInstances ? (size_t)((pNumClassInstances ? *pNumClassInstances : 0)) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppClassInstances: registered ids */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -8768,8 +8799,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_VSGetShader_reply(struct npt_cs_decoder *dec,
                                                  ID3D11VertexShader ** ppVertexShader,
                                                  ID3D11ClassInstance ** ppClassInstances,
-                                                 UINT * pNumClassInstances)
+                                                 UINT * pNumClassInstances,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -8787,8 +8824,20 @@ npt_decode_ID3D11DeviceContext_VSGetShader_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_VSGetShader));
         return;
     }
-/* skip ppVertexShader (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppClassInstances (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     if (npt_decode_simple_pointer(dec)) {
         if (pNumClassInstances)
             npt_decode_UINT(dec, (UINT *)pNumClassInstances);
@@ -8826,28 +8875,19 @@ npt_submit_ID3D11DeviceContext_VSGetShader(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_VSGetShader(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          ID3D11VertexShader ** ppVertexShader,
-                                          ID3D11ClassInstance ** ppClassInstances,
-                                          UINT * pNumClassInstances)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_VSGetShader(ring, 0, object_id, ppVertexShader, ppClassInstances, pNumClassInstances, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_VSGetShader(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          ID3D11VertexShader ** ppVertexShader,
                                          ID3D11ClassInstance ** ppClassInstances,
-                                         UINT * pNumClassInstances)
+                                         UINT * pNumClassInstances,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_VSGetShader(ring, NPT_CMD_FLAG_REPLY, object_id, ppVertexShader, ppClassInstances, pNumClassInstances, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_VSGetShader_reply(dec, ppVertexShader, ppClassInstances, pNumClassInstances);
+        npt_decode_ID3D11DeviceContext_VSGetShader_reply(dec, ppVertexShader, ppClassInstances, pNumClassInstances, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -8866,6 +8906,7 @@ struct npt_command_ID3D11DeviceContext_PSGetConstantBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -8925,14 +8966,20 @@ npt_sizeof_ID3D11DeviceContext_PSGetConstantBuffers_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_PSGetConstantBuffers_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11Buffer ** ppConstantBuffers)
+                                                          ID3D11Buffer ** ppConstantBuffers,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -8950,7 +8997,15 @@ npt_decode_ID3D11DeviceContext_PSGetConstantBuffers_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_PSGetConstantBuffers));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -8984,28 +9039,19 @@ npt_submit_ID3D11DeviceContext_PSGetConstantBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_PSGetConstantBuffers(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumBuffers,
-                                                   ID3D11Buffer ** ppConstantBuffers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_PSGetConstantBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_PSGetConstantBuffers(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumBuffers,
-                                                  ID3D11Buffer ** ppConstantBuffers)
+                                                  ID3D11Buffer ** ppConstantBuffers,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_PSGetConstantBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_PSGetConstantBuffers_reply(dec, ppConstantBuffers);
+        npt_decode_ID3D11DeviceContext_PSGetConstantBuffers_reply(dec, ppConstantBuffers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9022,6 +9068,7 @@ struct npt_command_ID3D11DeviceContext_IAGetInputLayout {
      * this field and inserts {_guest_id_ppInputLayout -> *ppInputLayout} in the
      * context object table. */
     uint64_t _guest_id_ppInputLayout;
+    struct npt_wire_object_ref _ref_ppInputLayout;
 };
 
 static inline size_t
@@ -9070,14 +9117,20 @@ npt_sizeof_ID3D11DeviceContext_IAGetInputLayout_reply(ID3D11InputLayout ** ppInp
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppInputLayout (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppInputLayout: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_IAGetInputLayout_reply(struct npt_cs_decoder *dec,
-                                                      ID3D11InputLayout ** ppInputLayout)
+                                                      ID3D11InputLayout ** ppInputLayout,
+                                                      struct npt_wire_object_ref *_refs,
+                                                      size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -9095,7 +9148,11 @@ npt_decode_ID3D11DeviceContext_IAGetInputLayout_reply(struct npt_cs_decoder *dec
                                        NPT_METHOD_ID3D11DeviceContext_IAGetInputLayout));
         return;
     }
-/* skip ppInputLayout (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -9127,24 +9184,17 @@ npt_submit_ID3D11DeviceContext_IAGetInputLayout(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_IAGetInputLayout(struct npt_ring *ring,
-                                               npt_object_id object_id,
-                                               ID3D11InputLayout ** ppInputLayout)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_IAGetInputLayout(ring, 0, object_id, ppInputLayout, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_IAGetInputLayout(struct npt_ring *ring,
                                               npt_object_id object_id,
-                                              ID3D11InputLayout ** ppInputLayout)
+                                              ID3D11InputLayout ** ppInputLayout,
+                                              struct npt_wire_object_ref *_refs,
+                                              size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_IAGetInputLayout(ring, NPT_CMD_FLAG_REPLY, object_id, ppInputLayout, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_IAGetInputLayout_reply(dec, ppInputLayout);
+        npt_decode_ID3D11DeviceContext_IAGetInputLayout_reply(dec, ppInputLayout, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9165,6 +9215,7 @@ struct npt_command_ID3D11DeviceContext_IAGetVertexBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppVertexBuffers;
     uint32_t _guest_id_count_ppVertexBuffers;
+    struct npt_wire_object_ref *_refs_ppVertexBuffers;
 };
 
 static inline size_t
@@ -9230,7 +9281,7 @@ npt_sizeof_ID3D11DeviceContext_IAGetVertexBuffers_reply(const UINT StartSlot,con
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppVertexBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppVertexBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppVertexBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pStrides ? NumBuffers : 0);
     if (pStrides)
         cmd_size += npt_sizeof_UINT_array(pStrides, NumBuffers);
@@ -9244,8 +9295,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_IAGetVertexBuffers_reply(struct npt_cs_decoder *dec,
                                                         ID3D11Buffer ** ppVertexBuffers,
                                                         UINT * pStrides,
-                                                        UINT * pOffsets)
+                                                        UINT * pOffsets,
+                                                        struct npt_wire_object_ref *_refs,
+                                                        size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -9263,7 +9320,15 @@ npt_decode_ID3D11DeviceContext_IAGetVertexBuffers_reply(struct npt_cs_decoder *d
                                        NPT_METHOD_ID3D11DeviceContext_IAGetVertexBuffers));
         return;
     }
-/* skip ppVertexBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pStrides)
@@ -9313,32 +9378,21 @@ npt_submit_ID3D11DeviceContext_IAGetVertexBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_IAGetVertexBuffers(struct npt_ring *ring,
-                                                 npt_object_id object_id,
-                                                 UINT StartSlot,
-                                                 UINT NumBuffers,
-                                                 ID3D11Buffer ** ppVertexBuffers,
-                                                 UINT * pStrides,
-                                                 UINT * pOffsets)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_IAGetVertexBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_IAGetVertexBuffers(struct npt_ring *ring,
                                                 npt_object_id object_id,
                                                 UINT StartSlot,
                                                 UINT NumBuffers,
                                                 ID3D11Buffer ** ppVertexBuffers,
                                                 UINT * pStrides,
-                                                UINT * pOffsets)
+                                                UINT * pOffsets,
+                                                struct npt_wire_object_ref *_refs,
+                                                size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_IAGetVertexBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppVertexBuffers, pStrides, pOffsets, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_IAGetVertexBuffers_reply(dec, ppVertexBuffers, pStrides, pOffsets);
+        npt_decode_ID3D11DeviceContext_IAGetVertexBuffers_reply(dec, ppVertexBuffers, pStrides, pOffsets, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9357,6 +9411,7 @@ struct npt_command_ID3D11DeviceContext_IAGetIndexBuffer {
      * this field and inserts {_guest_id_pIndexBuffer -> *pIndexBuffer} in the
      * context object table. */
     uint64_t _guest_id_pIndexBuffer;
+    struct npt_wire_object_ref _ref_pIndexBuffer;
 };
 
 static inline size_t
@@ -9411,7 +9466,7 @@ npt_sizeof_ID3D11DeviceContext_IAGetIndexBuffer_reply(ID3D11Buffer ** pIndexBuff
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip pIndexBuffer (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* pIndexBuffer: registered id */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_DXGI_FORMAT(&(const DXGI_FORMAT){0}, 1);
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
@@ -9423,8 +9478,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_IAGetIndexBuffer_reply(struct npt_cs_decoder *dec,
                                                       ID3D11Buffer ** pIndexBuffer,
                                                       DXGI_FORMAT * Format,
-                                                      UINT * Offset)
+                                                      UINT * Offset,
+                                                      struct npt_wire_object_ref *_refs,
+                                                      size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -9442,7 +9503,11 @@ npt_decode_ID3D11DeviceContext_IAGetIndexBuffer_reply(struct npt_cs_decoder *dec
                                        NPT_METHOD_ID3D11DeviceContext_IAGetIndexBuffer));
         return;
     }
-/* skip pIndexBuffer (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
     if (npt_decode_simple_pointer(dec)) {
         if (Format)
             npt_decode_DXGI_FORMAT(dec, (DXGI_FORMAT *)Format);
@@ -9484,28 +9549,19 @@ npt_submit_ID3D11DeviceContext_IAGetIndexBuffer(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_IAGetIndexBuffer(struct npt_ring *ring,
-                                               npt_object_id object_id,
-                                               ID3D11Buffer ** pIndexBuffer,
-                                               DXGI_FORMAT * Format,
-                                               UINT * Offset)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_IAGetIndexBuffer(ring, 0, object_id, pIndexBuffer, Format, Offset, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_IAGetIndexBuffer(struct npt_ring *ring,
                                               npt_object_id object_id,
                                               ID3D11Buffer ** pIndexBuffer,
                                               DXGI_FORMAT * Format,
-                                              UINT * Offset)
+                                              UINT * Offset,
+                                              struct npt_wire_object_ref *_refs,
+                                              size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_IAGetIndexBuffer(ring, NPT_CMD_FLAG_REPLY, object_id, pIndexBuffer, Format, Offset, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_IAGetIndexBuffer_reply(dec, pIndexBuffer, Format, Offset);
+        npt_decode_ID3D11DeviceContext_IAGetIndexBuffer_reply(dec, pIndexBuffer, Format, Offset, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9524,6 +9580,7 @@ struct npt_command_ID3D11DeviceContext_GSGetConstantBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -9583,14 +9640,20 @@ npt_sizeof_ID3D11DeviceContext_GSGetConstantBuffers_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_GSGetConstantBuffers_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11Buffer ** ppConstantBuffers)
+                                                          ID3D11Buffer ** ppConstantBuffers,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -9608,7 +9671,15 @@ npt_decode_ID3D11DeviceContext_GSGetConstantBuffers_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_GSGetConstantBuffers));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -9642,28 +9713,19 @@ npt_submit_ID3D11DeviceContext_GSGetConstantBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_GSGetConstantBuffers(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumBuffers,
-                                                   ID3D11Buffer ** ppConstantBuffers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_GSGetConstantBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_GSGetConstantBuffers(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumBuffers,
-                                                  ID3D11Buffer ** ppConstantBuffers)
+                                                  ID3D11Buffer ** ppConstantBuffers,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_GSGetConstantBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_GSGetConstantBuffers_reply(dec, ppConstantBuffers);
+        npt_decode_ID3D11DeviceContext_GSGetConstantBuffers_reply(dec, ppConstantBuffers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9682,11 +9744,13 @@ struct npt_command_ID3D11DeviceContext_GSGetShader {
      * this field and inserts {_guest_id_ppGeometryShader -> *ppGeometryShader} in the
      * context object table. */
     uint64_t _guest_id_ppGeometryShader;
+    struct npt_wire_object_ref _ref_ppGeometryShader;
     /* Shadow: per-element guest-allocated ids for ppClassInstances.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppClassInstances;
     uint32_t _guest_id_count_ppClassInstances;
+    struct npt_wire_object_ref *_refs_ppClassInstances;
 };
 
 static inline size_t
@@ -9754,8 +9818,8 @@ npt_sizeof_ID3D11DeviceContext_GSGetShader_reply(ID3D11GeometryShader ** ppGeome
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppGeometryShader (guest-allocated id, registered host-side; not in reply) */
-/* skip ppClassInstances (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppGeometryShader: registered id */
+cmd_size += npt_sizeof_array_count(0) + (ppClassInstances ? (size_t)((pNumClassInstances ? *pNumClassInstances : 0)) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppClassInstances: registered ids */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -9765,8 +9829,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_GSGetShader_reply(struct npt_cs_decoder *dec,
                                                  ID3D11GeometryShader ** ppGeometryShader,
                                                  ID3D11ClassInstance ** ppClassInstances,
-                                                 UINT * pNumClassInstances)
+                                                 UINT * pNumClassInstances,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -9784,8 +9854,20 @@ npt_decode_ID3D11DeviceContext_GSGetShader_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_GSGetShader));
         return;
     }
-/* skip ppGeometryShader (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppClassInstances (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     if (npt_decode_simple_pointer(dec)) {
         if (pNumClassInstances)
             npt_decode_UINT(dec, (UINT *)pNumClassInstances);
@@ -9823,28 +9905,19 @@ npt_submit_ID3D11DeviceContext_GSGetShader(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_GSGetShader(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          ID3D11GeometryShader ** ppGeometryShader,
-                                          ID3D11ClassInstance ** ppClassInstances,
-                                          UINT * pNumClassInstances)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_GSGetShader(ring, 0, object_id, ppGeometryShader, ppClassInstances, pNumClassInstances, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_GSGetShader(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          ID3D11GeometryShader ** ppGeometryShader,
                                          ID3D11ClassInstance ** ppClassInstances,
-                                         UINT * pNumClassInstances)
+                                         UINT * pNumClassInstances,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_GSGetShader(ring, NPT_CMD_FLAG_REPLY, object_id, ppGeometryShader, ppClassInstances, pNumClassInstances, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_GSGetShader_reply(dec, ppGeometryShader, ppClassInstances, pNumClassInstances);
+        npt_decode_ID3D11DeviceContext_GSGetShader_reply(dec, ppGeometryShader, ppClassInstances, pNumClassInstances, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -9994,6 +10067,7 @@ struct npt_command_ID3D11DeviceContext_VSGetShaderResources {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppShaderResourceViews;
     uint32_t _guest_id_count_ppShaderResourceViews;
+    struct npt_wire_object_ref *_refs_ppShaderResourceViews;
 };
 
 static inline size_t
@@ -10053,14 +10127,20 @@ npt_sizeof_ID3D11DeviceContext_VSGetShaderResources_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumViews (input only) */
-/* skip ppShaderResourceViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppShaderResourceViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppShaderResourceViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_VSGetShaderResources_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                          ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -10078,7 +10158,15 @@ npt_decode_ID3D11DeviceContext_VSGetShaderResources_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_VSGetShaderResources));
         return;
     }
-/* skip ppShaderResourceViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -10112,28 +10200,19 @@ npt_submit_ID3D11DeviceContext_VSGetShaderResources(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_VSGetShaderResources(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumViews,
-                                                   ID3D11ShaderResourceView ** ppShaderResourceViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_VSGetShaderResources(ring, 0, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_VSGetShaderResources(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumViews,
-                                                  ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                  ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_VSGetShaderResources(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_VSGetShaderResources_reply(dec, ppShaderResourceViews);
+        npt_decode_ID3D11DeviceContext_VSGetShaderResources_reply(dec, ppShaderResourceViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -10152,6 +10231,7 @@ struct npt_command_ID3D11DeviceContext_VSGetSamplers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSamplers;
     uint32_t _guest_id_count_ppSamplers;
+    struct npt_wire_object_ref *_refs_ppSamplers;
 };
 
 static inline size_t
@@ -10211,14 +10291,20 @@ npt_sizeof_ID3D11DeviceContext_VSGetSamplers_reply(const UINT StartSlot,const UI
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumSamplers (input only) */
-/* skip ppSamplers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSamplers ? (size_t)(NumSamplers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSamplers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_VSGetSamplers_reply(struct npt_cs_decoder *dec,
-                                                   ID3D11SamplerState ** ppSamplers)
+                                                   ID3D11SamplerState ** ppSamplers,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -10236,7 +10322,15 @@ npt_decode_ID3D11DeviceContext_VSGetSamplers_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_VSGetSamplers));
         return;
     }
-/* skip ppSamplers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -10270,28 +10364,19 @@ npt_submit_ID3D11DeviceContext_VSGetSamplers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_VSGetSamplers(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            UINT StartSlot,
-                                            UINT NumSamplers,
-                                            ID3D11SamplerState ** ppSamplers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_VSGetSamplers(ring, 0, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_VSGetSamplers(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            UINT StartSlot,
                                            UINT NumSamplers,
-                                           ID3D11SamplerState ** ppSamplers)
+                                           ID3D11SamplerState ** ppSamplers,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_VSGetSamplers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_VSGetSamplers_reply(dec, ppSamplers);
+        npt_decode_ID3D11DeviceContext_VSGetSamplers_reply(dec, ppSamplers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -10309,6 +10394,7 @@ struct npt_command_ID3D11DeviceContext_GetPredication {
      * this field and inserts {_guest_id_ppPredicate -> *ppPredicate} in the
      * context object table. */
     uint64_t _guest_id_ppPredicate;
+    struct npt_wire_object_ref _ref_ppPredicate;
 };
 
 static inline size_t
@@ -10360,7 +10446,7 @@ npt_sizeof_ID3D11DeviceContext_GetPredication_reply(ID3D11Predicate ** ppPredica
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppPredicate (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppPredicate: registered id */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_BOOL(&(const BOOL){0}, 1);
     return cmd_size;
@@ -10369,8 +10455,14 @@ npt_sizeof_ID3D11DeviceContext_GetPredication_reply(ID3D11Predicate ** ppPredica
 static inline void
 npt_decode_ID3D11DeviceContext_GetPredication_reply(struct npt_cs_decoder *dec,
                                                     ID3D11Predicate ** ppPredicate,
-                                                    BOOL * pPredicateValue)
+                                                    BOOL * pPredicateValue,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -10388,7 +10480,11 @@ npt_decode_ID3D11DeviceContext_GetPredication_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_GetPredication));
         return;
     }
-/* skip ppPredicate (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
     if (npt_decode_simple_pointer(dec)) {
         if (pPredicateValue)
             npt_decode_BOOL(dec, (BOOL *)pPredicateValue);
@@ -10425,26 +10521,18 @@ npt_submit_ID3D11DeviceContext_GetPredication(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_GetPredication(struct npt_ring *ring,
-                                             npt_object_id object_id,
-                                             ID3D11Predicate ** ppPredicate,
-                                             BOOL * pPredicateValue)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_GetPredication(ring, 0, object_id, ppPredicate, pPredicateValue, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_GetPredication(struct npt_ring *ring,
                                             npt_object_id object_id,
                                             ID3D11Predicate ** ppPredicate,
-                                            BOOL * pPredicateValue)
+                                            BOOL * pPredicateValue,
+                                            struct npt_wire_object_ref *_refs,
+                                            size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_GetPredication(ring, NPT_CMD_FLAG_REPLY, object_id, ppPredicate, pPredicateValue, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_GetPredication_reply(dec, ppPredicate, pPredicateValue);
+        npt_decode_ID3D11DeviceContext_GetPredication_reply(dec, ppPredicate, pPredicateValue, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -10463,6 +10551,7 @@ struct npt_command_ID3D11DeviceContext_GSGetShaderResources {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppShaderResourceViews;
     uint32_t _guest_id_count_ppShaderResourceViews;
+    struct npt_wire_object_ref *_refs_ppShaderResourceViews;
 };
 
 static inline size_t
@@ -10522,14 +10611,20 @@ npt_sizeof_ID3D11DeviceContext_GSGetShaderResources_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumViews (input only) */
-/* skip ppShaderResourceViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppShaderResourceViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppShaderResourceViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_GSGetShaderResources_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                          ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -10547,7 +10642,15 @@ npt_decode_ID3D11DeviceContext_GSGetShaderResources_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_GSGetShaderResources));
         return;
     }
-/* skip ppShaderResourceViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -10581,28 +10684,19 @@ npt_submit_ID3D11DeviceContext_GSGetShaderResources(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_GSGetShaderResources(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumViews,
-                                                   ID3D11ShaderResourceView ** ppShaderResourceViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_GSGetShaderResources(ring, 0, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_GSGetShaderResources(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumViews,
-                                                  ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                  ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_GSGetShaderResources(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_GSGetShaderResources_reply(dec, ppShaderResourceViews);
+        npt_decode_ID3D11DeviceContext_GSGetShaderResources_reply(dec, ppShaderResourceViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -10621,6 +10715,7 @@ struct npt_command_ID3D11DeviceContext_GSGetSamplers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSamplers;
     uint32_t _guest_id_count_ppSamplers;
+    struct npt_wire_object_ref *_refs_ppSamplers;
 };
 
 static inline size_t
@@ -10680,14 +10775,20 @@ npt_sizeof_ID3D11DeviceContext_GSGetSamplers_reply(const UINT StartSlot,const UI
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumSamplers (input only) */
-/* skip ppSamplers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSamplers ? (size_t)(NumSamplers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSamplers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_GSGetSamplers_reply(struct npt_cs_decoder *dec,
-                                                   ID3D11SamplerState ** ppSamplers)
+                                                   ID3D11SamplerState ** ppSamplers,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -10705,7 +10806,15 @@ npt_decode_ID3D11DeviceContext_GSGetSamplers_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_GSGetSamplers));
         return;
     }
-/* skip ppSamplers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -10739,28 +10848,19 @@ npt_submit_ID3D11DeviceContext_GSGetSamplers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_GSGetSamplers(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            UINT StartSlot,
-                                            UINT NumSamplers,
-                                            ID3D11SamplerState ** ppSamplers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_GSGetSamplers(ring, 0, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_GSGetSamplers(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            UINT StartSlot,
                                            UINT NumSamplers,
-                                           ID3D11SamplerState ** ppSamplers)
+                                           ID3D11SamplerState ** ppSamplers,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_GSGetSamplers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_GSGetSamplers_reply(dec, ppSamplers);
+        npt_decode_ID3D11DeviceContext_GSGetSamplers_reply(dec, ppSamplers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -10779,11 +10879,13 @@ struct npt_command_ID3D11DeviceContext_OMGetRenderTargets {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppRenderTargetViews;
     uint32_t _guest_id_count_ppRenderTargetViews;
+    struct npt_wire_object_ref *_refs_ppRenderTargetViews;
     /* Shadow: the guest-allocated id for ppDepthStencilView arrives in the command
      * body (no reply round-trip).  The post-dispatch register pass reads
      * this field and inserts {_guest_id_ppDepthStencilView -> *ppDepthStencilView} in the
      * context object table. */
     uint64_t _guest_id_ppDepthStencilView;
+    struct npt_wire_object_ref _ref_ppDepthStencilView;
 };
 
 static inline size_t
@@ -10849,16 +10951,22 @@ npt_sizeof_ID3D11DeviceContext_OMGetRenderTargets_reply(const UINT NumViews,ID3D
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip NumViews (input only) */
-/* skip ppRenderTargetViews (guest-allocated id, registered host-side; not in reply) */
-/* skip ppDepthStencilView (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppRenderTargetViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppRenderTargetViews: registered ids */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppDepthStencilView: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_OMGetRenderTargets_reply(struct npt_cs_decoder *dec,
                                                         ID3D11RenderTargetView ** ppRenderTargetViews,
-                                                        ID3D11DepthStencilView ** ppDepthStencilView)
+                                                        ID3D11DepthStencilView ** ppDepthStencilView,
+                                                        struct npt_wire_object_ref *_refs,
+                                                        size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -10876,8 +10984,20 @@ npt_decode_ID3D11DeviceContext_OMGetRenderTargets_reply(struct npt_cs_decoder *d
                                        NPT_METHOD_ID3D11DeviceContext_OMGetRenderTargets));
         return;
     }
-/* skip ppRenderTargetViews (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppDepthStencilView (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -10911,28 +11031,19 @@ npt_submit_ID3D11DeviceContext_OMGetRenderTargets(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_OMGetRenderTargets(struct npt_ring *ring,
-                                                 npt_object_id object_id,
-                                                 UINT NumViews,
-                                                 ID3D11RenderTargetView ** ppRenderTargetViews,
-                                                 ID3D11DepthStencilView ** ppDepthStencilView)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_OMGetRenderTargets(ring, 0, object_id, NumViews, ppRenderTargetViews, ppDepthStencilView, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_OMGetRenderTargets(struct npt_ring *ring,
                                                 npt_object_id object_id,
                                                 UINT NumViews,
                                                 ID3D11RenderTargetView ** ppRenderTargetViews,
-                                                ID3D11DepthStencilView ** ppDepthStencilView)
+                                                ID3D11DepthStencilView ** ppDepthStencilView,
+                                                struct npt_wire_object_ref *_refs,
+                                                size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_OMGetRenderTargets(ring, NPT_CMD_FLAG_REPLY, object_id, NumViews, ppRenderTargetViews, ppDepthStencilView, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_OMGetRenderTargets_reply(dec, ppRenderTargetViews, ppDepthStencilView);
+        npt_decode_ID3D11DeviceContext_OMGetRenderTargets_reply(dec, ppRenderTargetViews, ppDepthStencilView, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -10954,16 +11065,19 @@ struct npt_command_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppRenderTargetViews;
     uint32_t _guest_id_count_ppRenderTargetViews;
+    struct npt_wire_object_ref *_refs_ppRenderTargetViews;
     /* Shadow: the guest-allocated id for ppDepthStencilView arrives in the command
      * body (no reply round-trip).  The post-dispatch register pass reads
      * this field and inserts {_guest_id_ppDepthStencilView -> *ppDepthStencilView} in the
      * context object table. */
     uint64_t _guest_id_ppDepthStencilView;
+    struct npt_wire_object_ref _ref_ppDepthStencilView;
     /* Shadow: per-element guest-allocated ids for ppUnorderedAccessViews.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppUnorderedAccessViews;
     uint32_t _guest_id_count_ppUnorderedAccessViews;
+    struct npt_wire_object_ref *_refs_ppUnorderedAccessViews;
 };
 
 static inline size_t
@@ -11048,11 +11162,11 @@ npt_sizeof_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews_reply(c
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip NumRTVs (input only) */
-/* skip ppRenderTargetViews (guest-allocated id, registered host-side; not in reply) */
-/* skip ppDepthStencilView (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppRenderTargetViews ? (size_t)(NumRTVs) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppRenderTargetViews: registered ids */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppDepthStencilView: registered id */
 /* skip UAVStartSlot (input only) */
 /* skip NumUAVs (input only) */
-/* skip ppUnorderedAccessViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppUnorderedAccessViews ? (size_t)(NumUAVs) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppUnorderedAccessViews: registered ids */
     return cmd_size;
 }
 
@@ -11060,8 +11174,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews_reply(struct npt_cs_decoder *dec,
                                                                                ID3D11RenderTargetView ** ppRenderTargetViews,
                                                                                ID3D11DepthStencilView ** ppDepthStencilView,
-                                                                               ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
+                                                                               ID3D11UnorderedAccessView ** ppUnorderedAccessViews,
+                                                                               struct npt_wire_object_ref *_refs,
+                                                                               size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -11079,9 +11199,29 @@ npt_decode_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews_reply(s
                                        NPT_METHOD_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews));
         return;
     }
-/* skip ppRenderTargetViews (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppDepthStencilView (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppUnorderedAccessViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -11118,20 +11258,6 @@ npt_submit_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(struct 
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(struct npt_ring *ring,
-                                                                        npt_object_id object_id,
-                                                                        UINT NumRTVs,
-                                                                        ID3D11RenderTargetView ** ppRenderTargetViews,
-                                                                        ID3D11DepthStencilView ** ppDepthStencilView,
-                                                                        UINT UAVStartSlot,
-                                                                        UINT NumUAVs,
-                                                                        ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(ring, 0, object_id, NumRTVs, ppRenderTargetViews, ppDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(struct npt_ring *ring,
                                                                        npt_object_id object_id,
                                                                        UINT NumRTVs,
@@ -11139,13 +11265,15 @@ npt_call_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(struct np
                                                                        ID3D11DepthStencilView ** ppDepthStencilView,
                                                                        UINT UAVStartSlot,
                                                                        UINT NumUAVs,
-                                                                       ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
+                                                                       ID3D11UnorderedAccessView ** ppUnorderedAccessViews,
+                                                                       struct npt_wire_object_ref *_refs,
+                                                                       size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(ring, NPT_CMD_FLAG_REPLY, object_id, NumRTVs, ppRenderTargetViews, ppDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews_reply(dec, ppRenderTargetViews, ppDepthStencilView, ppUnorderedAccessViews);
+        npt_decode_ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews_reply(dec, ppRenderTargetViews, ppDepthStencilView, ppUnorderedAccessViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -11164,6 +11292,7 @@ struct npt_command_ID3D11DeviceContext_OMGetBlendState {
      * this field and inserts {_guest_id_ppBlendState -> *ppBlendState} in the
      * context object table. */
     uint64_t _guest_id_ppBlendState;
+    struct npt_wire_object_ref _ref_ppBlendState;
 };
 
 static inline size_t
@@ -11218,7 +11347,7 @@ npt_sizeof_ID3D11DeviceContext_OMGetBlendState_reply(ID3D11BlendState ** ppBlend
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppBlendState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppBlendState: registered id */
     cmd_size += npt_sizeof_array_count(BlendFactor ? 4 : 0);
     if (BlendFactor)
         cmd_size += npt_sizeof_FLOAT_array((const FLOAT *)BlendFactor, 4);
@@ -11231,8 +11360,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_OMGetBlendState_reply(struct npt_cs_decoder *dec,
                                                      ID3D11BlendState ** ppBlendState,
                                                      FLOAT * BlendFactor,
-                                                     UINT * pSampleMask)
+                                                     UINT * pSampleMask,
+                                                     struct npt_wire_object_ref *_refs,
+                                                     size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -11250,7 +11385,11 @@ npt_decode_ID3D11DeviceContext_OMGetBlendState_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_OMGetBlendState));
         return;
     }
-/* skip ppBlendState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
     (void)npt_decode_array_count(dec, 4);
     {
         FLOAT *_buf = (FLOAT *)BlendFactor;
@@ -11296,28 +11435,19 @@ npt_submit_ID3D11DeviceContext_OMGetBlendState(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_OMGetBlendState(struct npt_ring *ring,
-                                              npt_object_id object_id,
-                                              ID3D11BlendState ** ppBlendState,
-                                              FLOAT * BlendFactor,
-                                              UINT * pSampleMask)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_OMGetBlendState(ring, 0, object_id, ppBlendState, BlendFactor, pSampleMask, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_OMGetBlendState(struct npt_ring *ring,
                                              npt_object_id object_id,
                                              ID3D11BlendState ** ppBlendState,
                                              FLOAT * BlendFactor,
-                                             UINT * pSampleMask)
+                                             UINT * pSampleMask,
+                                             struct npt_wire_object_ref *_refs,
+                                             size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_OMGetBlendState(ring, NPT_CMD_FLAG_REPLY, object_id, ppBlendState, BlendFactor, pSampleMask, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_OMGetBlendState_reply(dec, ppBlendState, BlendFactor, pSampleMask);
+        npt_decode_ID3D11DeviceContext_OMGetBlendState_reply(dec, ppBlendState, BlendFactor, pSampleMask, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -11335,6 +11465,7 @@ struct npt_command_ID3D11DeviceContext_OMGetDepthStencilState {
      * this field and inserts {_guest_id_ppDepthStencilState -> *ppDepthStencilState} in the
      * context object table. */
     uint64_t _guest_id_ppDepthStencilState;
+    struct npt_wire_object_ref _ref_ppDepthStencilState;
 };
 
 static inline size_t
@@ -11386,7 +11517,7 @@ npt_sizeof_ID3D11DeviceContext_OMGetDepthStencilState_reply(ID3D11DepthStencilSt
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppDepthStencilState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppDepthStencilState: registered id */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -11395,8 +11526,14 @@ npt_sizeof_ID3D11DeviceContext_OMGetDepthStencilState_reply(ID3D11DepthStencilSt
 static inline void
 npt_decode_ID3D11DeviceContext_OMGetDepthStencilState_reply(struct npt_cs_decoder *dec,
                                                             ID3D11DepthStencilState ** ppDepthStencilState,
-                                                            UINT * pStencilRef)
+                                                            UINT * pStencilRef,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -11414,7 +11551,11 @@ npt_decode_ID3D11DeviceContext_OMGetDepthStencilState_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext_OMGetDepthStencilState));
         return;
     }
-/* skip ppDepthStencilState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
     if (npt_decode_simple_pointer(dec)) {
         if (pStencilRef)
             npt_decode_UINT(dec, (UINT *)pStencilRef);
@@ -11451,26 +11592,18 @@ npt_submit_ID3D11DeviceContext_OMGetDepthStencilState(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_OMGetDepthStencilState(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     ID3D11DepthStencilState ** ppDepthStencilState,
-                                                     UINT * pStencilRef)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_OMGetDepthStencilState(ring, 0, object_id, ppDepthStencilState, pStencilRef, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_OMGetDepthStencilState(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     ID3D11DepthStencilState ** ppDepthStencilState,
-                                                    UINT * pStencilRef)
+                                                    UINT * pStencilRef,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_OMGetDepthStencilState(ring, NPT_CMD_FLAG_REPLY, object_id, ppDepthStencilState, pStencilRef, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_OMGetDepthStencilState_reply(dec, ppDepthStencilState, pStencilRef);
+        npt_decode_ID3D11DeviceContext_OMGetDepthStencilState_reply(dec, ppDepthStencilState, pStencilRef, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -11488,6 +11621,7 @@ struct npt_command_ID3D11DeviceContext_SOGetTargets {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSOTargets;
     uint32_t _guest_id_count_ppSOTargets;
+    struct npt_wire_object_ref *_refs_ppSOTargets;
 };
 
 static inline size_t
@@ -11543,14 +11677,20 @@ npt_sizeof_ID3D11DeviceContext_SOGetTargets_reply(const UINT NumBuffers,ID3D11Bu
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip NumBuffers (input only) */
-/* skip ppSOTargets (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSOTargets ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSOTargets: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_SOGetTargets_reply(struct npt_cs_decoder *dec,
-                                                  ID3D11Buffer ** ppSOTargets)
+                                                  ID3D11Buffer ** ppSOTargets,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -11568,7 +11708,15 @@ npt_decode_ID3D11DeviceContext_SOGetTargets_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_SOGetTargets));
         return;
     }
-/* skip ppSOTargets (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -11601,26 +11749,18 @@ npt_submit_ID3D11DeviceContext_SOGetTargets(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_SOGetTargets(struct npt_ring *ring,
-                                           npt_object_id object_id,
-                                           UINT NumBuffers,
-                                           ID3D11Buffer ** ppSOTargets)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_SOGetTargets(ring, 0, object_id, NumBuffers, ppSOTargets, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_SOGetTargets(struct npt_ring *ring,
                                           npt_object_id object_id,
                                           UINT NumBuffers,
-                                          ID3D11Buffer ** ppSOTargets)
+                                          ID3D11Buffer ** ppSOTargets,
+                                          struct npt_wire_object_ref *_refs,
+                                          size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_SOGetTargets(ring, NPT_CMD_FLAG_REPLY, object_id, NumBuffers, ppSOTargets, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_SOGetTargets_reply(dec, ppSOTargets);
+        npt_decode_ID3D11DeviceContext_SOGetTargets_reply(dec, ppSOTargets, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -11637,6 +11777,7 @@ struct npt_command_ID3D11DeviceContext_RSGetState {
      * this field and inserts {_guest_id_ppRasterizerState -> *ppRasterizerState} in the
      * context object table. */
     uint64_t _guest_id_ppRasterizerState;
+    struct npt_wire_object_ref _ref_ppRasterizerState;
 };
 
 static inline size_t
@@ -11685,14 +11826,20 @@ npt_sizeof_ID3D11DeviceContext_RSGetState_reply(ID3D11RasterizerState ** ppRaste
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppRasterizerState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppRasterizerState: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_RSGetState_reply(struct npt_cs_decoder *dec,
-                                                ID3D11RasterizerState ** ppRasterizerState)
+                                                ID3D11RasterizerState ** ppRasterizerState,
+                                                struct npt_wire_object_ref *_refs,
+                                                size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -11710,7 +11857,11 @@ npt_decode_ID3D11DeviceContext_RSGetState_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_RSGetState));
         return;
     }
-/* skip ppRasterizerState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -11742,24 +11893,17 @@ npt_submit_ID3D11DeviceContext_RSGetState(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_RSGetState(struct npt_ring *ring,
-                                         npt_object_id object_id,
-                                         ID3D11RasterizerState ** ppRasterizerState)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_RSGetState(ring, 0, object_id, ppRasterizerState, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_RSGetState(struct npt_ring *ring,
                                         npt_object_id object_id,
-                                        ID3D11RasterizerState ** ppRasterizerState)
+                                        ID3D11RasterizerState ** ppRasterizerState,
+                                        struct npt_wire_object_ref *_refs,
+                                        size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_RSGetState(ring, NPT_CMD_FLAG_REPLY, object_id, ppRasterizerState, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_RSGetState_reply(dec, ppRasterizerState);
+        npt_decode_ID3D11DeviceContext_RSGetState_reply(dec, ppRasterizerState, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -12086,6 +12230,7 @@ struct npt_command_ID3D11DeviceContext_HSGetShaderResources {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppShaderResourceViews;
     uint32_t _guest_id_count_ppShaderResourceViews;
+    struct npt_wire_object_ref *_refs_ppShaderResourceViews;
 };
 
 static inline size_t
@@ -12145,14 +12290,20 @@ npt_sizeof_ID3D11DeviceContext_HSGetShaderResources_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumViews (input only) */
-/* skip ppShaderResourceViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppShaderResourceViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppShaderResourceViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_HSGetShaderResources_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                          ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -12170,7 +12321,15 @@ npt_decode_ID3D11DeviceContext_HSGetShaderResources_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_HSGetShaderResources));
         return;
     }
-/* skip ppShaderResourceViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -12204,28 +12363,19 @@ npt_submit_ID3D11DeviceContext_HSGetShaderResources(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_HSGetShaderResources(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumViews,
-                                                   ID3D11ShaderResourceView ** ppShaderResourceViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_HSGetShaderResources(ring, 0, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_HSGetShaderResources(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumViews,
-                                                  ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                  ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_HSGetShaderResources(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_HSGetShaderResources_reply(dec, ppShaderResourceViews);
+        npt_decode_ID3D11DeviceContext_HSGetShaderResources_reply(dec, ppShaderResourceViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -12244,11 +12394,13 @@ struct npt_command_ID3D11DeviceContext_HSGetShader {
      * this field and inserts {_guest_id_ppHullShader -> *ppHullShader} in the
      * context object table. */
     uint64_t _guest_id_ppHullShader;
+    struct npt_wire_object_ref _ref_ppHullShader;
     /* Shadow: per-element guest-allocated ids for ppClassInstances.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppClassInstances;
     uint32_t _guest_id_count_ppClassInstances;
+    struct npt_wire_object_ref *_refs_ppClassInstances;
 };
 
 static inline size_t
@@ -12316,8 +12468,8 @@ npt_sizeof_ID3D11DeviceContext_HSGetShader_reply(ID3D11HullShader ** ppHullShade
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppHullShader (guest-allocated id, registered host-side; not in reply) */
-/* skip ppClassInstances (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppHullShader: registered id */
+cmd_size += npt_sizeof_array_count(0) + (ppClassInstances ? (size_t)((pNumClassInstances ? *pNumClassInstances : 0)) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppClassInstances: registered ids */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -12327,8 +12479,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_HSGetShader_reply(struct npt_cs_decoder *dec,
                                                  ID3D11HullShader ** ppHullShader,
                                                  ID3D11ClassInstance ** ppClassInstances,
-                                                 UINT * pNumClassInstances)
+                                                 UINT * pNumClassInstances,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -12346,8 +12504,20 @@ npt_decode_ID3D11DeviceContext_HSGetShader_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_HSGetShader));
         return;
     }
-/* skip ppHullShader (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppClassInstances (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     if (npt_decode_simple_pointer(dec)) {
         if (pNumClassInstances)
             npt_decode_UINT(dec, (UINT *)pNumClassInstances);
@@ -12385,28 +12555,19 @@ npt_submit_ID3D11DeviceContext_HSGetShader(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_HSGetShader(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          ID3D11HullShader ** ppHullShader,
-                                          ID3D11ClassInstance ** ppClassInstances,
-                                          UINT * pNumClassInstances)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_HSGetShader(ring, 0, object_id, ppHullShader, ppClassInstances, pNumClassInstances, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_HSGetShader(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          ID3D11HullShader ** ppHullShader,
                                          ID3D11ClassInstance ** ppClassInstances,
-                                         UINT * pNumClassInstances)
+                                         UINT * pNumClassInstances,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_HSGetShader(ring, NPT_CMD_FLAG_REPLY, object_id, ppHullShader, ppClassInstances, pNumClassInstances, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_HSGetShader_reply(dec, ppHullShader, ppClassInstances, pNumClassInstances);
+        npt_decode_ID3D11DeviceContext_HSGetShader_reply(dec, ppHullShader, ppClassInstances, pNumClassInstances, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -12425,6 +12586,7 @@ struct npt_command_ID3D11DeviceContext_HSGetSamplers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSamplers;
     uint32_t _guest_id_count_ppSamplers;
+    struct npt_wire_object_ref *_refs_ppSamplers;
 };
 
 static inline size_t
@@ -12484,14 +12646,20 @@ npt_sizeof_ID3D11DeviceContext_HSGetSamplers_reply(const UINT StartSlot,const UI
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumSamplers (input only) */
-/* skip ppSamplers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSamplers ? (size_t)(NumSamplers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSamplers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_HSGetSamplers_reply(struct npt_cs_decoder *dec,
-                                                   ID3D11SamplerState ** ppSamplers)
+                                                   ID3D11SamplerState ** ppSamplers,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -12509,7 +12677,15 @@ npt_decode_ID3D11DeviceContext_HSGetSamplers_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_HSGetSamplers));
         return;
     }
-/* skip ppSamplers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -12543,28 +12719,19 @@ npt_submit_ID3D11DeviceContext_HSGetSamplers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_HSGetSamplers(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            UINT StartSlot,
-                                            UINT NumSamplers,
-                                            ID3D11SamplerState ** ppSamplers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_HSGetSamplers(ring, 0, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_HSGetSamplers(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            UINT StartSlot,
                                            UINT NumSamplers,
-                                           ID3D11SamplerState ** ppSamplers)
+                                           ID3D11SamplerState ** ppSamplers,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_HSGetSamplers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_HSGetSamplers_reply(dec, ppSamplers);
+        npt_decode_ID3D11DeviceContext_HSGetSamplers_reply(dec, ppSamplers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -12583,6 +12750,7 @@ struct npt_command_ID3D11DeviceContext_HSGetConstantBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -12642,14 +12810,20 @@ npt_sizeof_ID3D11DeviceContext_HSGetConstantBuffers_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_HSGetConstantBuffers_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11Buffer ** ppConstantBuffers)
+                                                          ID3D11Buffer ** ppConstantBuffers,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -12667,7 +12841,15 @@ npt_decode_ID3D11DeviceContext_HSGetConstantBuffers_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_HSGetConstantBuffers));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -12701,28 +12883,19 @@ npt_submit_ID3D11DeviceContext_HSGetConstantBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_HSGetConstantBuffers(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumBuffers,
-                                                   ID3D11Buffer ** ppConstantBuffers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_HSGetConstantBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_HSGetConstantBuffers(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumBuffers,
-                                                  ID3D11Buffer ** ppConstantBuffers)
+                                                  ID3D11Buffer ** ppConstantBuffers,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_HSGetConstantBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_HSGetConstantBuffers_reply(dec, ppConstantBuffers);
+        npt_decode_ID3D11DeviceContext_HSGetConstantBuffers_reply(dec, ppConstantBuffers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -12741,6 +12914,7 @@ struct npt_command_ID3D11DeviceContext_DSGetShaderResources {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppShaderResourceViews;
     uint32_t _guest_id_count_ppShaderResourceViews;
+    struct npt_wire_object_ref *_refs_ppShaderResourceViews;
 };
 
 static inline size_t
@@ -12800,14 +12974,20 @@ npt_sizeof_ID3D11DeviceContext_DSGetShaderResources_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumViews (input only) */
-/* skip ppShaderResourceViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppShaderResourceViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppShaderResourceViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_DSGetShaderResources_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                          ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -12825,7 +13005,15 @@ npt_decode_ID3D11DeviceContext_DSGetShaderResources_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_DSGetShaderResources));
         return;
     }
-/* skip ppShaderResourceViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -12859,28 +13047,19 @@ npt_submit_ID3D11DeviceContext_DSGetShaderResources(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_DSGetShaderResources(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumViews,
-                                                   ID3D11ShaderResourceView ** ppShaderResourceViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_DSGetShaderResources(ring, 0, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_DSGetShaderResources(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumViews,
-                                                  ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                  ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_DSGetShaderResources(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_DSGetShaderResources_reply(dec, ppShaderResourceViews);
+        npt_decode_ID3D11DeviceContext_DSGetShaderResources_reply(dec, ppShaderResourceViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -12899,11 +13078,13 @@ struct npt_command_ID3D11DeviceContext_DSGetShader {
      * this field and inserts {_guest_id_ppDomainShader -> *ppDomainShader} in the
      * context object table. */
     uint64_t _guest_id_ppDomainShader;
+    struct npt_wire_object_ref _ref_ppDomainShader;
     /* Shadow: per-element guest-allocated ids for ppClassInstances.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppClassInstances;
     uint32_t _guest_id_count_ppClassInstances;
+    struct npt_wire_object_ref *_refs_ppClassInstances;
 };
 
 static inline size_t
@@ -12971,8 +13152,8 @@ npt_sizeof_ID3D11DeviceContext_DSGetShader_reply(ID3D11DomainShader ** ppDomainS
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppDomainShader (guest-allocated id, registered host-side; not in reply) */
-/* skip ppClassInstances (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppDomainShader: registered id */
+cmd_size += npt_sizeof_array_count(0) + (ppClassInstances ? (size_t)((pNumClassInstances ? *pNumClassInstances : 0)) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppClassInstances: registered ids */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -12982,8 +13163,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_DSGetShader_reply(struct npt_cs_decoder *dec,
                                                  ID3D11DomainShader ** ppDomainShader,
                                                  ID3D11ClassInstance ** ppClassInstances,
-                                                 UINT * pNumClassInstances)
+                                                 UINT * pNumClassInstances,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13001,8 +13188,20 @@ npt_decode_ID3D11DeviceContext_DSGetShader_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_DSGetShader));
         return;
     }
-/* skip ppDomainShader (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppClassInstances (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     if (npt_decode_simple_pointer(dec)) {
         if (pNumClassInstances)
             npt_decode_UINT(dec, (UINT *)pNumClassInstances);
@@ -13040,28 +13239,19 @@ npt_submit_ID3D11DeviceContext_DSGetShader(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_DSGetShader(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          ID3D11DomainShader ** ppDomainShader,
-                                          ID3D11ClassInstance ** ppClassInstances,
-                                          UINT * pNumClassInstances)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_DSGetShader(ring, 0, object_id, ppDomainShader, ppClassInstances, pNumClassInstances, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_DSGetShader(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          ID3D11DomainShader ** ppDomainShader,
                                          ID3D11ClassInstance ** ppClassInstances,
-                                         UINT * pNumClassInstances)
+                                         UINT * pNumClassInstances,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_DSGetShader(ring, NPT_CMD_FLAG_REPLY, object_id, ppDomainShader, ppClassInstances, pNumClassInstances, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_DSGetShader_reply(dec, ppDomainShader, ppClassInstances, pNumClassInstances);
+        npt_decode_ID3D11DeviceContext_DSGetShader_reply(dec, ppDomainShader, ppClassInstances, pNumClassInstances, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -13080,6 +13270,7 @@ struct npt_command_ID3D11DeviceContext_DSGetSamplers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSamplers;
     uint32_t _guest_id_count_ppSamplers;
+    struct npt_wire_object_ref *_refs_ppSamplers;
 };
 
 static inline size_t
@@ -13139,14 +13330,20 @@ npt_sizeof_ID3D11DeviceContext_DSGetSamplers_reply(const UINT StartSlot,const UI
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumSamplers (input only) */
-/* skip ppSamplers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSamplers ? (size_t)(NumSamplers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSamplers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_DSGetSamplers_reply(struct npt_cs_decoder *dec,
-                                                   ID3D11SamplerState ** ppSamplers)
+                                                   ID3D11SamplerState ** ppSamplers,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13164,7 +13361,15 @@ npt_decode_ID3D11DeviceContext_DSGetSamplers_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_DSGetSamplers));
         return;
     }
-/* skip ppSamplers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -13198,28 +13403,19 @@ npt_submit_ID3D11DeviceContext_DSGetSamplers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_DSGetSamplers(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            UINT StartSlot,
-                                            UINT NumSamplers,
-                                            ID3D11SamplerState ** ppSamplers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_DSGetSamplers(ring, 0, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_DSGetSamplers(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            UINT StartSlot,
                                            UINT NumSamplers,
-                                           ID3D11SamplerState ** ppSamplers)
+                                           ID3D11SamplerState ** ppSamplers,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_DSGetSamplers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_DSGetSamplers_reply(dec, ppSamplers);
+        npt_decode_ID3D11DeviceContext_DSGetSamplers_reply(dec, ppSamplers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -13238,6 +13434,7 @@ struct npt_command_ID3D11DeviceContext_DSGetConstantBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -13297,14 +13494,20 @@ npt_sizeof_ID3D11DeviceContext_DSGetConstantBuffers_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_DSGetConstantBuffers_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11Buffer ** ppConstantBuffers)
+                                                          ID3D11Buffer ** ppConstantBuffers,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13322,7 +13525,15 @@ npt_decode_ID3D11DeviceContext_DSGetConstantBuffers_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_DSGetConstantBuffers));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -13356,28 +13567,19 @@ npt_submit_ID3D11DeviceContext_DSGetConstantBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_DSGetConstantBuffers(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumBuffers,
-                                                   ID3D11Buffer ** ppConstantBuffers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_DSGetConstantBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_DSGetConstantBuffers(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumBuffers,
-                                                  ID3D11Buffer ** ppConstantBuffers)
+                                                  ID3D11Buffer ** ppConstantBuffers,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_DSGetConstantBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_DSGetConstantBuffers_reply(dec, ppConstantBuffers);
+        npt_decode_ID3D11DeviceContext_DSGetConstantBuffers_reply(dec, ppConstantBuffers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -13396,6 +13598,7 @@ struct npt_command_ID3D11DeviceContext_CSGetShaderResources {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppShaderResourceViews;
     uint32_t _guest_id_count_ppShaderResourceViews;
+    struct npt_wire_object_ref *_refs_ppShaderResourceViews;
 };
 
 static inline size_t
@@ -13455,14 +13658,20 @@ npt_sizeof_ID3D11DeviceContext_CSGetShaderResources_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumViews (input only) */
-/* skip ppShaderResourceViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppShaderResourceViews ? (size_t)(NumViews) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppShaderResourceViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_CSGetShaderResources_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                          ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13480,7 +13689,15 @@ npt_decode_ID3D11DeviceContext_CSGetShaderResources_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_CSGetShaderResources));
         return;
     }
-/* skip ppShaderResourceViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -13514,28 +13731,19 @@ npt_submit_ID3D11DeviceContext_CSGetShaderResources(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_CSGetShaderResources(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumViews,
-                                                   ID3D11ShaderResourceView ** ppShaderResourceViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_CSGetShaderResources(ring, 0, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_CSGetShaderResources(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumViews,
-                                                  ID3D11ShaderResourceView ** ppShaderResourceViews)
+                                                  ID3D11ShaderResourceView ** ppShaderResourceViews,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_CSGetShaderResources(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumViews, ppShaderResourceViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_CSGetShaderResources_reply(dec, ppShaderResourceViews);
+        npt_decode_ID3D11DeviceContext_CSGetShaderResources_reply(dec, ppShaderResourceViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -13554,6 +13762,7 @@ struct npt_command_ID3D11DeviceContext_CSGetUnorderedAccessViews {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppUnorderedAccessViews;
     uint32_t _guest_id_count_ppUnorderedAccessViews;
+    struct npt_wire_object_ref *_refs_ppUnorderedAccessViews;
 };
 
 static inline size_t
@@ -13613,14 +13822,20 @@ npt_sizeof_ID3D11DeviceContext_CSGetUnorderedAccessViews_reply(const UINT StartS
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumUAVs (input only) */
-/* skip ppUnorderedAccessViews (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppUnorderedAccessViews ? (size_t)(NumUAVs) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppUnorderedAccessViews: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_CSGetUnorderedAccessViews_reply(struct npt_cs_decoder *dec,
-                                                               ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
+                                                               ID3D11UnorderedAccessView ** ppUnorderedAccessViews,
+                                                               struct npt_wire_object_ref *_refs,
+                                                               size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13638,7 +13853,15 @@ npt_decode_ID3D11DeviceContext_CSGetUnorderedAccessViews_reply(struct npt_cs_dec
                                        NPT_METHOD_ID3D11DeviceContext_CSGetUnorderedAccessViews));
         return;
     }
-/* skip ppUnorderedAccessViews (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -13672,28 +13895,19 @@ npt_submit_ID3D11DeviceContext_CSGetUnorderedAccessViews(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_CSGetUnorderedAccessViews(struct npt_ring *ring,
-                                                        npt_object_id object_id,
-                                                        UINT StartSlot,
-                                                        UINT NumUAVs,
-                                                        ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_CSGetUnorderedAccessViews(ring, 0, object_id, StartSlot, NumUAVs, ppUnorderedAccessViews, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_CSGetUnorderedAccessViews(struct npt_ring *ring,
                                                        npt_object_id object_id,
                                                        UINT StartSlot,
                                                        UINT NumUAVs,
-                                                       ID3D11UnorderedAccessView ** ppUnorderedAccessViews)
+                                                       ID3D11UnorderedAccessView ** ppUnorderedAccessViews,
+                                                       struct npt_wire_object_ref *_refs,
+                                                       size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_CSGetUnorderedAccessViews(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumUAVs, ppUnorderedAccessViews, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_CSGetUnorderedAccessViews_reply(dec, ppUnorderedAccessViews);
+        npt_decode_ID3D11DeviceContext_CSGetUnorderedAccessViews_reply(dec, ppUnorderedAccessViews, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -13712,11 +13926,13 @@ struct npt_command_ID3D11DeviceContext_CSGetShader {
      * this field and inserts {_guest_id_ppComputeShader -> *ppComputeShader} in the
      * context object table. */
     uint64_t _guest_id_ppComputeShader;
+    struct npt_wire_object_ref _ref_ppComputeShader;
     /* Shadow: per-element guest-allocated ids for ppClassInstances.  Array and
      * count are temp-allocated from the decoder pool in the same pass
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppClassInstances;
     uint32_t _guest_id_count_ppClassInstances;
+    struct npt_wire_object_ref *_refs_ppClassInstances;
 };
 
 static inline size_t
@@ -13784,8 +14000,8 @@ npt_sizeof_ID3D11DeviceContext_CSGetShader_reply(ID3D11ComputeShader ** ppComput
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppComputeShader (guest-allocated id, registered host-side; not in reply) */
-/* skip ppClassInstances (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppComputeShader: registered id */
+cmd_size += npt_sizeof_array_count(0) + (ppClassInstances ? (size_t)((pNumClassInstances ? *pNumClassInstances : 0)) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppClassInstances: registered ids */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_UINT(&(const UINT){0}, 1);
     return cmd_size;
@@ -13795,8 +14011,14 @@ static inline void
 npt_decode_ID3D11DeviceContext_CSGetShader_reply(struct npt_cs_decoder *dec,
                                                  ID3D11ComputeShader ** ppComputeShader,
                                                  ID3D11ClassInstance ** ppClassInstances,
-                                                 UINT * pNumClassInstances)
+                                                 UINT * pNumClassInstances,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13814,8 +14036,20 @@ npt_decode_ID3D11DeviceContext_CSGetShader_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_CSGetShader));
         return;
     }
-/* skip ppComputeShader (guest-allocated id, wrapper built on client thunk; not in reply) */
-/* skip ppClassInstances (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     if (npt_decode_simple_pointer(dec)) {
         if (pNumClassInstances)
             npt_decode_UINT(dec, (UINT *)pNumClassInstances);
@@ -13853,28 +14087,19 @@ npt_submit_ID3D11DeviceContext_CSGetShader(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_CSGetShader(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          ID3D11ComputeShader ** ppComputeShader,
-                                          ID3D11ClassInstance ** ppClassInstances,
-                                          UINT * pNumClassInstances)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_CSGetShader(ring, 0, object_id, ppComputeShader, ppClassInstances, pNumClassInstances, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_CSGetShader(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          ID3D11ComputeShader ** ppComputeShader,
                                          ID3D11ClassInstance ** ppClassInstances,
-                                         UINT * pNumClassInstances)
+                                         UINT * pNumClassInstances,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_CSGetShader(ring, NPT_CMD_FLAG_REPLY, object_id, ppComputeShader, ppClassInstances, pNumClassInstances, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_CSGetShader_reply(dec, ppComputeShader, ppClassInstances, pNumClassInstances);
+        npt_decode_ID3D11DeviceContext_CSGetShader_reply(dec, ppComputeShader, ppClassInstances, pNumClassInstances, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -13893,6 +14118,7 @@ struct npt_command_ID3D11DeviceContext_CSGetSamplers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppSamplers;
     uint32_t _guest_id_count_ppSamplers;
+    struct npt_wire_object_ref *_refs_ppSamplers;
 };
 
 static inline size_t
@@ -13952,14 +14178,20 @@ npt_sizeof_ID3D11DeviceContext_CSGetSamplers_reply(const UINT StartSlot,const UI
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumSamplers (input only) */
-/* skip ppSamplers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppSamplers ? (size_t)(NumSamplers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppSamplers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_CSGetSamplers_reply(struct npt_cs_decoder *dec,
-                                                   ID3D11SamplerState ** ppSamplers)
+                                                   ID3D11SamplerState ** ppSamplers,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -13977,7 +14209,15 @@ npt_decode_ID3D11DeviceContext_CSGetSamplers_reply(struct npt_cs_decoder *dec,
                                        NPT_METHOD_ID3D11DeviceContext_CSGetSamplers));
         return;
     }
-/* skip ppSamplers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -14011,28 +14251,19 @@ npt_submit_ID3D11DeviceContext_CSGetSamplers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_CSGetSamplers(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            UINT StartSlot,
-                                            UINT NumSamplers,
-                                            ID3D11SamplerState ** ppSamplers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_CSGetSamplers(ring, 0, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_CSGetSamplers(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            UINT StartSlot,
                                            UINT NumSamplers,
-                                           ID3D11SamplerState ** ppSamplers)
+                                           ID3D11SamplerState ** ppSamplers,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_CSGetSamplers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumSamplers, ppSamplers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_CSGetSamplers_reply(dec, ppSamplers);
+        npt_decode_ID3D11DeviceContext_CSGetSamplers_reply(dec, ppSamplers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -14051,6 +14282,7 @@ struct npt_command_ID3D11DeviceContext_CSGetConstantBuffers {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -14110,14 +14342,20 @@ npt_sizeof_ID3D11DeviceContext_CSGetConstantBuffers_reply(const UINT StartSlot,c
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_CSGetConstantBuffers_reply(struct npt_cs_decoder *dec,
-                                                          ID3D11Buffer ** ppConstantBuffers)
+                                                          ID3D11Buffer ** ppConstantBuffers,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -14135,7 +14373,15 @@ npt_decode_ID3D11DeviceContext_CSGetConstantBuffers_reply(struct npt_cs_decoder 
                                        NPT_METHOD_ID3D11DeviceContext_CSGetConstantBuffers));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
 }
 
 static inline void
@@ -14169,28 +14415,19 @@ npt_submit_ID3D11DeviceContext_CSGetConstantBuffers(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext_CSGetConstantBuffers(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT StartSlot,
-                                                   UINT NumBuffers,
-                                                   ID3D11Buffer ** ppConstantBuffers)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_CSGetConstantBuffers(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext_CSGetConstantBuffers(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT StartSlot,
                                                   UINT NumBuffers,
-                                                  ID3D11Buffer ** ppConstantBuffers)
+                                                  ID3D11Buffer ** ppConstantBuffers,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_CSGetConstantBuffers(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext_CSGetConstantBuffers_reply(dec, ppConstantBuffers);
+        npt_decode_ID3D11DeviceContext_CSGetConstantBuffers_reply(dec, ppConstantBuffers, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -14646,6 +14883,7 @@ struct npt_command_ID3D11DeviceContext_FinishCommandList {
      * this field and inserts {_guest_id_ppCommandList -> *ppCommandList} in the
      * context object table. */
     uint64_t _guest_id_ppCommandList;
+    struct npt_wire_object_ref _ref_ppCommandList;
     HRESULT ret;
 };
 
@@ -14699,15 +14937,21 @@ npt_sizeof_ID3D11DeviceContext_FinishCommandList_reply(const BOOL RestoreDeferre
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip RestoreDeferredContextState (input only) */
-/* skip ppCommandList (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppCommandList: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext_FinishCommandList_reply(struct npt_cs_decoder *dec,
                                                        ID3D11CommandList ** ppCommandList,
-                                                       HRESULT *ret)
+                                                       HRESULT *ret,
+                                                       struct npt_wire_object_ref *_refs,
+                                                       size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext,
@@ -14727,7 +14971,11 @@ npt_decode_ID3D11DeviceContext_FinishCommandList_reply(struct npt_cs_decoder *de
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppCommandList (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -14759,28 +15007,20 @@ npt_submit_ID3D11DeviceContext_FinishCommandList(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D11DeviceContext_FinishCommandList(struct npt_ring *ring,
-                                                npt_object_id object_id,
-                                                BOOL RestoreDeferredContextState,
-                                                ID3D11CommandList ** ppCommandList)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext_FinishCommandList(ring, 0, object_id, RestoreDeferredContextState, ppCommandList, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D11DeviceContext_FinishCommandList(struct npt_ring *ring,
                                                npt_object_id object_id,
                                                BOOL RestoreDeferredContextState,
-                                               ID3D11CommandList ** ppCommandList)
+                                               ID3D11CommandList ** ppCommandList,
+                                               struct npt_wire_object_ref *_refs,
+                                               size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext_FinishCommandList(ring, NPT_CMD_FLAG_REPLY, object_id, RestoreDeferredContextState, ppCommandList, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D11DeviceContext_FinishCommandList_reply(dec, ppCommandList, &_ret);
+        npt_decode_ID3D11DeviceContext_FinishCommandList_reply(dec, ppCommandList, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -16262,6 +16502,7 @@ struct npt_command_ID3D11DeviceContext1_VSGetConstantBuffers1 {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -16327,7 +16568,7 @@ npt_sizeof_ID3D11DeviceContext1_VSGetConstantBuffers1_reply(const UINT StartSlot
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pFirstConstant ? NumBuffers : 0);
     if (pFirstConstant)
         cmd_size += npt_sizeof_UINT_array(pFirstConstant, NumBuffers);
@@ -16341,8 +16582,14 @@ static inline void
 npt_decode_ID3D11DeviceContext1_VSGetConstantBuffers1_reply(struct npt_cs_decoder *dec,
                                                             ID3D11Buffer ** ppConstantBuffers,
                                                             UINT * pFirstConstant,
-                                                            UINT * pNumConstants)
+                                                            UINT * pNumConstants,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -16360,7 +16607,15 @@ npt_decode_ID3D11DeviceContext1_VSGetConstantBuffers1_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext1_VSGetConstantBuffers1));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pFirstConstant)
@@ -16410,32 +16665,21 @@ npt_submit_ID3D11DeviceContext1_VSGetConstantBuffers1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_VSGetConstantBuffers1(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     UINT StartSlot,
-                                                     UINT NumBuffers,
-                                                     ID3D11Buffer ** ppConstantBuffers,
-                                                     UINT * pFirstConstant,
-                                                     UINT * pNumConstants)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_VSGetConstantBuffers1(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_VSGetConstantBuffers1(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     UINT StartSlot,
                                                     UINT NumBuffers,
                                                     ID3D11Buffer ** ppConstantBuffers,
                                                     UINT * pFirstConstant,
-                                                    UINT * pNumConstants)
+                                                    UINT * pNumConstants,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_VSGetConstantBuffers1(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_VSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants);
+        npt_decode_ID3D11DeviceContext1_VSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -16456,6 +16700,7 @@ struct npt_command_ID3D11DeviceContext1_HSGetConstantBuffers1 {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -16521,7 +16766,7 @@ npt_sizeof_ID3D11DeviceContext1_HSGetConstantBuffers1_reply(const UINT StartSlot
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pFirstConstant ? NumBuffers : 0);
     if (pFirstConstant)
         cmd_size += npt_sizeof_UINT_array(pFirstConstant, NumBuffers);
@@ -16535,8 +16780,14 @@ static inline void
 npt_decode_ID3D11DeviceContext1_HSGetConstantBuffers1_reply(struct npt_cs_decoder *dec,
                                                             ID3D11Buffer ** ppConstantBuffers,
                                                             UINT * pFirstConstant,
-                                                            UINT * pNumConstants)
+                                                            UINT * pNumConstants,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -16554,7 +16805,15 @@ npt_decode_ID3D11DeviceContext1_HSGetConstantBuffers1_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext1_HSGetConstantBuffers1));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pFirstConstant)
@@ -16604,32 +16863,21 @@ npt_submit_ID3D11DeviceContext1_HSGetConstantBuffers1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_HSGetConstantBuffers1(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     UINT StartSlot,
-                                                     UINT NumBuffers,
-                                                     ID3D11Buffer ** ppConstantBuffers,
-                                                     UINT * pFirstConstant,
-                                                     UINT * pNumConstants)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_HSGetConstantBuffers1(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_HSGetConstantBuffers1(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     UINT StartSlot,
                                                     UINT NumBuffers,
                                                     ID3D11Buffer ** ppConstantBuffers,
                                                     UINT * pFirstConstant,
-                                                    UINT * pNumConstants)
+                                                    UINT * pNumConstants,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_HSGetConstantBuffers1(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_HSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants);
+        npt_decode_ID3D11DeviceContext1_HSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -16650,6 +16898,7 @@ struct npt_command_ID3D11DeviceContext1_DSGetConstantBuffers1 {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -16715,7 +16964,7 @@ npt_sizeof_ID3D11DeviceContext1_DSGetConstantBuffers1_reply(const UINT StartSlot
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pFirstConstant ? NumBuffers : 0);
     if (pFirstConstant)
         cmd_size += npt_sizeof_UINT_array(pFirstConstant, NumBuffers);
@@ -16729,8 +16978,14 @@ static inline void
 npt_decode_ID3D11DeviceContext1_DSGetConstantBuffers1_reply(struct npt_cs_decoder *dec,
                                                             ID3D11Buffer ** ppConstantBuffers,
                                                             UINT * pFirstConstant,
-                                                            UINT * pNumConstants)
+                                                            UINT * pNumConstants,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -16748,7 +17003,15 @@ npt_decode_ID3D11DeviceContext1_DSGetConstantBuffers1_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext1_DSGetConstantBuffers1));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pFirstConstant)
@@ -16798,32 +17061,21 @@ npt_submit_ID3D11DeviceContext1_DSGetConstantBuffers1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_DSGetConstantBuffers1(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     UINT StartSlot,
-                                                     UINT NumBuffers,
-                                                     ID3D11Buffer ** ppConstantBuffers,
-                                                     UINT * pFirstConstant,
-                                                     UINT * pNumConstants)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_DSGetConstantBuffers1(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_DSGetConstantBuffers1(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     UINT StartSlot,
                                                     UINT NumBuffers,
                                                     ID3D11Buffer ** ppConstantBuffers,
                                                     UINT * pFirstConstant,
-                                                    UINT * pNumConstants)
+                                                    UINT * pNumConstants,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_DSGetConstantBuffers1(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_DSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants);
+        npt_decode_ID3D11DeviceContext1_DSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -16844,6 +17096,7 @@ struct npt_command_ID3D11DeviceContext1_GSGetConstantBuffers1 {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -16909,7 +17162,7 @@ npt_sizeof_ID3D11DeviceContext1_GSGetConstantBuffers1_reply(const UINT StartSlot
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pFirstConstant ? NumBuffers : 0);
     if (pFirstConstant)
         cmd_size += npt_sizeof_UINT_array(pFirstConstant, NumBuffers);
@@ -16923,8 +17176,14 @@ static inline void
 npt_decode_ID3D11DeviceContext1_GSGetConstantBuffers1_reply(struct npt_cs_decoder *dec,
                                                             ID3D11Buffer ** ppConstantBuffers,
                                                             UINT * pFirstConstant,
-                                                            UINT * pNumConstants)
+                                                            UINT * pNumConstants,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -16942,7 +17201,15 @@ npt_decode_ID3D11DeviceContext1_GSGetConstantBuffers1_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext1_GSGetConstantBuffers1));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pFirstConstant)
@@ -16992,32 +17259,21 @@ npt_submit_ID3D11DeviceContext1_GSGetConstantBuffers1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_GSGetConstantBuffers1(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     UINT StartSlot,
-                                                     UINT NumBuffers,
-                                                     ID3D11Buffer ** ppConstantBuffers,
-                                                     UINT * pFirstConstant,
-                                                     UINT * pNumConstants)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_GSGetConstantBuffers1(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_GSGetConstantBuffers1(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     UINT StartSlot,
                                                     UINT NumBuffers,
                                                     ID3D11Buffer ** ppConstantBuffers,
                                                     UINT * pFirstConstant,
-                                                    UINT * pNumConstants)
+                                                    UINT * pNumConstants,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_GSGetConstantBuffers1(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_GSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants);
+        npt_decode_ID3D11DeviceContext1_GSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -17038,6 +17294,7 @@ struct npt_command_ID3D11DeviceContext1_PSGetConstantBuffers1 {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -17103,7 +17360,7 @@ npt_sizeof_ID3D11DeviceContext1_PSGetConstantBuffers1_reply(const UINT StartSlot
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pFirstConstant ? NumBuffers : 0);
     if (pFirstConstant)
         cmd_size += npt_sizeof_UINT_array(pFirstConstant, NumBuffers);
@@ -17117,8 +17374,14 @@ static inline void
 npt_decode_ID3D11DeviceContext1_PSGetConstantBuffers1_reply(struct npt_cs_decoder *dec,
                                                             ID3D11Buffer ** ppConstantBuffers,
                                                             UINT * pFirstConstant,
-                                                            UINT * pNumConstants)
+                                                            UINT * pNumConstants,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -17136,7 +17399,15 @@ npt_decode_ID3D11DeviceContext1_PSGetConstantBuffers1_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext1_PSGetConstantBuffers1));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pFirstConstant)
@@ -17186,32 +17457,21 @@ npt_submit_ID3D11DeviceContext1_PSGetConstantBuffers1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_PSGetConstantBuffers1(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     UINT StartSlot,
-                                                     UINT NumBuffers,
-                                                     ID3D11Buffer ** ppConstantBuffers,
-                                                     UINT * pFirstConstant,
-                                                     UINT * pNumConstants)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_PSGetConstantBuffers1(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_PSGetConstantBuffers1(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     UINT StartSlot,
                                                     UINT NumBuffers,
                                                     ID3D11Buffer ** ppConstantBuffers,
                                                     UINT * pFirstConstant,
-                                                    UINT * pNumConstants)
+                                                    UINT * pNumConstants,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_PSGetConstantBuffers1(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_PSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants);
+        npt_decode_ID3D11DeviceContext1_PSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -17232,6 +17492,7 @@ struct npt_command_ID3D11DeviceContext1_CSGetConstantBuffers1 {
      * that decodes the wire ids. */
     uint64_t *_guest_ids_ppConstantBuffers;
     uint32_t _guest_id_count_ppConstantBuffers;
+    struct npt_wire_object_ref *_refs_ppConstantBuffers;
 };
 
 static inline size_t
@@ -17297,7 +17558,7 @@ npt_sizeof_ID3D11DeviceContext1_CSGetConstantBuffers1_reply(const UINT StartSlot
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip StartSlot (input only) */
 /* skip NumBuffers (input only) */
-/* skip ppConstantBuffers (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_array_count(0) + (ppConstantBuffers ? (size_t)(NumBuffers) : 0) * npt_sizeof_npt_wire_object_ref();  /* ppConstantBuffers: registered ids */
     cmd_size += npt_sizeof_array_count(pFirstConstant ? NumBuffers : 0);
     if (pFirstConstant)
         cmd_size += npt_sizeof_UINT_array(pFirstConstant, NumBuffers);
@@ -17311,8 +17572,14 @@ static inline void
 npt_decode_ID3D11DeviceContext1_CSGetConstantBuffers1_reply(struct npt_cs_decoder *dec,
                                                             ID3D11Buffer ** ppConstantBuffers,
                                                             UINT * pFirstConstant,
-                                                            UINT * pNumConstants)
+                                                            UINT * pNumConstants,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -17330,7 +17597,15 @@ npt_decode_ID3D11DeviceContext1_CSGetConstantBuffers1_reply(struct npt_cs_decode
                                        NPT_METHOD_ID3D11DeviceContext1_CSGetConstantBuffers1));
         return;
     }
-/* skip ppConstantBuffers (guest-allocated id, wrapper built on client thunk; not in reply) */
+{
+    const uint64_t _n = npt_decode_array_count_unchecked(dec);
+    if (_n > _ref_cap - _ref_i) {
+        npt_cs_decoder_set_fatal(dec);
+        return;
+    }
+    for (uint64_t _i = 0; _i < _n; _i++)
+        npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
+}
     {
         const uint64_t _count = npt_decode_array_count_unchecked(dec);
         if (_count && pFirstConstant)
@@ -17380,32 +17655,21 @@ npt_submit_ID3D11DeviceContext1_CSGetConstantBuffers1(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_CSGetConstantBuffers1(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     UINT StartSlot,
-                                                     UINT NumBuffers,
-                                                     ID3D11Buffer ** ppConstantBuffers,
-                                                     UINT * pFirstConstant,
-                                                     UINT * pNumConstants)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_CSGetConstantBuffers1(ring, 0, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_CSGetConstantBuffers1(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     UINT StartSlot,
                                                     UINT NumBuffers,
                                                     ID3D11Buffer ** ppConstantBuffers,
                                                     UINT * pFirstConstant,
-                                                    UINT * pNumConstants)
+                                                    UINT * pNumConstants,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_CSGetConstantBuffers1(ring, NPT_CMD_FLAG_REPLY, object_id, StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_CSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants);
+        npt_decode_ID3D11DeviceContext1_CSGetConstantBuffers1_reply(dec, ppConstantBuffers, pFirstConstant, pNumConstants, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }
@@ -17423,6 +17687,7 @@ struct npt_command_ID3D11DeviceContext1_SwapDeviceContextState {
      * this field and inserts {_guest_id_ppPreviousState -> *ppPreviousState} in the
      * context object table. */
     uint64_t _guest_id_ppPreviousState;
+    struct npt_wire_object_ref _ref_ppPreviousState;
 };
 
 static inline size_t
@@ -17475,14 +17740,20 @@ npt_sizeof_ID3D11DeviceContext1_SwapDeviceContextState_reply(const ID3DDeviceCon
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip pState (input only) */
-/* skip ppPreviousState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppPreviousState: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11DeviceContext1_SwapDeviceContextState_reply(struct npt_cs_decoder *dec,
-                                                             ID3DDeviceContextState ** ppPreviousState)
+                                                             ID3DDeviceContextState ** ppPreviousState,
+                                                             struct npt_wire_object_ref *_refs,
+                                                             size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11DeviceContext1,
@@ -17500,7 +17771,11 @@ npt_decode_ID3D11DeviceContext1_SwapDeviceContextState_reply(struct npt_cs_decod
                                        NPT_METHOD_ID3D11DeviceContext1_SwapDeviceContextState));
         return;
     }
-/* skip ppPreviousState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -17533,26 +17808,18 @@ npt_submit_ID3D11DeviceContext1_SwapDeviceContextState(struct npt_ring *ring,
 }
 
 static inline void
-npt_async_ID3D11DeviceContext1_SwapDeviceContextState(struct npt_ring *ring,
-                                                      npt_object_id object_id,
-                                                      ID3DDeviceContextState * pState,
-                                                      ID3DDeviceContextState ** ppPreviousState)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11DeviceContext1_SwapDeviceContextState(ring, 0, object_id, pState, ppPreviousState, &submit);
-}
-
-static inline void
 npt_call_ID3D11DeviceContext1_SwapDeviceContextState(struct npt_ring *ring,
                                                      npt_object_id object_id,
                                                      ID3DDeviceContextState * pState,
-                                                     ID3DDeviceContextState ** ppPreviousState)
+                                                     ID3DDeviceContextState ** ppPreviousState,
+                                                     struct npt_wire_object_ref *_refs,
+                                                     size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11DeviceContext1_SwapDeviceContextState(ring, NPT_CMD_FLAG_REPLY, object_id, pState, ppPreviousState, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
-        npt_decode_ID3D11DeviceContext1_SwapDeviceContextState_reply(dec, ppPreviousState);
+        npt_decode_ID3D11DeviceContext1_SwapDeviceContextState_reply(dec, ppPreviousState, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
     }
 }

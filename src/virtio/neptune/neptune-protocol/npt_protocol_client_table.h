@@ -12,9 +12,38 @@
 #ifndef NPT_PROTOCOL_CLIENT_TABLE_H
 #define NPT_PROTOCOL_CLIENT_TABLE_H
 
-/* Populate every generated default vtbl and register the default
- * constructor for every known IID in the IID -> ctor table.  Idempotent
- * is NOT required -- npt_com_init guards the call via NPT_CALL_ONCE. */
+#include "npt_protocol_defs.h"
+
+/*
+ * One logical interface across its versions (ID3D11Device ..
+ * ID3D11Device5): a linear chain of tiers sharing one vtable, as wide
+ * as the last tier.  Every wrapper points at its family through
+ * npt_com_base.family and records the highest tier the host confirmed
+ * for it in npt_com_base.tier.
+ */
+struct npt_com_family {
+    const char *name;
+    /* NPT_IFACE_FAMILY_*; indexes npt_com_families[]. */
+    uint32_t index;
+    /* The tiers, root first, NULL-terminated, and their object types. */
+    const GUID *const *tier_iids;
+    const npt_object_type *tier_types;
+    uint32_t tier_count;
+    /* IUnknown and the interfaces above the root, topmost first,
+     * NULL-terminated: every tier answers QueryInterface for them. */
+    const GUID *const *ancestor_iids;
+    /* The family's vtable and the populator that fills it. */
+    const void **vtbl;
+    void (*vtbl_install)(void);
+};
+
+/* Populate every family's vtbl and register the default constructor
+ * for every known IID in the IID -> ctor table.  Idempotent is NOT
+ * required -- npt_com_init guards the call via NPT_CALL_ONCE. */
 void npt_com_init_default_ctors(void);
+
+/* Every family's descriptor, indexed by npt_object_type_family[] (the
+ * family of an object type) and by struct npt_com_family::index. */
+extern const struct npt_com_family *const npt_com_families[];
 
 #endif /* NPT_PROTOCOL_CLIENT_TABLE_H */

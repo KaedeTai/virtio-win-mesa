@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12graphicscommandlist.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,31 +22,64 @@
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList                                                       */
+/* Family id3d12graphicscommandlist                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12graphicscommandlist_tiers[] = {
+    &NPT_IID_ID3D12GraphicsCommandList,
+    &NPT_IID_ID3D12GraphicsCommandList1,
+    &NPT_IID_ID3D12GraphicsCommandList2,
+    &NPT_IID_ID3D12GraphicsCommandList3,
+    &NPT_IID_ID3D12GraphicsCommandList4,
+    &NPT_IID_ID3D12GraphicsCommandList5,
+    &NPT_IID_ID3D12GraphicsCommandList6,
+    &NPT_IID_ID3D12GraphicsCommandList7,
+    &NPT_IID_ID3D12GraphicsCommandList8,
+    &NPT_IID_ID3D12GraphicsCommandList9,
+    &NPT_IID_ID3D12GraphicsCommandList10,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12graphicscommandlist_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST1,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST2,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST3,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST4,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST5,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST6,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST7,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST8,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST9,
+    NPT_OBJECT_TYPE_ID3D12GRAPHICSCOMMANDLIST10,
+};
+
+static const GUID *const npt_com_family_id3d12graphicscommandlist_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D12Object,
     &NPT_IID_ID3D12DeviceChild,
     &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12graphicscommandlist = {
+    .name = "id3d12graphicscommandlist",
+    .index = NPT_IFACE_FAMILY_ID3D12GRAPHICSCOMMANDLIST,
+    .tier_iids = npt_com_family_id3d12graphicscommandlist_tiers,
+    .tier_types = npt_com_family_id3d12graphicscommandlist_tier_types,
+    .tier_count = 11,
+    .ancestor_iids = npt_com_family_id3d12graphicscommandlist_ancestors,
+    .vtbl = (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
+    .vtbl_install = npt_id3d12graphicscommandlist10_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -57,6 +93,11 @@ npt_id3d12graphicscommandlist_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12GraphicsCommandList (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist_default_Close(void *self)
@@ -371,84 +412,6 @@ npt_id3d12graphicscommandlist_default_ExecuteIndirect(void *self, ID3D12CommandS
 }
 
 
-void
-npt_id3d12graphicscommandlist_fill_default_vtbl(struct npt_id3d12graphicscommandlist_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist_client_vtbl npt_id3d12graphicscommandlist_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist_fill_default_vtbl(&npt_id3d12graphicscommandlist_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -456,52 +419,17 @@ npt_id3d12graphicscommandlist_client_create(struct npt_device *dev, uint64_t hos
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList1                                                       */
+/* ID3D12GraphicsCommandList1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT(void *self, ID3D12Resource * pDstBuffer, UINT64 DstOffset, ID3D12Resource * pSrcBuffer, UINT64 SrcOffset, UINT Dependencies, ID3D12Resource ** ppDependentResources, const D3D12_SUBRESOURCE_RANGE_UINT64 * pDependentSubresourceRanges)
@@ -540,90 +468,6 @@ npt_id3d12graphicscommandlist1_default_SetViewInstanceMask(void *self, UINT Mask
 }
 
 
-void
-npt_id3d12graphicscommandlist1_fill_default_vtbl(struct npt_id3d12graphicscommandlist1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist1_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist1_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist1_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist1_client_vtbl npt_id3d12graphicscommandlist1_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist1_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist1_fill_default_vtbl(&npt_id3d12graphicscommandlist1_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -631,53 +475,17 @@ npt_id3d12graphicscommandlist1_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist1_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList2                                                       */
+/* ID3D12GraphicsCommandList2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist2_default_WriteBufferImmediate(void *self, UINT Count, const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER * pParams, const D3D12_WRITEBUFFERIMMEDIATE_MODE * pModes)
@@ -686,91 +494,6 @@ npt_id3d12graphicscommandlist2_default_WriteBufferImmediate(void *self, UINT Cou
 }
 
 
-void
-npt_id3d12graphicscommandlist2_fill_default_vtbl(struct npt_id3d12graphicscommandlist2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist2_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist2_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist2_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist2_client_vtbl npt_id3d12graphicscommandlist2_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist2_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist2_fill_default_vtbl(&npt_id3d12graphicscommandlist2_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -778,54 +501,17 @@ npt_id3d12graphicscommandlist2_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist2_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList3                                                       */
+/* ID3D12GraphicsCommandList3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession(void *self, ID3D12ProtectedResourceSession * pProtectedResourceSession)
@@ -834,92 +520,6 @@ npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession(void *self, I
 }
 
 
-void
-npt_id3d12graphicscommandlist3_fill_default_vtbl(struct npt_id3d12graphicscommandlist3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist3_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist3_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist3_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist3_client_vtbl npt_id3d12graphicscommandlist3_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist3_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist3_fill_default_vtbl(&npt_id3d12graphicscommandlist3_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -927,55 +527,17 @@ npt_id3d12graphicscommandlist3_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist3_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList4                                                       */
+/* ID3D12GraphicsCommandList4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist4_default_BeginRenderPass(void *self, UINT NumRenderTargets, const D3D12_RENDER_PASS_RENDER_TARGET_DESC * pRenderTargets, const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC * pDepthStencil, D3D12_RENDER_PASS_FLAGS Flags)
@@ -1032,101 +594,6 @@ npt_id3d12graphicscommandlist4_default_DispatchRays(void *self, const D3D12_DISP
 }
 
 
-void
-npt_id3d12graphicscommandlist4_fill_default_vtbl(struct npt_id3d12graphicscommandlist4_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist4_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist4_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist4_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-    dst->BeginRenderPass = npt_id3d12graphicscommandlist4_default_BeginRenderPass;
-    dst->EndRenderPass = npt_id3d12graphicscommandlist4_default_EndRenderPass;
-    dst->InitializeMetaCommand = npt_id3d12graphicscommandlist4_default_InitializeMetaCommand;
-    dst->ExecuteMetaCommand = npt_id3d12graphicscommandlist4_default_ExecuteMetaCommand;
-    dst->BuildRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_BuildRaytracingAccelerationStructure;
-    dst->EmitRaytracingAccelerationStructurePostbuildInfo = npt_id3d12graphicscommandlist4_default_EmitRaytracingAccelerationStructurePostbuildInfo;
-    dst->CopyRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_CopyRaytracingAccelerationStructure;
-    dst->SetPipelineState1 = npt_id3d12graphicscommandlist4_default_SetPipelineState1;
-    dst->DispatchRays = npt_id3d12graphicscommandlist4_default_DispatchRays;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist4_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist4_client_vtbl npt_id3d12graphicscommandlist4_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist4_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist4_fill_default_vtbl(&npt_id3d12graphicscommandlist4_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist4_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1134,56 +601,17 @@ npt_id3d12graphicscommandlist4_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist4_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 4;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList5                                                       */
+/* ID3D12GraphicsCommandList5 (tier 5)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist5_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    &NPT_IID_ID3D12GraphicsCommandList5,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist5_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist5_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist5_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist5_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist5_default_RSSetShadingRate(void *self, D3D12_SHADING_RATE baseShadingRate, const D3D12_SHADING_RATE_COMBINER * combiners)
@@ -1198,103 +626,6 @@ npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage(void *self, ID3D12R
 }
 
 
-void
-npt_id3d12graphicscommandlist5_fill_default_vtbl(struct npt_id3d12graphicscommandlist5_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist5_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist5_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist5_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-    dst->BeginRenderPass = npt_id3d12graphicscommandlist4_default_BeginRenderPass;
-    dst->EndRenderPass = npt_id3d12graphicscommandlist4_default_EndRenderPass;
-    dst->InitializeMetaCommand = npt_id3d12graphicscommandlist4_default_InitializeMetaCommand;
-    dst->ExecuteMetaCommand = npt_id3d12graphicscommandlist4_default_ExecuteMetaCommand;
-    dst->BuildRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_BuildRaytracingAccelerationStructure;
-    dst->EmitRaytracingAccelerationStructurePostbuildInfo = npt_id3d12graphicscommandlist4_default_EmitRaytracingAccelerationStructurePostbuildInfo;
-    dst->CopyRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_CopyRaytracingAccelerationStructure;
-    dst->SetPipelineState1 = npt_id3d12graphicscommandlist4_default_SetPipelineState1;
-    dst->DispatchRays = npt_id3d12graphicscommandlist4_default_DispatchRays;
-    dst->RSSetShadingRate = npt_id3d12graphicscommandlist5_default_RSSetShadingRate;
-    dst->RSSetShadingRateImage = npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist5_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist5_client_vtbl npt_id3d12graphicscommandlist5_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist5_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist5_fill_default_vtbl(&npt_id3d12graphicscommandlist5_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist5_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1302,57 +633,17 @@ npt_id3d12graphicscommandlist5_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist5_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 5;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList6                                                       */
+/* ID3D12GraphicsCommandList6 (tier 6)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist6_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    &NPT_IID_ID3D12GraphicsCommandList5,
-    &NPT_IID_ID3D12GraphicsCommandList6,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist6_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist6_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist6_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist6_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist6_default_DispatchMesh(void *self, UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
@@ -1361,104 +652,6 @@ npt_id3d12graphicscommandlist6_default_DispatchMesh(void *self, UINT ThreadGroup
 }
 
 
-void
-npt_id3d12graphicscommandlist6_fill_default_vtbl(struct npt_id3d12graphicscommandlist6_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist6_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist6_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist6_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-    dst->BeginRenderPass = npt_id3d12graphicscommandlist4_default_BeginRenderPass;
-    dst->EndRenderPass = npt_id3d12graphicscommandlist4_default_EndRenderPass;
-    dst->InitializeMetaCommand = npt_id3d12graphicscommandlist4_default_InitializeMetaCommand;
-    dst->ExecuteMetaCommand = npt_id3d12graphicscommandlist4_default_ExecuteMetaCommand;
-    dst->BuildRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_BuildRaytracingAccelerationStructure;
-    dst->EmitRaytracingAccelerationStructurePostbuildInfo = npt_id3d12graphicscommandlist4_default_EmitRaytracingAccelerationStructurePostbuildInfo;
-    dst->CopyRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_CopyRaytracingAccelerationStructure;
-    dst->SetPipelineState1 = npt_id3d12graphicscommandlist4_default_SetPipelineState1;
-    dst->DispatchRays = npt_id3d12graphicscommandlist4_default_DispatchRays;
-    dst->RSSetShadingRate = npt_id3d12graphicscommandlist5_default_RSSetShadingRate;
-    dst->RSSetShadingRateImage = npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage;
-    dst->DispatchMesh = npt_id3d12graphicscommandlist6_default_DispatchMesh;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist6_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist6_client_vtbl npt_id3d12graphicscommandlist6_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist6_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist6_fill_default_vtbl(&npt_id3d12graphicscommandlist6_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist6_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1466,58 +659,17 @@ npt_id3d12graphicscommandlist6_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist6_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 6;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList7                                                       */
+/* ID3D12GraphicsCommandList7 (tier 7)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist7_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    &NPT_IID_ID3D12GraphicsCommandList5,
-    &NPT_IID_ID3D12GraphicsCommandList6,
-    &NPT_IID_ID3D12GraphicsCommandList7,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist7_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist7_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist7_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist7_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist7_default_Barrier(void *self, UINT32 NumBarrierGroups, const D3D12_BARRIER_GROUP * pBarrierGroups)
@@ -1526,105 +678,6 @@ npt_id3d12graphicscommandlist7_default_Barrier(void *self, UINT32 NumBarrierGrou
 }
 
 
-void
-npt_id3d12graphicscommandlist7_fill_default_vtbl(struct npt_id3d12graphicscommandlist7_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist7_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist7_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist7_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-    dst->BeginRenderPass = npt_id3d12graphicscommandlist4_default_BeginRenderPass;
-    dst->EndRenderPass = npt_id3d12graphicscommandlist4_default_EndRenderPass;
-    dst->InitializeMetaCommand = npt_id3d12graphicscommandlist4_default_InitializeMetaCommand;
-    dst->ExecuteMetaCommand = npt_id3d12graphicscommandlist4_default_ExecuteMetaCommand;
-    dst->BuildRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_BuildRaytracingAccelerationStructure;
-    dst->EmitRaytracingAccelerationStructurePostbuildInfo = npt_id3d12graphicscommandlist4_default_EmitRaytracingAccelerationStructurePostbuildInfo;
-    dst->CopyRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_CopyRaytracingAccelerationStructure;
-    dst->SetPipelineState1 = npt_id3d12graphicscommandlist4_default_SetPipelineState1;
-    dst->DispatchRays = npt_id3d12graphicscommandlist4_default_DispatchRays;
-    dst->RSSetShadingRate = npt_id3d12graphicscommandlist5_default_RSSetShadingRate;
-    dst->RSSetShadingRateImage = npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage;
-    dst->DispatchMesh = npt_id3d12graphicscommandlist6_default_DispatchMesh;
-    dst->Barrier = npt_id3d12graphicscommandlist7_default_Barrier;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist7_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist7_client_vtbl npt_id3d12graphicscommandlist7_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist7_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist7_fill_default_vtbl(&npt_id3d12graphicscommandlist7_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist7_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1632,59 +685,17 @@ npt_id3d12graphicscommandlist7_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist7_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 7;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList8                                                       */
+/* ID3D12GraphicsCommandList8 (tier 8)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist8_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    &NPT_IID_ID3D12GraphicsCommandList5,
-    &NPT_IID_ID3D12GraphicsCommandList6,
-    &NPT_IID_ID3D12GraphicsCommandList7,
-    &NPT_IID_ID3D12GraphicsCommandList8,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist8_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist8_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist8_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist8_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist8_default_OMSetFrontAndBackStencilRef(void *self, UINT FrontStencilRef, UINT BackStencilRef)
@@ -1693,106 +704,6 @@ npt_id3d12graphicscommandlist8_default_OMSetFrontAndBackStencilRef(void *self, U
 }
 
 
-void
-npt_id3d12graphicscommandlist8_fill_default_vtbl(struct npt_id3d12graphicscommandlist8_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist8_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist8_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist8_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-    dst->BeginRenderPass = npt_id3d12graphicscommandlist4_default_BeginRenderPass;
-    dst->EndRenderPass = npt_id3d12graphicscommandlist4_default_EndRenderPass;
-    dst->InitializeMetaCommand = npt_id3d12graphicscommandlist4_default_InitializeMetaCommand;
-    dst->ExecuteMetaCommand = npt_id3d12graphicscommandlist4_default_ExecuteMetaCommand;
-    dst->BuildRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_BuildRaytracingAccelerationStructure;
-    dst->EmitRaytracingAccelerationStructurePostbuildInfo = npt_id3d12graphicscommandlist4_default_EmitRaytracingAccelerationStructurePostbuildInfo;
-    dst->CopyRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_CopyRaytracingAccelerationStructure;
-    dst->SetPipelineState1 = npt_id3d12graphicscommandlist4_default_SetPipelineState1;
-    dst->DispatchRays = npt_id3d12graphicscommandlist4_default_DispatchRays;
-    dst->RSSetShadingRate = npt_id3d12graphicscommandlist5_default_RSSetShadingRate;
-    dst->RSSetShadingRateImage = npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage;
-    dst->DispatchMesh = npt_id3d12graphicscommandlist6_default_DispatchMesh;
-    dst->Barrier = npt_id3d12graphicscommandlist7_default_Barrier;
-    dst->OMSetFrontAndBackStencilRef = npt_id3d12graphicscommandlist8_default_OMSetFrontAndBackStencilRef;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist8_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist8_client_vtbl npt_id3d12graphicscommandlist8_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist8_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist8_fill_default_vtbl(&npt_id3d12graphicscommandlist8_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist8_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1800,60 +711,17 @@ npt_id3d12graphicscommandlist8_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist8_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 8;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList9                                                       */
+/* ID3D12GraphicsCommandList9 (tier 9)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist9_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    &NPT_IID_ID3D12GraphicsCommandList5,
-    &NPT_IID_ID3D12GraphicsCommandList6,
-    &NPT_IID_ID3D12GraphicsCommandList7,
-    &NPT_IID_ID3D12GraphicsCommandList8,
-    &NPT_IID_ID3D12GraphicsCommandList9,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist9_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist9_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist9_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist9_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist9_default_RSSetDepthBias(void *self, FLOAT DepthBias, FLOAT DepthBiasClamp, FLOAT SlopeScaledDepthBias)
@@ -1868,108 +736,6 @@ npt_id3d12graphicscommandlist9_default_IASetIndexBufferStripCutValue(void *self,
 }
 
 
-void
-npt_id3d12graphicscommandlist9_fill_default_vtbl(struct npt_id3d12graphicscommandlist9_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12graphicscommandlist9_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist9_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist9_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetDevice = npt_id3d12devicechild_default_GetDevice;
-    dst->GetType = npt_id3d12commandlist_default_GetType;
-    dst->Close = npt_id3d12graphicscommandlist_default_Close;
-    dst->Reset = npt_id3d12graphicscommandlist_default_Reset;
-    dst->ClearState = npt_id3d12graphicscommandlist_default_ClearState;
-    dst->DrawInstanced = npt_id3d12graphicscommandlist_default_DrawInstanced;
-    dst->DrawIndexedInstanced = npt_id3d12graphicscommandlist_default_DrawIndexedInstanced;
-    dst->Dispatch = npt_id3d12graphicscommandlist_default_Dispatch;
-    dst->CopyBufferRegion = npt_id3d12graphicscommandlist_default_CopyBufferRegion;
-    dst->CopyTextureRegion = npt_id3d12graphicscommandlist_default_CopyTextureRegion;
-    dst->CopyResource = npt_id3d12graphicscommandlist_default_CopyResource;
-    dst->CopyTiles = npt_id3d12graphicscommandlist_default_CopyTiles;
-    dst->ResolveSubresource = npt_id3d12graphicscommandlist_default_ResolveSubresource;
-    dst->IASetPrimitiveTopology = npt_id3d12graphicscommandlist_default_IASetPrimitiveTopology;
-    dst->RSSetViewports = npt_id3d12graphicscommandlist_default_RSSetViewports;
-    dst->RSSetScissorRects = npt_id3d12graphicscommandlist_default_RSSetScissorRects;
-    dst->OMSetBlendFactor = npt_id3d12graphicscommandlist_default_OMSetBlendFactor;
-    dst->OMSetStencilRef = npt_id3d12graphicscommandlist_default_OMSetStencilRef;
-    dst->SetPipelineState = npt_id3d12graphicscommandlist_default_SetPipelineState;
-    dst->ResourceBarrier = npt_id3d12graphicscommandlist_default_ResourceBarrier;
-    dst->ExecuteBundle = npt_id3d12graphicscommandlist_default_ExecuteBundle;
-    dst->SetDescriptorHeaps = npt_id3d12graphicscommandlist_default_SetDescriptorHeaps;
-    dst->SetComputeRootSignature = npt_id3d12graphicscommandlist_default_SetComputeRootSignature;
-    dst->SetGraphicsRootSignature = npt_id3d12graphicscommandlist_default_SetGraphicsRootSignature;
-    dst->SetComputeRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetComputeRootDescriptorTable;
-    dst->SetGraphicsRootDescriptorTable = npt_id3d12graphicscommandlist_default_SetGraphicsRootDescriptorTable;
-    dst->SetComputeRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstant;
-    dst->SetGraphicsRoot32BitConstant = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstant;
-    dst->SetComputeRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetComputeRoot32BitConstants;
-    dst->SetGraphicsRoot32BitConstants = npt_id3d12graphicscommandlist_default_SetGraphicsRoot32BitConstants;
-    dst->SetComputeRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetComputeRootConstantBufferView;
-    dst->SetGraphicsRootConstantBufferView = npt_id3d12graphicscommandlist_default_SetGraphicsRootConstantBufferView;
-    dst->SetComputeRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetComputeRootShaderResourceView;
-    dst->SetGraphicsRootShaderResourceView = npt_id3d12graphicscommandlist_default_SetGraphicsRootShaderResourceView;
-    dst->SetComputeRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetComputeRootUnorderedAccessView;
-    dst->SetGraphicsRootUnorderedAccessView = npt_id3d12graphicscommandlist_default_SetGraphicsRootUnorderedAccessView;
-    dst->IASetIndexBuffer = npt_id3d12graphicscommandlist_default_IASetIndexBuffer;
-    dst->IASetVertexBuffers = npt_id3d12graphicscommandlist_default_IASetVertexBuffers;
-    dst->SOSetTargets = npt_id3d12graphicscommandlist_default_SOSetTargets;
-    dst->OMSetRenderTargets = npt_id3d12graphicscommandlist_default_OMSetRenderTargets;
-    dst->ClearDepthStencilView = npt_id3d12graphicscommandlist_default_ClearDepthStencilView;
-    dst->ClearRenderTargetView = npt_id3d12graphicscommandlist_default_ClearRenderTargetView;
-    dst->ClearUnorderedAccessViewUint = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewUint;
-    dst->ClearUnorderedAccessViewFloat = npt_id3d12graphicscommandlist_default_ClearUnorderedAccessViewFloat;
-    dst->DiscardResource = npt_id3d12graphicscommandlist_default_DiscardResource;
-    dst->BeginQuery = npt_id3d12graphicscommandlist_default_BeginQuery;
-    dst->EndQuery = npt_id3d12graphicscommandlist_default_EndQuery;
-    dst->ResolveQueryData = npt_id3d12graphicscommandlist_default_ResolveQueryData;
-    dst->SetPredication = npt_id3d12graphicscommandlist_default_SetPredication;
-    dst->SetMarker = npt_id3d12graphicscommandlist_default_SetMarker;
-    dst->BeginEvent = npt_id3d12graphicscommandlist_default_BeginEvent;
-    dst->EndEvent = npt_id3d12graphicscommandlist_default_EndEvent;
-    dst->ExecuteIndirect = npt_id3d12graphicscommandlist_default_ExecuteIndirect;
-    dst->AtomicCopyBufferUINT = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT;
-    dst->AtomicCopyBufferUINT64 = npt_id3d12graphicscommandlist1_default_AtomicCopyBufferUINT64;
-    dst->OMSetDepthBounds = npt_id3d12graphicscommandlist1_default_OMSetDepthBounds;
-    dst->SetSamplePositions = npt_id3d12graphicscommandlist1_default_SetSamplePositions;
-    dst->ResolveSubresourceRegion = npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion;
-    dst->SetViewInstanceMask = npt_id3d12graphicscommandlist1_default_SetViewInstanceMask;
-    dst->WriteBufferImmediate = npt_id3d12graphicscommandlist2_default_WriteBufferImmediate;
-    dst->SetProtectedResourceSession = npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession;
-    dst->BeginRenderPass = npt_id3d12graphicscommandlist4_default_BeginRenderPass;
-    dst->EndRenderPass = npt_id3d12graphicscommandlist4_default_EndRenderPass;
-    dst->InitializeMetaCommand = npt_id3d12graphicscommandlist4_default_InitializeMetaCommand;
-    dst->ExecuteMetaCommand = npt_id3d12graphicscommandlist4_default_ExecuteMetaCommand;
-    dst->BuildRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_BuildRaytracingAccelerationStructure;
-    dst->EmitRaytracingAccelerationStructurePostbuildInfo = npt_id3d12graphicscommandlist4_default_EmitRaytracingAccelerationStructurePostbuildInfo;
-    dst->CopyRaytracingAccelerationStructure = npt_id3d12graphicscommandlist4_default_CopyRaytracingAccelerationStructure;
-    dst->SetPipelineState1 = npt_id3d12graphicscommandlist4_default_SetPipelineState1;
-    dst->DispatchRays = npt_id3d12graphicscommandlist4_default_DispatchRays;
-    dst->RSSetShadingRate = npt_id3d12graphicscommandlist5_default_RSSetShadingRate;
-    dst->RSSetShadingRateImage = npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage;
-    dst->DispatchMesh = npt_id3d12graphicscommandlist6_default_DispatchMesh;
-    dst->Barrier = npt_id3d12graphicscommandlist7_default_Barrier;
-    dst->OMSetFrontAndBackStencilRef = npt_id3d12graphicscommandlist8_default_OMSetFrontAndBackStencilRef;
-    dst->RSSetDepthBias = npt_id3d12graphicscommandlist9_default_RSSetDepthBias;
-    dst->IASetIndexBufferStripCutValue = npt_id3d12graphicscommandlist9_default_IASetIndexBufferStripCutValue;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12graphicscommandlist9_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12graphicscommandlist9_client_vtbl npt_id3d12graphicscommandlist9_default_vtbl_storage;
-
-void
-npt_id3d12graphicscommandlist9_install_default_vtbl(void)
-{
-    npt_id3d12graphicscommandlist9_fill_default_vtbl(&npt_id3d12graphicscommandlist9_default_vtbl_storage);
-}
-
 void *
 npt_id3d12graphicscommandlist9_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1977,61 +743,17 @@ npt_id3d12graphicscommandlist9_client_create(struct npt_device *dev, uint64_t ho
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12graphicscommandlist9_default_vtbl_storage,
+        (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 9;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12GraphicsCommandList10                                                       */
+/* ID3D12GraphicsCommandList10 (tier 10)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12graphicscommandlist10_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12DeviceChild,
-    &NPT_IID_ID3D12CommandList,
-    &NPT_IID_ID3D12GraphicsCommandList,
-    &NPT_IID_ID3D12GraphicsCommandList1,
-    &NPT_IID_ID3D12GraphicsCommandList2,
-    &NPT_IID_ID3D12GraphicsCommandList3,
-    &NPT_IID_ID3D12GraphicsCommandList4,
-    &NPT_IID_ID3D12GraphicsCommandList5,
-    &NPT_IID_ID3D12GraphicsCommandList6,
-    &NPT_IID_ID3D12GraphicsCommandList7,
-    &NPT_IID_ID3D12GraphicsCommandList8,
-    &NPT_IID_ID3D12GraphicsCommandList9,
-    &NPT_IID_ID3D12GraphicsCommandList10,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist10_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12graphicscommandlist10_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist10_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist10_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist10_default_SetProgram(void *self, const D3D12_SET_PROGRAM_DESC * pDesc)
@@ -2049,9 +771,9 @@ npt_id3d12graphicscommandlist10_default_DispatchGraph(void *self, const D3D12_DI
 void
 npt_id3d12graphicscommandlist10_fill_default_vtbl(struct npt_id3d12graphicscommandlist10_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d12graphicscommandlist10_default_QueryInterface;
-    dst->AddRef         = npt_id3d12graphicscommandlist10_default_AddRef;
-    dst->Release        = npt_id3d12graphicscommandlist10_default_Release;
+    dst->QueryInterface = npt_id3d12graphicscommandlist_default_QueryInterface;
+    dst->AddRef         = npt_id3d12graphicscommandlist_default_AddRef;
+    dst->Release        = npt_id3d12graphicscommandlist_default_Release;
     dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
     dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
     dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
@@ -2138,7 +860,7 @@ npt_id3d12graphicscommandlist10_fill_default_vtbl(struct npt_id3d12graphicscomma
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12graphicscommandlist10_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -2159,6 +881,8 @@ npt_id3d12graphicscommandlist10_client_create(struct npt_device *dev, uint64_t h
     npt_com_base_init(p,
         (const void **)&npt_id3d12graphicscommandlist10_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12graphicscommandlist;
+    p->tier = 10;
     return p;
 }
 

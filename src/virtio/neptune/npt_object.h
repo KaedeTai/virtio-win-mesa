@@ -14,9 +14,9 @@ struct npt_ring;
 
 /*
  * Base bookkeeping embedded in every guest COM wrapper (via npt_com_base,
- * which prepends lpVtbl for COM ABI).  `id` is the host COM pointer cast
- * to uint64_t; the guest sends it as the wire object_id and the host
- * recovers the original pointer via npt_object_from_id.
+ * which prepends lpVtbl for COM ABI).  `id` is the guest-minted id the
+ * host registered the object under; the guest sends it as the wire
+ * object_id and the host looks the object up by it.
  *
  * Dual refcount: pub_ref is what AddRef/Release expose to the app;
  * priv_ref is the runtime's internal hold (in-flight RPCs, parent

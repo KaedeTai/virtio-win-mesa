@@ -32,6 +32,7 @@ struct npt_command_IDXGIFactory_EnumAdapters {
      * this field and inserts {_guest_id_ppAdapter -> *ppAdapter} in the
      * context object table. */
     uint64_t _guest_id_ppAdapter;
+    struct npt_wire_object_ref _ref_ppAdapter;
     HRESULT ret;
 };
 
@@ -85,15 +86,21 @@ npt_sizeof_IDXGIFactory_EnumAdapters_reply(const UINT Adapter,IDXGIAdapter ** pp
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip Adapter (input only) */
-/* skip ppAdapter (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppAdapter: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIFactory_EnumAdapters_reply(struct npt_cs_decoder *dec,
                                            IDXGIAdapter ** ppAdapter,
-                                           HRESULT *ret)
+                                           HRESULT *ret,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIFactory,
@@ -113,7 +120,11 @@ npt_decode_IDXGIFactory_EnumAdapters_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppAdapter (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -145,28 +156,20 @@ npt_submit_IDXGIFactory_EnumAdapters(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIFactory_EnumAdapters(struct npt_ring *ring,
-                                    npt_object_id object_id,
-                                    UINT Adapter,
-                                    IDXGIAdapter ** ppAdapter)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIFactory_EnumAdapters(ring, 0, object_id, Adapter, ppAdapter, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIFactory_EnumAdapters(struct npt_ring *ring,
                                    npt_object_id object_id,
                                    UINT Adapter,
-                                   IDXGIAdapter ** ppAdapter)
+                                   IDXGIAdapter ** ppAdapter,
+                                   struct npt_wire_object_ref *_refs,
+                                   size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIFactory_EnumAdapters(ring, NPT_CMD_FLAG_REPLY, object_id, Adapter, ppAdapter, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIFactory_EnumAdapters_reply(dec, ppAdapter, &_ret);
+        npt_decode_IDXGIFactory_EnumAdapters_reply(dec, ppAdapter, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -789,6 +792,7 @@ struct npt_command_IDXGIFactory1_EnumAdapters1 {
      * this field and inserts {_guest_id_ppAdapter -> *ppAdapter} in the
      * context object table. */
     uint64_t _guest_id_ppAdapter;
+    struct npt_wire_object_ref _ref_ppAdapter;
     HRESULT ret;
 };
 
@@ -842,15 +846,21 @@ npt_sizeof_IDXGIFactory1_EnumAdapters1_reply(const UINT Adapter,IDXGIAdapter1 **
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip Adapter (input only) */
-/* skip ppAdapter (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppAdapter: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIFactory1_EnumAdapters1_reply(struct npt_cs_decoder *dec,
                                              IDXGIAdapter1 ** ppAdapter,
-                                             HRESULT *ret)
+                                             HRESULT *ret,
+                                             struct npt_wire_object_ref *_refs,
+                                             size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIFactory1,
@@ -870,7 +880,11 @@ npt_decode_IDXGIFactory1_EnumAdapters1_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppAdapter (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -902,28 +916,20 @@ npt_submit_IDXGIFactory1_EnumAdapters1(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIFactory1_EnumAdapters1(struct npt_ring *ring,
-                                      npt_object_id object_id,
-                                      UINT Adapter,
-                                      IDXGIAdapter1 ** ppAdapter)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIFactory1_EnumAdapters1(ring, 0, object_id, Adapter, ppAdapter, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIFactory1_EnumAdapters1(struct npt_ring *ring,
                                      npt_object_id object_id,
                                      UINT Adapter,
-                                     IDXGIAdapter1 ** ppAdapter)
+                                     IDXGIAdapter1 ** ppAdapter,
+                                     struct npt_wire_object_ref *_refs,
+                                     size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIFactory1_EnumAdapters1(ring, NPT_CMD_FLAG_REPLY, object_id, Adapter, ppAdapter, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIFactory1_EnumAdapters1_reply(dec, ppAdapter, &_ret);
+        npt_decode_IDXGIFactory1_EnumAdapters1_reply(dec, ppAdapter, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -2824,6 +2830,7 @@ struct npt_command_IDXGIFactory4_EnumAdapterByLuid {
      * this field and inserts {_guest_id_ppvAdapter -> *ppvAdapter} in the
      * context object table. */
     uint64_t _guest_id_ppvAdapter;
+    struct npt_wire_object_ref _ref_ppvAdapter;
     HRESULT ret;
 };
 
@@ -2884,15 +2891,21 @@ npt_sizeof_IDXGIFactory4_EnumAdapterByLuid_reply(const LUID AdapterLuid,const II
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip AdapterLuid (input only) */
 /* skip riid (input only) */
-/* skip ppvAdapter (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvAdapter: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIFactory4_EnumAdapterByLuid_reply(struct npt_cs_decoder *dec,
                                                  void ** ppvAdapter,
-                                                 HRESULT *ret)
+                                                 HRESULT *ret,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIFactory4,
@@ -2912,7 +2925,11 @@ npt_decode_IDXGIFactory4_EnumAdapterByLuid_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppvAdapter (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -2945,30 +2962,21 @@ npt_submit_IDXGIFactory4_EnumAdapterByLuid(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIFactory4_EnumAdapterByLuid(struct npt_ring *ring,
-                                          npt_object_id object_id,
-                                          LUID AdapterLuid,
-                                          const IID * riid,
-                                          void ** ppvAdapter)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIFactory4_EnumAdapterByLuid(ring, 0, object_id, AdapterLuid, riid, ppvAdapter, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIFactory4_EnumAdapterByLuid(struct npt_ring *ring,
                                          npt_object_id object_id,
                                          LUID AdapterLuid,
                                          const IID * riid,
-                                         void ** ppvAdapter)
+                                         void ** ppvAdapter,
+                                         struct npt_wire_object_ref *_refs,
+                                         size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIFactory4_EnumAdapterByLuid(ring, NPT_CMD_FLAG_REPLY, object_id, AdapterLuid, riid, ppvAdapter, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIFactory4_EnumAdapterByLuid_reply(dec, ppvAdapter, &_ret);
+        npt_decode_IDXGIFactory4_EnumAdapterByLuid_reply(dec, ppvAdapter, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -2989,6 +2997,7 @@ struct npt_command_IDXGIFactory4_EnumWarpAdapter {
      * this field and inserts {_guest_id_ppvAdapter -> *ppvAdapter} in the
      * context object table. */
     uint64_t _guest_id_ppvAdapter;
+    struct npt_wire_object_ref _ref_ppvAdapter;
     HRESULT ret;
 };
 
@@ -3045,15 +3054,21 @@ npt_sizeof_IDXGIFactory4_EnumWarpAdapter_reply(const IID * riid,void ** ppvAdapt
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip riid (input only) */
-/* skip ppvAdapter (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvAdapter: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIFactory4_EnumWarpAdapter_reply(struct npt_cs_decoder *dec,
                                                void ** ppvAdapter,
-                                               HRESULT *ret)
+                                               HRESULT *ret,
+                                               struct npt_wire_object_ref *_refs,
+                                               size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIFactory4,
@@ -3073,7 +3088,11 @@ npt_decode_IDXGIFactory4_EnumWarpAdapter_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppvAdapter (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -3105,28 +3124,20 @@ npt_submit_IDXGIFactory4_EnumWarpAdapter(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIFactory4_EnumWarpAdapter(struct npt_ring *ring,
-                                        npt_object_id object_id,
-                                        const IID * riid,
-                                        void ** ppvAdapter)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIFactory4_EnumWarpAdapter(ring, 0, object_id, riid, ppvAdapter, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIFactory4_EnumWarpAdapter(struct npt_ring *ring,
                                        npt_object_id object_id,
                                        const IID * riid,
-                                       void ** ppvAdapter)
+                                       void ** ppvAdapter,
+                                       struct npt_wire_object_ref *_refs,
+                                       size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIFactory4_EnumWarpAdapter(ring, NPT_CMD_FLAG_REPLY, object_id, riid, ppvAdapter, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIFactory4_EnumWarpAdapter_reply(dec, ppvAdapter, &_ret);
+        npt_decode_IDXGIFactory4_EnumWarpAdapter_reply(dec, ppvAdapter, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -3321,6 +3332,7 @@ struct npt_command_IDXGIFactory6_EnumAdapterByGpuPreference {
      * this field and inserts {_guest_id_ppvAdapter -> *ppvAdapter} in the
      * context object table. */
     uint64_t _guest_id_ppvAdapter;
+    struct npt_wire_object_ref _ref_ppvAdapter;
     HRESULT ret;
 };
 
@@ -3385,15 +3397,21 @@ npt_sizeof_IDXGIFactory6_EnumAdapterByGpuPreference_reply(const UINT Adapter,con
 /* skip Adapter (input only) */
 /* skip GpuPreference (input only) */
 /* skip riid (input only) */
-/* skip ppvAdapter (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvAdapter: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIFactory6_EnumAdapterByGpuPreference_reply(struct npt_cs_decoder *dec,
                                                           void ** ppvAdapter,
-                                                          HRESULT *ret)
+                                                          HRESULT *ret,
+                                                          struct npt_wire_object_ref *_refs,
+                                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIFactory6,
@@ -3413,7 +3431,11 @@ npt_decode_IDXGIFactory6_EnumAdapterByGpuPreference_reply(struct npt_cs_decoder 
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppvAdapter (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -3447,32 +3469,22 @@ npt_submit_IDXGIFactory6_EnumAdapterByGpuPreference(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIFactory6_EnumAdapterByGpuPreference(struct npt_ring *ring,
-                                                   npt_object_id object_id,
-                                                   UINT Adapter,
-                                                   DXGI_GPU_PREFERENCE GpuPreference,
-                                                   const IID * riid,
-                                                   void ** ppvAdapter)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIFactory6_EnumAdapterByGpuPreference(ring, 0, object_id, Adapter, GpuPreference, riid, ppvAdapter, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIFactory6_EnumAdapterByGpuPreference(struct npt_ring *ring,
                                                   npt_object_id object_id,
                                                   UINT Adapter,
                                                   DXGI_GPU_PREFERENCE GpuPreference,
                                                   const IID * riid,
-                                                  void ** ppvAdapter)
+                                                  void ** ppvAdapter,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIFactory6_EnumAdapterByGpuPreference(ring, NPT_CMD_FLAG_REPLY, object_id, Adapter, GpuPreference, riid, ppvAdapter, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIFactory6_EnumAdapterByGpuPreference_reply(dec, ppvAdapter, &_ret);
+        npt_decode_IDXGIFactory6_EnumAdapterByGpuPreference_reply(dec, ppvAdapter, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

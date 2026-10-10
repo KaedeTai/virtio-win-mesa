@@ -187,6 +187,7 @@ struct npt_command_ID3D12PipelineLibrary_LoadGraphicsPipeline {
      * this field and inserts {_guest_id_ppPipelineState -> *ppPipelineState} in the
      * context object table. */
     uint64_t _guest_id_ppPipelineState;
+    struct npt_wire_object_ref _ref_ppPipelineState;
     HRESULT ret;
 };
 
@@ -266,15 +267,21 @@ npt_sizeof_ID3D12PipelineLibrary_LoadGraphicsPipeline_reply(const WCHAR * pName,
 /* skip pName (input only) */
 /* skip pDesc (input only) */
 /* skip riid (input only) */
-/* skip ppPipelineState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppPipelineState: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D12PipelineLibrary_LoadGraphicsPipeline_reply(struct npt_cs_decoder *dec,
                                                             void ** ppPipelineState,
-                                                            HRESULT *ret)
+                                                            HRESULT *ret,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D12PipelineLibrary,
@@ -294,7 +301,11 @@ npt_decode_ID3D12PipelineLibrary_LoadGraphicsPipeline_reply(struct npt_cs_decode
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppPipelineState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -328,32 +339,22 @@ npt_submit_ID3D12PipelineLibrary_LoadGraphicsPipeline(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D12PipelineLibrary_LoadGraphicsPipeline(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     const WCHAR * pName,
-                                                     const D3D12_GRAPHICS_PIPELINE_STATE_DESC * pDesc,
-                                                     const IID * riid,
-                                                     void ** ppPipelineState)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D12PipelineLibrary_LoadGraphicsPipeline(ring, 0, object_id, pName, pDesc, riid, ppPipelineState, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D12PipelineLibrary_LoadGraphicsPipeline(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     const WCHAR * pName,
                                                     const D3D12_GRAPHICS_PIPELINE_STATE_DESC * pDesc,
                                                     const IID * riid,
-                                                    void ** ppPipelineState)
+                                                    void ** ppPipelineState,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D12PipelineLibrary_LoadGraphicsPipeline(ring, NPT_CMD_FLAG_REPLY, object_id, pName, pDesc, riid, ppPipelineState, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D12PipelineLibrary_LoadGraphicsPipeline_reply(dec, ppPipelineState, &_ret);
+        npt_decode_ID3D12PipelineLibrary_LoadGraphicsPipeline_reply(dec, ppPipelineState, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -376,6 +377,7 @@ struct npt_command_ID3D12PipelineLibrary_LoadComputePipeline {
      * this field and inserts {_guest_id_ppPipelineState -> *ppPipelineState} in the
      * context object table. */
     uint64_t _guest_id_ppPipelineState;
+    struct npt_wire_object_ref _ref_ppPipelineState;
     HRESULT ret;
 };
 
@@ -455,15 +457,21 @@ npt_sizeof_ID3D12PipelineLibrary_LoadComputePipeline_reply(const WCHAR * pName,c
 /* skip pName (input only) */
 /* skip pDesc (input only) */
 /* skip riid (input only) */
-/* skip ppPipelineState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppPipelineState: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D12PipelineLibrary_LoadComputePipeline_reply(struct npt_cs_decoder *dec,
                                                            void ** ppPipelineState,
-                                                           HRESULT *ret)
+                                                           HRESULT *ret,
+                                                           struct npt_wire_object_ref *_refs,
+                                                           size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D12PipelineLibrary,
@@ -483,7 +491,11 @@ npt_decode_ID3D12PipelineLibrary_LoadComputePipeline_reply(struct npt_cs_decoder
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppPipelineState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -517,32 +529,22 @@ npt_submit_ID3D12PipelineLibrary_LoadComputePipeline(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D12PipelineLibrary_LoadComputePipeline(struct npt_ring *ring,
-                                                    npt_object_id object_id,
-                                                    const WCHAR * pName,
-                                                    const D3D12_COMPUTE_PIPELINE_STATE_DESC * pDesc,
-                                                    const IID * riid,
-                                                    void ** ppPipelineState)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D12PipelineLibrary_LoadComputePipeline(ring, 0, object_id, pName, pDesc, riid, ppPipelineState, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D12PipelineLibrary_LoadComputePipeline(struct npt_ring *ring,
                                                    npt_object_id object_id,
                                                    const WCHAR * pName,
                                                    const D3D12_COMPUTE_PIPELINE_STATE_DESC * pDesc,
                                                    const IID * riid,
-                                                   void ** ppPipelineState)
+                                                   void ** ppPipelineState,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D12PipelineLibrary_LoadComputePipeline(ring, NPT_CMD_FLAG_REPLY, object_id, pName, pDesc, riid, ppPipelineState, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D12PipelineLibrary_LoadComputePipeline_reply(dec, ppPipelineState, &_ret);
+        npt_decode_ID3D12PipelineLibrary_LoadComputePipeline_reply(dec, ppPipelineState, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -845,6 +847,7 @@ struct npt_command_ID3D12PipelineLibrary1_LoadPipeline {
      * this field and inserts {_guest_id_ppPipelineState -> *ppPipelineState} in the
      * context object table. */
     uint64_t _guest_id_ppPipelineState;
+    struct npt_wire_object_ref _ref_ppPipelineState;
     HRESULT ret;
 };
 
@@ -924,15 +927,21 @@ npt_sizeof_ID3D12PipelineLibrary1_LoadPipeline_reply(const WCHAR * pName,const D
 /* skip pName (input only) */
 /* skip pDesc (input only) */
 /* skip riid (input only) */
-/* skip ppPipelineState (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppPipelineState: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D12PipelineLibrary1_LoadPipeline_reply(struct npt_cs_decoder *dec,
                                                      void ** ppPipelineState,
-                                                     HRESULT *ret)
+                                                     HRESULT *ret,
+                                                     struct npt_wire_object_ref *_refs,
+                                                     size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D12PipelineLibrary1,
@@ -952,7 +961,11 @@ npt_decode_ID3D12PipelineLibrary1_LoadPipeline_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppPipelineState (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -986,32 +999,22 @@ npt_submit_ID3D12PipelineLibrary1_LoadPipeline(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D12PipelineLibrary1_LoadPipeline(struct npt_ring *ring,
-                                              npt_object_id object_id,
-                                              const WCHAR * pName,
-                                              const D3D12_PIPELINE_STATE_STREAM_DESC * pDesc,
-                                              const IID * riid,
-                                              void ** ppPipelineState)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D12PipelineLibrary1_LoadPipeline(ring, 0, object_id, pName, pDesc, riid, ppPipelineState, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D12PipelineLibrary1_LoadPipeline(struct npt_ring *ring,
                                              npt_object_id object_id,
                                              const WCHAR * pName,
                                              const D3D12_PIPELINE_STATE_STREAM_DESC * pDesc,
                                              const IID * riid,
-                                             void ** ppPipelineState)
+                                             void ** ppPipelineState,
+                                             struct npt_wire_object_ref *_refs,
+                                             size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D12PipelineLibrary1_LoadPipeline(ring, NPT_CMD_FLAG_REPLY, object_id, pName, pDesc, riid, ppPipelineState, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D12PipelineLibrary1_LoadPipeline_reply(dec, ppPipelineState, &_ret);
+        npt_decode_ID3D12PipelineLibrary1_LoadPipeline_reply(dec, ppPipelineState, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

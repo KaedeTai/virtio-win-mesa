@@ -9688,6 +9688,7 @@ struct npt_command_ID3D12Device7_AddToStateObject {
      * this field and inserts {_guest_id_ppNewStateObject -> *ppNewStateObject} in the
      * context object table. */
     uint64_t _guest_id_ppNewStateObject;
+    struct npt_wire_object_ref _ref_ppNewStateObject;
     HRESULT ret;
 };
 
@@ -9755,15 +9756,21 @@ npt_sizeof_ID3D12Device7_AddToStateObject_reply(const D3D12_STATE_OBJECT_DESC * 
 /* skip pAddition (input only) */
 /* skip pStateObjectToGrowFrom (input only) */
 /* skip riid (input only) */
-/* skip ppNewStateObject (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppNewStateObject: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D12Device7_AddToStateObject_reply(struct npt_cs_decoder *dec,
                                                 void ** ppNewStateObject,
-                                                HRESULT *ret)
+                                                HRESULT *ret,
+                                                struct npt_wire_object_ref *_refs,
+                                                size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D12Device7,
@@ -9783,7 +9790,11 @@ npt_decode_ID3D12Device7_AddToStateObject_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppNewStateObject (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -9817,32 +9828,22 @@ npt_submit_ID3D12Device7_AddToStateObject(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D12Device7_AddToStateObject(struct npt_ring *ring,
-                                         npt_object_id object_id,
-                                         const D3D12_STATE_OBJECT_DESC * pAddition,
-                                         ID3D12StateObject * pStateObjectToGrowFrom,
-                                         const IID * riid,
-                                         void ** ppNewStateObject)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D12Device7_AddToStateObject(ring, 0, object_id, pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D12Device7_AddToStateObject(struct npt_ring *ring,
                                         npt_object_id object_id,
                                         const D3D12_STATE_OBJECT_DESC * pAddition,
                                         ID3D12StateObject * pStateObjectToGrowFrom,
                                         const IID * riid,
-                                        void ** ppNewStateObject)
+                                        void ** ppNewStateObject,
+                                        struct npt_wire_object_ref *_refs,
+                                        size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D12Device7_AddToStateObject(ring, NPT_CMD_FLAG_REPLY, object_id, pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D12Device7_AddToStateObject_reply(dec, ppNewStateObject, &_ret);
+        npt_decode_ID3D12Device7_AddToStateObject_reply(dec, ppNewStateObject, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

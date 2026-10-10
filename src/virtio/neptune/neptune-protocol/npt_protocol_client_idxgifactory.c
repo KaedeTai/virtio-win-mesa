@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgifactory.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,56 @@
 
 
 /* ================================================================== */
-/* IDXGIFactory                                                       */
+/* Family idxgifactory                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgifactory_tiers[] = {
+    &NPT_IID_IDXGIFactory,
+    &NPT_IID_IDXGIFactory1,
+    &NPT_IID_IDXGIFactory2,
+    &NPT_IID_IDXGIFactory3,
+    &NPT_IID_IDXGIFactory4,
+    &NPT_IID_IDXGIFactory5,
+    &NPT_IID_IDXGIFactory6,
+    &NPT_IID_IDXGIFactory7,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_idxgifactory_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGIFACTORY,
+    NPT_OBJECT_TYPE_IDXGIFACTORY1,
+    NPT_OBJECT_TYPE_IDXGIFACTORY2,
+    NPT_OBJECT_TYPE_IDXGIFACTORY3,
+    NPT_OBJECT_TYPE_IDXGIFACTORY4,
+    NPT_OBJECT_TYPE_IDXGIFACTORY5,
+    NPT_OBJECT_TYPE_IDXGIFACTORY6,
+    NPT_OBJECT_TYPE_IDXGIFACTORY7,
+};
+
+static const GUID *const npt_com_family_idxgifactory_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgifactory = {
+    .name = "idxgifactory",
+    .index = NPT_IFACE_FAMILY_IDXGIFACTORY,
+    .tier_iids = npt_com_family_idxgifactory_tiers,
+    .tier_types = npt_com_family_idxgifactory_tier_types,
+    .tier_count = 8,
+    .ancestor_iids = npt_com_family_idxgifactory_ancestors,
+    .vtbl = (const void **)&npt_idxgifactory7_default_vtbl_storage,
+    .vtbl_install = npt_idxgifactory7_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,9 +86,16 @@ npt_idxgifactory_default_Release(void *self)
     return npt_com_default_release(self);
 }
 
+
+/* ================================================================== */
+/* IDXGIFactory (tier 0)                                  */
+/* ================================================================== */
+
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory_default_EnumAdapters(void *self, UINT Adapter, IDXGIAdapter ** ppAdapter)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIAdapter *_raw_ppAdapter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -67,22 +104,18 @@ npt_idxgifactory_default_EnumAdapters(void *self, UINT Adapter, IDXGIAdapter ** 
     IDXGIAdapter **_orig_ppAdapter = ppAdapter;
     if (ppAdapter)
         ppAdapter = (IDXGIAdapter **)&_raw_ppAdapter;
-    HRESULT _ret = npt_call_IDXGIFactory_EnumAdapters(npt_com_self_ring(self),npt_com_self_id(self),Adapter,ppAdapter);
+    HRESULT _ret = npt_call_IDXGIFactory_EnumAdapters(npt_com_self_ring(self),npt_com_self_id(self),Adapter,ppAdapter,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppAdapter) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppAdapter)
-            *_orig_ppAdapter = (IDXGIAdapter *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIAdapter,
-                (uint64_t)(uintptr_t)_raw_ppAdapter,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppAdapter = (IDXGIAdapter *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIAdapter);
         else
             *_orig_ppAdapter = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
@@ -163,36 +196,6 @@ npt_idxgifactory_default_CreateSoftwareAdapter(void *self, HMODULE Module, IDXGI
 }
 
 
-void
-npt_idxgifactory_fill_default_vtbl(struct npt_idxgifactory_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory_default_AddRef;
-    dst->Release        = npt_idxgifactory_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory_client_vtbl npt_idxgifactory_default_vtbl_storage;
-
-void
-npt_idxgifactory_install_default_vtbl(void)
-{
-    npt_idxgifactory_fill_default_vtbl(&npt_idxgifactory_default_vtbl_storage);
-}
-
 void *
 npt_idxgifactory_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -200,54 +203,23 @@ npt_idxgifactory_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory1                                                       */
+/* IDXGIFactory1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory1_default_EnumAdapters1(void *self, UINT Adapter, IDXGIAdapter1 ** ppAdapter)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIAdapter1 *_raw_ppAdapter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -256,22 +228,18 @@ npt_idxgifactory1_default_EnumAdapters1(void *self, UINT Adapter, IDXGIAdapter1 
     IDXGIAdapter1 **_orig_ppAdapter = ppAdapter;
     if (ppAdapter)
         ppAdapter = (IDXGIAdapter1 **)&_raw_ppAdapter;
-    HRESULT _ret = npt_call_IDXGIFactory1_EnumAdapters1(npt_com_self_ring(self),npt_com_self_id(self),Adapter,ppAdapter);
+    HRESULT _ret = npt_call_IDXGIFactory1_EnumAdapters1(npt_com_self_ring(self),npt_com_self_id(self),Adapter,ppAdapter,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppAdapter) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppAdapter)
-            *_orig_ppAdapter = (IDXGIAdapter1 *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIAdapter1,
-                (uint64_t)(uintptr_t)_raw_ppAdapter,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppAdapter = (IDXGIAdapter1 *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIAdapter1);
         else
             *_orig_ppAdapter = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
@@ -283,38 +251,6 @@ npt_idxgifactory1_default_IsCurrent(void *self)
 }
 
 
-void
-npt_idxgifactory1_fill_default_vtbl(struct npt_idxgifactory1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory1_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory1_default_AddRef;
-    dst->Release        = npt_idxgifactory1_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-    dst->EnumAdapters1 = npt_idxgifactory1_default_EnumAdapters1;
-    dst->IsCurrent = npt_idxgifactory1_default_IsCurrent;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory1_client_vtbl npt_idxgifactory1_default_vtbl_storage;
-
-void
-npt_idxgifactory1_install_default_vtbl(void)
-{
-    npt_idxgifactory1_fill_default_vtbl(&npt_idxgifactory1_default_vtbl_storage);
-}
-
 void *
 npt_idxgifactory1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -322,51 +258,17 @@ npt_idxgifactory1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory1_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory2                                                       */
+/* IDXGIFactory2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    &NPT_IID_IDXGIFactory2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 BOOL NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_IsWindowedStereoEnabled(void *self)
@@ -510,49 +412,6 @@ npt_idxgifactory2_default_CreateSwapChainForComposition(void *self, IUnknown * p
 }
 
 
-void
-npt_idxgifactory2_fill_default_vtbl(struct npt_idxgifactory2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory2_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory2_default_AddRef;
-    dst->Release        = npt_idxgifactory2_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-    dst->EnumAdapters1 = npt_idxgifactory1_default_EnumAdapters1;
-    dst->IsCurrent = npt_idxgifactory1_default_IsCurrent;
-    dst->IsWindowedStereoEnabled = npt_idxgifactory2_default_IsWindowedStereoEnabled;
-    dst->CreateSwapChainForHwnd = npt_idxgifactory2_default_CreateSwapChainForHwnd;
-    dst->CreateSwapChainForCoreWindow = npt_idxgifactory2_default_CreateSwapChainForCoreWindow;
-    dst->GetSharedResourceAdapterLuid = npt_idxgifactory2_default_GetSharedResourceAdapterLuid;
-    dst->RegisterStereoStatusWindow = npt_idxgifactory2_default_RegisterStereoStatusWindow;
-    dst->RegisterStereoStatusEvent = npt_idxgifactory2_default_RegisterStereoStatusEvent;
-    dst->UnregisterStereoStatus = npt_idxgifactory2_default_UnregisterStereoStatus;
-    dst->RegisterOcclusionStatusWindow = npt_idxgifactory2_default_RegisterOcclusionStatusWindow;
-    dst->RegisterOcclusionStatusEvent = npt_idxgifactory2_default_RegisterOcclusionStatusEvent;
-    dst->UnregisterOcclusionStatus = npt_idxgifactory2_default_UnregisterOcclusionStatus;
-    dst->CreateSwapChainForComposition = npt_idxgifactory2_default_CreateSwapChainForComposition;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory2_client_vtbl npt_idxgifactory2_default_vtbl_storage;
-
-void
-npt_idxgifactory2_install_default_vtbl(void)
-{
-    npt_idxgifactory2_fill_default_vtbl(&npt_idxgifactory2_default_vtbl_storage);
-}
-
 void *
 npt_idxgifactory2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -560,52 +419,17 @@ npt_idxgifactory2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory2_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory3                                                       */
+/* IDXGIFactory3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    &NPT_IID_IDXGIFactory2,
-    &NPT_IID_IDXGIFactory3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 UINT NPT_STDMETHODCALLTYPE
 npt_idxgifactory3_default_GetCreationFlags(void *self)
@@ -615,50 +439,6 @@ npt_idxgifactory3_default_GetCreationFlags(void *self)
 }
 
 
-void
-npt_idxgifactory3_fill_default_vtbl(struct npt_idxgifactory3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory3_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory3_default_AddRef;
-    dst->Release        = npt_idxgifactory3_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-    dst->EnumAdapters1 = npt_idxgifactory1_default_EnumAdapters1;
-    dst->IsCurrent = npt_idxgifactory1_default_IsCurrent;
-    dst->IsWindowedStereoEnabled = npt_idxgifactory2_default_IsWindowedStereoEnabled;
-    dst->CreateSwapChainForHwnd = npt_idxgifactory2_default_CreateSwapChainForHwnd;
-    dst->CreateSwapChainForCoreWindow = npt_idxgifactory2_default_CreateSwapChainForCoreWindow;
-    dst->GetSharedResourceAdapterLuid = npt_idxgifactory2_default_GetSharedResourceAdapterLuid;
-    dst->RegisterStereoStatusWindow = npt_idxgifactory2_default_RegisterStereoStatusWindow;
-    dst->RegisterStereoStatusEvent = npt_idxgifactory2_default_RegisterStereoStatusEvent;
-    dst->UnregisterStereoStatus = npt_idxgifactory2_default_UnregisterStereoStatus;
-    dst->RegisterOcclusionStatusWindow = npt_idxgifactory2_default_RegisterOcclusionStatusWindow;
-    dst->RegisterOcclusionStatusEvent = npt_idxgifactory2_default_RegisterOcclusionStatusEvent;
-    dst->UnregisterOcclusionStatus = npt_idxgifactory2_default_UnregisterOcclusionStatus;
-    dst->CreateSwapChainForComposition = npt_idxgifactory2_default_CreateSwapChainForComposition;
-    dst->GetCreationFlags = npt_idxgifactory3_default_GetCreationFlags;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory3_client_vtbl npt_idxgifactory3_default_vtbl_storage;
-
-void
-npt_idxgifactory3_install_default_vtbl(void)
-{
-    npt_idxgifactory3_fill_default_vtbl(&npt_idxgifactory3_default_vtbl_storage);
-}
-
 void *
 npt_idxgifactory3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -666,57 +446,23 @@ npt_idxgifactory3_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory3_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory4                                                       */
+/* IDXGIFactory4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    &NPT_IID_IDXGIFactory2,
-    &NPT_IID_IDXGIFactory3,
-    &NPT_IID_IDXGIFactory4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory4_default_EnumAdapterByLuid(void *self, LUID AdapterLuid, const IID * riid, void ** ppvAdapter)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppvAdapter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -725,28 +471,26 @@ npt_idxgifactory4_default_EnumAdapterByLuid(void *self, LUID AdapterLuid, const 
     void **_orig_ppvAdapter = ppvAdapter;
     if (ppvAdapter)
         ppvAdapter = (void **)&_raw_ppvAdapter;
-    HRESULT _ret = npt_call_IDXGIFactory4_EnumAdapterByLuid(npt_com_self_ring(self),npt_com_self_id(self),AdapterLuid,riid,ppvAdapter);
+    HRESULT _ret = npt_call_IDXGIFactory4_EnumAdapterByLuid(npt_com_self_ring(self),npt_com_self_id(self),AdapterLuid,riid,ppvAdapter,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppvAdapter) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppvAdapter)
-            *_orig_ppvAdapter = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppvAdapter,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppvAdapter = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppvAdapter = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory4_default_EnumWarpAdapter(void *self, const IID * riid, void ** ppvAdapter)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppvAdapter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -755,70 +499,21 @@ npt_idxgifactory4_default_EnumWarpAdapter(void *self, const IID * riid, void ** 
     void **_orig_ppvAdapter = ppvAdapter;
     if (ppvAdapter)
         ppvAdapter = (void **)&_raw_ppvAdapter;
-    npt_async_IDXGIFactory4_EnumWarpAdapter(npt_com_self_ring(self),npt_com_self_id(self),riid,ppvAdapter);
+    HRESULT _ret = npt_call_IDXGIFactory4_EnumWarpAdapter(npt_com_self_ring(self),npt_com_self_id(self),riid,ppvAdapter,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppvAdapter) {
-        if (_raw_ppvAdapter)
-            *_orig_ppvAdapter = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppvAdapter,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppvAdapter = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppvAdapter = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
-
-void
-npt_idxgifactory4_fill_default_vtbl(struct npt_idxgifactory4_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory4_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory4_default_AddRef;
-    dst->Release        = npt_idxgifactory4_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-    dst->EnumAdapters1 = npt_idxgifactory1_default_EnumAdapters1;
-    dst->IsCurrent = npt_idxgifactory1_default_IsCurrent;
-    dst->IsWindowedStereoEnabled = npt_idxgifactory2_default_IsWindowedStereoEnabled;
-    dst->CreateSwapChainForHwnd = npt_idxgifactory2_default_CreateSwapChainForHwnd;
-    dst->CreateSwapChainForCoreWindow = npt_idxgifactory2_default_CreateSwapChainForCoreWindow;
-    dst->GetSharedResourceAdapterLuid = npt_idxgifactory2_default_GetSharedResourceAdapterLuid;
-    dst->RegisterStereoStatusWindow = npt_idxgifactory2_default_RegisterStereoStatusWindow;
-    dst->RegisterStereoStatusEvent = npt_idxgifactory2_default_RegisterStereoStatusEvent;
-    dst->UnregisterStereoStatus = npt_idxgifactory2_default_UnregisterStereoStatus;
-    dst->RegisterOcclusionStatusWindow = npt_idxgifactory2_default_RegisterOcclusionStatusWindow;
-    dst->RegisterOcclusionStatusEvent = npt_idxgifactory2_default_RegisterOcclusionStatusEvent;
-    dst->UnregisterOcclusionStatus = npt_idxgifactory2_default_UnregisterOcclusionStatus;
-    dst->CreateSwapChainForComposition = npt_idxgifactory2_default_CreateSwapChainForComposition;
-    dst->GetCreationFlags = npt_idxgifactory3_default_GetCreationFlags;
-    dst->EnumAdapterByLuid = npt_idxgifactory4_default_EnumAdapterByLuid;
-    dst->EnumWarpAdapter = npt_idxgifactory4_default_EnumWarpAdapter;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory4_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory4_client_vtbl npt_idxgifactory4_default_vtbl_storage;
-
-void
-npt_idxgifactory4_install_default_vtbl(void)
-{
-    npt_idxgifactory4_fill_default_vtbl(&npt_idxgifactory4_default_vtbl_storage);
-}
 
 void *
 npt_idxgifactory4_client_create(struct npt_device *dev, uint64_t host_id)
@@ -827,54 +522,17 @@ npt_idxgifactory4_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory4_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 4;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory5                                                       */
+/* IDXGIFactory5 (tier 5)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory5_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    &NPT_IID_IDXGIFactory2,
-    &NPT_IID_IDXGIFactory3,
-    &NPT_IID_IDXGIFactory4,
-    &NPT_IID_IDXGIFactory5,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory5_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory5_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory5_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory5_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory5_default_CheckFeatureSupport(void *self, DXGI_FEATURE Feature, void * pFeatureSupportData, UINT FeatureSupportDataSize)
@@ -884,53 +542,6 @@ npt_idxgifactory5_default_CheckFeatureSupport(void *self, DXGI_FEATURE Feature, 
 }
 
 
-void
-npt_idxgifactory5_fill_default_vtbl(struct npt_idxgifactory5_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory5_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory5_default_AddRef;
-    dst->Release        = npt_idxgifactory5_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-    dst->EnumAdapters1 = npt_idxgifactory1_default_EnumAdapters1;
-    dst->IsCurrent = npt_idxgifactory1_default_IsCurrent;
-    dst->IsWindowedStereoEnabled = npt_idxgifactory2_default_IsWindowedStereoEnabled;
-    dst->CreateSwapChainForHwnd = npt_idxgifactory2_default_CreateSwapChainForHwnd;
-    dst->CreateSwapChainForCoreWindow = npt_idxgifactory2_default_CreateSwapChainForCoreWindow;
-    dst->GetSharedResourceAdapterLuid = npt_idxgifactory2_default_GetSharedResourceAdapterLuid;
-    dst->RegisterStereoStatusWindow = npt_idxgifactory2_default_RegisterStereoStatusWindow;
-    dst->RegisterStereoStatusEvent = npt_idxgifactory2_default_RegisterStereoStatusEvent;
-    dst->UnregisterStereoStatus = npt_idxgifactory2_default_UnregisterStereoStatus;
-    dst->RegisterOcclusionStatusWindow = npt_idxgifactory2_default_RegisterOcclusionStatusWindow;
-    dst->RegisterOcclusionStatusEvent = npt_idxgifactory2_default_RegisterOcclusionStatusEvent;
-    dst->UnregisterOcclusionStatus = npt_idxgifactory2_default_UnregisterOcclusionStatus;
-    dst->CreateSwapChainForComposition = npt_idxgifactory2_default_CreateSwapChainForComposition;
-    dst->GetCreationFlags = npt_idxgifactory3_default_GetCreationFlags;
-    dst->EnumAdapterByLuid = npt_idxgifactory4_default_EnumAdapterByLuid;
-    dst->EnumWarpAdapter = npt_idxgifactory4_default_EnumWarpAdapter;
-    dst->CheckFeatureSupport = npt_idxgifactory5_default_CheckFeatureSupport;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory5_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory5_client_vtbl npt_idxgifactory5_default_vtbl_storage;
-
-void
-npt_idxgifactory5_install_default_vtbl(void)
-{
-    npt_idxgifactory5_fill_default_vtbl(&npt_idxgifactory5_default_vtbl_storage);
-}
-
 void *
 npt_idxgifactory5_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -938,59 +549,23 @@ npt_idxgifactory5_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory5_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 5;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory6                                                       */
+/* IDXGIFactory6 (tier 6)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory6_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    &NPT_IID_IDXGIFactory2,
-    &NPT_IID_IDXGIFactory3,
-    &NPT_IID_IDXGIFactory4,
-    &NPT_IID_IDXGIFactory5,
-    &NPT_IID_IDXGIFactory6,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory6_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory6_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory6_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory6_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory6_default_EnumAdapterByGpuPreference(void *self, UINT Adapter, DXGI_GPU_PREFERENCE GpuPreference, const IID * riid, void ** ppvAdapter)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppvAdapter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -999,73 +574,21 @@ npt_idxgifactory6_default_EnumAdapterByGpuPreference(void *self, UINT Adapter, D
     void **_orig_ppvAdapter = ppvAdapter;
     if (ppvAdapter)
         ppvAdapter = (void **)&_raw_ppvAdapter;
-    HRESULT _ret = npt_call_IDXGIFactory6_EnumAdapterByGpuPreference(npt_com_self_ring(self),npt_com_self_id(self),Adapter,GpuPreference,riid,ppvAdapter);
+    HRESULT _ret = npt_call_IDXGIFactory6_EnumAdapterByGpuPreference(npt_com_self_ring(self),npt_com_self_id(self),Adapter,GpuPreference,riid,ppvAdapter,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppvAdapter) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppvAdapter)
-            *_orig_ppvAdapter = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppvAdapter,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppvAdapter = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppvAdapter = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
-
-void
-npt_idxgifactory6_fill_default_vtbl(struct npt_idxgifactory6_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgifactory6_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory6_default_AddRef;
-    dst->Release        = npt_idxgifactory6_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->EnumAdapters = npt_idxgifactory_default_EnumAdapters;
-    dst->MakeWindowAssociation = npt_idxgifactory_default_MakeWindowAssociation;
-    dst->GetWindowAssociation = npt_idxgifactory_default_GetWindowAssociation;
-    dst->CreateSwapChain = npt_idxgifactory_default_CreateSwapChain;
-    dst->CreateSoftwareAdapter = npt_idxgifactory_default_CreateSoftwareAdapter;
-    dst->EnumAdapters1 = npt_idxgifactory1_default_EnumAdapters1;
-    dst->IsCurrent = npt_idxgifactory1_default_IsCurrent;
-    dst->IsWindowedStereoEnabled = npt_idxgifactory2_default_IsWindowedStereoEnabled;
-    dst->CreateSwapChainForHwnd = npt_idxgifactory2_default_CreateSwapChainForHwnd;
-    dst->CreateSwapChainForCoreWindow = npt_idxgifactory2_default_CreateSwapChainForCoreWindow;
-    dst->GetSharedResourceAdapterLuid = npt_idxgifactory2_default_GetSharedResourceAdapterLuid;
-    dst->RegisterStereoStatusWindow = npt_idxgifactory2_default_RegisterStereoStatusWindow;
-    dst->RegisterStereoStatusEvent = npt_idxgifactory2_default_RegisterStereoStatusEvent;
-    dst->UnregisterStereoStatus = npt_idxgifactory2_default_UnregisterStereoStatus;
-    dst->RegisterOcclusionStatusWindow = npt_idxgifactory2_default_RegisterOcclusionStatusWindow;
-    dst->RegisterOcclusionStatusEvent = npt_idxgifactory2_default_RegisterOcclusionStatusEvent;
-    dst->UnregisterOcclusionStatus = npt_idxgifactory2_default_UnregisterOcclusionStatus;
-    dst->CreateSwapChainForComposition = npt_idxgifactory2_default_CreateSwapChainForComposition;
-    dst->GetCreationFlags = npt_idxgifactory3_default_GetCreationFlags;
-    dst->EnumAdapterByLuid = npt_idxgifactory4_default_EnumAdapterByLuid;
-    dst->EnumWarpAdapter = npt_idxgifactory4_default_EnumWarpAdapter;
-    dst->CheckFeatureSupport = npt_idxgifactory5_default_CheckFeatureSupport;
-    dst->EnumAdapterByGpuPreference = npt_idxgifactory6_default_EnumAdapterByGpuPreference;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgifactory6_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgifactory6_client_vtbl npt_idxgifactory6_default_vtbl_storage;
-
-void
-npt_idxgifactory6_install_default_vtbl(void)
-{
-    npt_idxgifactory6_fill_default_vtbl(&npt_idxgifactory6_default_vtbl_storage);
-}
 
 void *
 npt_idxgifactory6_client_create(struct npt_device *dev, uint64_t host_id)
@@ -1074,56 +597,17 @@ npt_idxgifactory6_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgifactory6_default_vtbl_storage,
+        (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 6;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGIFactory7                                                       */
+/* IDXGIFactory7 (tier 7)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactory7_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIFactory,
-    &NPT_IID_IDXGIFactory1,
-    &NPT_IID_IDXGIFactory2,
-    &NPT_IID_IDXGIFactory3,
-    &NPT_IID_IDXGIFactory4,
-    &NPT_IID_IDXGIFactory5,
-    &NPT_IID_IDXGIFactory6,
-    &NPT_IID_IDXGIFactory7,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory7_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactory7_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory7_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory7_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory7_default_RegisterAdaptersChangedEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
@@ -1147,9 +631,9 @@ npt_idxgifactory7_default_UnregisterAdaptersChangedEvent(void *self, DWORD dwCoo
 void
 npt_idxgifactory7_fill_default_vtbl(struct npt_idxgifactory7_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_idxgifactory7_default_QueryInterface;
-    dst->AddRef         = npt_idxgifactory7_default_AddRef;
-    dst->Release        = npt_idxgifactory7_default_Release;
+    dst->QueryInterface = npt_idxgifactory_default_QueryInterface;
+    dst->AddRef         = npt_idxgifactory_default_AddRef;
+    dst->Release        = npt_idxgifactory_default_Release;
     dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
     dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
     dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
@@ -1182,7 +666,7 @@ npt_idxgifactory7_fill_default_vtbl(struct npt_idxgifactory7_client_vtbl *dst)
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgifactory7_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -1203,6 +687,8 @@ npt_idxgifactory7_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgifactory7_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactory;
+    p->tier = 7;
     return p;
 }
 

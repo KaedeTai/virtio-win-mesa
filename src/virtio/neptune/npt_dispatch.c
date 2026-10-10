@@ -19,10 +19,12 @@
 
 HRESULT
 npt_dispatch_com_query_interface(struct npt_ring *ring, uint64_t src_id,
-                                 const GUID *iid, uint64_t guest_id)
+                                 const GUID *iid, uint64_t guest_id,
+                                 struct npt_wire_object_ref *ref)
 {
-   if (!ring || !src_id || !iid || !guest_id)
+   if (!ring || !src_id || !iid || !guest_id || !ref)
       return NPT_E_FAIL;
+   memset(ref, 0, sizeof(*ref));
 
    struct npt_cmd_com_query_interface cmd;
    memset(&cmd, 0, sizeof(cmd));
@@ -52,6 +54,8 @@ npt_dispatch_com_query_interface(struct npt_ring *ring, uint64_t src_id,
       const struct npt_cmd_com_query_interface_reply *reply =
          (const struct npt_cmd_com_query_interface_reply *)dec->cur;
       hr = (HRESULT)reply->header.cmd_return;
+      if (hr == NPT_S_OK)
+         *ref = reply->ref;
    }
    if (dec)
       npt_ring_free_command_reply(ring, &submit);

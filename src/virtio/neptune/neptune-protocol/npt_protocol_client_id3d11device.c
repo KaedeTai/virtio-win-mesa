@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d11device.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,51 @@
 
 
 /* ================================================================== */
-/* ID3D11Device                                                       */
+/* Family id3d11device                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11device_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d11device_tiers[] = {
     &NPT_IID_ID3D11Device,
+    &NPT_IID_ID3D11Device1,
+    &NPT_IID_ID3D11Device2,
+    &NPT_IID_ID3D11Device3,
+    &NPT_IID_ID3D11Device4,
+    &NPT_IID_ID3D11Device5,
     NULL,
+};
+
+static const npt_object_type npt_com_family_id3d11device_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D11DEVICE,
+    NPT_OBJECT_TYPE_ID3D11DEVICE1,
+    NPT_OBJECT_TYPE_ID3D11DEVICE2,
+    NPT_OBJECT_TYPE_ID3D11DEVICE3,
+    NPT_OBJECT_TYPE_ID3D11DEVICE4,
+    NPT_OBJECT_TYPE_ID3D11DEVICE5,
+};
+
+static const GUID *const npt_com_family_id3d11device_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d11device = {
+    .name = "id3d11device",
+    .index = NPT_IFACE_FAMILY_ID3D11DEVICE,
+    .tier_iids = npt_com_family_id3d11device_tiers,
+    .tier_types = npt_com_family_id3d11device_tier_types,
+    .tier_count = 6,
+    .ancestor_iids = npt_com_family_id3d11device_ancestors,
+    .vtbl = (const void **)&npt_id3d11device5_default_vtbl_storage,
+    .vtbl_install = npt_id3d11device5_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11device_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -54,6 +80,11 @@ npt_id3d11device_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D11Device (tier 0)                                  */
+/* ================================================================== */
 
 /* skip_default: ID3D11Device::CreateBuffer -- override required.
  * The default body aborts loudly so a missing override is a runtime
@@ -840,6 +871,15 @@ npt_id3d11device_default_GetDeviceRemovedReason(void *self)
 void NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_GetImmediateContext(void *self, ID3D11DeviceContext ** ppImmediateContext)
 {
+    if (ppImmediateContext) {
+        void *_memo = npt_com_memo_lookup(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device, NPT_METHOD_ID3D11Device_GetImmediateContext), &NPT_IID_ID3D11DeviceContext);
+        if (_memo) {
+            *ppImmediateContext = (ID3D11DeviceContext *)_memo;
+            return;
+        }
+    }
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11DeviceContext *_raw_ppImmediateContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -848,17 +888,21 @@ npt_id3d11device_default_GetImmediateContext(void *self, ID3D11DeviceContext ** 
     ID3D11DeviceContext **_orig_ppImmediateContext = ppImmediateContext;
     if (ppImmediateContext)
         ppImmediateContext = (ID3D11DeviceContext **)&_raw_ppImmediateContext;
-    npt_async_ID3D11Device_GetImmediateContext(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext);
+    npt_call_ID3D11Device_GetImmediateContext(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppImmediateContext) {
-        if (_raw_ppImmediateContext)
-            *_orig_ppImmediateContext = (ID3D11DeviceContext *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DeviceContext,
-                (uint64_t)(uintptr_t)_raw_ppImmediateContext,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppImmediateContext = (ID3D11DeviceContext *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DeviceContext);
         else
             *_orig_ppImmediateContext = NULL;
+        if (*_orig_ppImmediateContext)
+            npt_com_memo_store(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device, NPT_METHOD_ID3D11Device_GetImmediateContext), &NPT_IID_ID3D11DeviceContext,
+                               *_orig_ppImmediateContext);
     }
+    _ref_i++;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -880,67 +924,6 @@ npt_id3d11device_default_GetExceptionMode(void *self)
 }
 
 
-void
-npt_id3d11device_fill_default_vtbl(struct npt_id3d11device_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11device_default_QueryInterface;
-    dst->AddRef         = npt_id3d11device_default_AddRef;
-    dst->Release        = npt_id3d11device_default_Release;
-    dst->CreateBuffer = npt_id3d11device_default_CreateBuffer;
-    dst->CreateTexture1D = npt_id3d11device_default_CreateTexture1D;
-    dst->CreateTexture2D = npt_id3d11device_default_CreateTexture2D;
-    dst->CreateTexture3D = npt_id3d11device_default_CreateTexture3D;
-    dst->CreateShaderResourceView = npt_id3d11device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d11device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d11device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d11device_default_CreateDepthStencilView;
-    dst->CreateInputLayout = npt_id3d11device_default_CreateInputLayout;
-    dst->CreateVertexShader = npt_id3d11device_default_CreateVertexShader;
-    dst->CreateGeometryShader = npt_id3d11device_default_CreateGeometryShader;
-    dst->CreateGeometryShaderWithStreamOutput = npt_id3d11device_default_CreateGeometryShaderWithStreamOutput;
-    dst->CreatePixelShader = npt_id3d11device_default_CreatePixelShader;
-    dst->CreateHullShader = npt_id3d11device_default_CreateHullShader;
-    dst->CreateDomainShader = npt_id3d11device_default_CreateDomainShader;
-    dst->CreateComputeShader = npt_id3d11device_default_CreateComputeShader;
-    dst->CreateClassLinkage = npt_id3d11device_default_CreateClassLinkage;
-    dst->CreateBlendState = npt_id3d11device_default_CreateBlendState;
-    dst->CreateDepthStencilState = npt_id3d11device_default_CreateDepthStencilState;
-    dst->CreateRasterizerState = npt_id3d11device_default_CreateRasterizerState;
-    dst->CreateSamplerState = npt_id3d11device_default_CreateSamplerState;
-    dst->CreateQuery = npt_id3d11device_default_CreateQuery;
-    dst->CreatePredicate = npt_id3d11device_default_CreatePredicate;
-    dst->CreateCounter = npt_id3d11device_default_CreateCounter;
-    dst->CreateDeferredContext = npt_id3d11device_default_CreateDeferredContext;
-    dst->OpenSharedResource = npt_id3d11device_default_OpenSharedResource;
-    dst->CheckFormatSupport = npt_id3d11device_default_CheckFormatSupport;
-    dst->CheckMultisampleQualityLevels = npt_id3d11device_default_CheckMultisampleQualityLevels;
-    dst->CheckCounterInfo = npt_id3d11device_default_CheckCounterInfo;
-    dst->CheckCounter = npt_id3d11device_default_CheckCounter;
-    dst->CheckFeatureSupport = npt_id3d11device_default_CheckFeatureSupport;
-    dst->GetPrivateData = npt_id3d11device_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11device_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11device_default_SetPrivateDataInterface;
-    dst->GetFeatureLevel = npt_id3d11device_default_GetFeatureLevel;
-    dst->GetCreationFlags = npt_id3d11device_default_GetCreationFlags;
-    dst->GetDeviceRemovedReason = npt_id3d11device_default_GetDeviceRemovedReason;
-    dst->GetImmediateContext = npt_id3d11device_default_GetImmediateContext;
-    dst->SetExceptionMode = npt_id3d11device_default_SetExceptionMode;
-    dst->GetExceptionMode = npt_id3d11device_default_GetExceptionMode;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11device_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11device_client_vtbl npt_id3d11device_default_vtbl_storage;
-
-void
-npt_id3d11device_install_default_vtbl(void)
-{
-    npt_id3d11device_fill_default_vtbl(&npt_id3d11device_default_vtbl_storage);
-}
-
 void *
 npt_id3d11device_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -948,53 +931,30 @@ npt_id3d11device_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11device_default_vtbl_storage,
+        (const void **)&npt_id3d11device5_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11device;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11Device1                                                       */
+/* ID3D11Device1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11device1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11Device,
-    &NPT_IID_ID3D11Device1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11device1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11device1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11device1_default_GetImmediateContext1(void *self, ID3D11DeviceContext1 ** ppImmediateContext)
 {
+    if (ppImmediateContext) {
+        void *_memo = npt_com_memo_lookup(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device1, NPT_METHOD_ID3D11Device1_GetImmediateContext1), &NPT_IID_ID3D11DeviceContext1);
+        if (_memo) {
+            *ppImmediateContext = (ID3D11DeviceContext1 *)_memo;
+            return;
+        }
+    }
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11DeviceContext1 *_raw_ppImmediateContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1003,17 +963,21 @@ npt_id3d11device1_default_GetImmediateContext1(void *self, ID3D11DeviceContext1 
     ID3D11DeviceContext1 **_orig_ppImmediateContext = ppImmediateContext;
     if (ppImmediateContext)
         ppImmediateContext = (ID3D11DeviceContext1 **)&_raw_ppImmediateContext;
-    npt_async_ID3D11Device1_GetImmediateContext1(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext);
+    npt_call_ID3D11Device1_GetImmediateContext1(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppImmediateContext) {
-        if (_raw_ppImmediateContext)
-            *_orig_ppImmediateContext = (ID3D11DeviceContext1 *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DeviceContext1,
-                (uint64_t)(uintptr_t)_raw_ppImmediateContext,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppImmediateContext = (ID3D11DeviceContext1 *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DeviceContext1);
         else
             *_orig_ppImmediateContext = NULL;
+        if (*_orig_ppImmediateContext)
+            npt_com_memo_store(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device1, NPT_METHOD_ID3D11Device1_GetImmediateContext1), &NPT_IID_ID3D11DeviceContext1,
+                               *_orig_ppImmediateContext);
     }
+    _ref_i++;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -1192,74 +1156,6 @@ npt_id3d11device1_default_OpenSharedResourceByName(void *self, const WCHAR * lpN
 }
 
 
-void
-npt_id3d11device1_fill_default_vtbl(struct npt_id3d11device1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11device1_default_QueryInterface;
-    dst->AddRef         = npt_id3d11device1_default_AddRef;
-    dst->Release        = npt_id3d11device1_default_Release;
-    dst->CreateBuffer = npt_id3d11device_default_CreateBuffer;
-    dst->CreateTexture1D = npt_id3d11device_default_CreateTexture1D;
-    dst->CreateTexture2D = npt_id3d11device_default_CreateTexture2D;
-    dst->CreateTexture3D = npt_id3d11device_default_CreateTexture3D;
-    dst->CreateShaderResourceView = npt_id3d11device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d11device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d11device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d11device_default_CreateDepthStencilView;
-    dst->CreateInputLayout = npt_id3d11device_default_CreateInputLayout;
-    dst->CreateVertexShader = npt_id3d11device_default_CreateVertexShader;
-    dst->CreateGeometryShader = npt_id3d11device_default_CreateGeometryShader;
-    dst->CreateGeometryShaderWithStreamOutput = npt_id3d11device_default_CreateGeometryShaderWithStreamOutput;
-    dst->CreatePixelShader = npt_id3d11device_default_CreatePixelShader;
-    dst->CreateHullShader = npt_id3d11device_default_CreateHullShader;
-    dst->CreateDomainShader = npt_id3d11device_default_CreateDomainShader;
-    dst->CreateComputeShader = npt_id3d11device_default_CreateComputeShader;
-    dst->CreateClassLinkage = npt_id3d11device_default_CreateClassLinkage;
-    dst->CreateBlendState = npt_id3d11device_default_CreateBlendState;
-    dst->CreateDepthStencilState = npt_id3d11device_default_CreateDepthStencilState;
-    dst->CreateRasterizerState = npt_id3d11device_default_CreateRasterizerState;
-    dst->CreateSamplerState = npt_id3d11device_default_CreateSamplerState;
-    dst->CreateQuery = npt_id3d11device_default_CreateQuery;
-    dst->CreatePredicate = npt_id3d11device_default_CreatePredicate;
-    dst->CreateCounter = npt_id3d11device_default_CreateCounter;
-    dst->CreateDeferredContext = npt_id3d11device_default_CreateDeferredContext;
-    dst->OpenSharedResource = npt_id3d11device_default_OpenSharedResource;
-    dst->CheckFormatSupport = npt_id3d11device_default_CheckFormatSupport;
-    dst->CheckMultisampleQualityLevels = npt_id3d11device_default_CheckMultisampleQualityLevels;
-    dst->CheckCounterInfo = npt_id3d11device_default_CheckCounterInfo;
-    dst->CheckCounter = npt_id3d11device_default_CheckCounter;
-    dst->CheckFeatureSupport = npt_id3d11device_default_CheckFeatureSupport;
-    dst->GetPrivateData = npt_id3d11device_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11device_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11device_default_SetPrivateDataInterface;
-    dst->GetFeatureLevel = npt_id3d11device_default_GetFeatureLevel;
-    dst->GetCreationFlags = npt_id3d11device_default_GetCreationFlags;
-    dst->GetDeviceRemovedReason = npt_id3d11device_default_GetDeviceRemovedReason;
-    dst->GetImmediateContext = npt_id3d11device_default_GetImmediateContext;
-    dst->SetExceptionMode = npt_id3d11device_default_SetExceptionMode;
-    dst->GetExceptionMode = npt_id3d11device_default_GetExceptionMode;
-    dst->GetImmediateContext1 = npt_id3d11device1_default_GetImmediateContext1;
-    dst->CreateDeferredContext1 = npt_id3d11device1_default_CreateDeferredContext1;
-    dst->CreateBlendState1 = npt_id3d11device1_default_CreateBlendState1;
-    dst->CreateRasterizerState1 = npt_id3d11device1_default_CreateRasterizerState1;
-    dst->CreateDeviceContextState = npt_id3d11device1_default_CreateDeviceContextState;
-    dst->OpenSharedResource1 = npt_id3d11device1_default_OpenSharedResource1;
-    dst->OpenSharedResourceByName = npt_id3d11device1_default_OpenSharedResourceByName;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11device1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11device1_client_vtbl npt_id3d11device1_default_vtbl_storage;
-
-void
-npt_id3d11device1_install_default_vtbl(void)
-{
-    npt_id3d11device1_fill_default_vtbl(&npt_id3d11device1_default_vtbl_storage);
-}
-
 void *
 npt_id3d11device1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1267,54 +1163,30 @@ npt_id3d11device1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11device1_default_vtbl_storage,
+        (const void **)&npt_id3d11device5_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11device;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11Device2                                                       */
+/* ID3D11Device2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11device2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11Device,
-    &NPT_IID_ID3D11Device1,
-    &NPT_IID_ID3D11Device2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11device2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11device2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11device2_default_GetImmediateContext2(void *self, ID3D11DeviceContext2 ** ppImmediateContext)
 {
+    if (ppImmediateContext) {
+        void *_memo = npt_com_memo_lookup(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device2, NPT_METHOD_ID3D11Device2_GetImmediateContext2), &NPT_IID_ID3D11DeviceContext2);
+        if (_memo) {
+            *ppImmediateContext = (ID3D11DeviceContext2 *)_memo;
+            return;
+        }
+    }
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11DeviceContext2 *_raw_ppImmediateContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1323,17 +1195,21 @@ npt_id3d11device2_default_GetImmediateContext2(void *self, ID3D11DeviceContext2 
     ID3D11DeviceContext2 **_orig_ppImmediateContext = ppImmediateContext;
     if (ppImmediateContext)
         ppImmediateContext = (ID3D11DeviceContext2 **)&_raw_ppImmediateContext;
-    npt_async_ID3D11Device2_GetImmediateContext2(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext);
+    npt_call_ID3D11Device2_GetImmediateContext2(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppImmediateContext) {
-        if (_raw_ppImmediateContext)
-            *_orig_ppImmediateContext = (ID3D11DeviceContext2 *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DeviceContext2,
-                (uint64_t)(uintptr_t)_raw_ppImmediateContext,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppImmediateContext = (ID3D11DeviceContext2 *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DeviceContext2);
         else
             *_orig_ppImmediateContext = NULL;
+        if (*_orig_ppImmediateContext)
+            npt_com_memo_store(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device2, NPT_METHOD_ID3D11Device2_GetImmediateContext2), &NPT_IID_ID3D11DeviceContext2,
+                               *_orig_ppImmediateContext);
     }
+    _ref_i++;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -1379,78 +1255,6 @@ npt_id3d11device2_default_CheckMultisampleQualityLevels1(void *self, DXGI_FORMAT
 }
 
 
-void
-npt_id3d11device2_fill_default_vtbl(struct npt_id3d11device2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11device2_default_QueryInterface;
-    dst->AddRef         = npt_id3d11device2_default_AddRef;
-    dst->Release        = npt_id3d11device2_default_Release;
-    dst->CreateBuffer = npt_id3d11device_default_CreateBuffer;
-    dst->CreateTexture1D = npt_id3d11device_default_CreateTexture1D;
-    dst->CreateTexture2D = npt_id3d11device_default_CreateTexture2D;
-    dst->CreateTexture3D = npt_id3d11device_default_CreateTexture3D;
-    dst->CreateShaderResourceView = npt_id3d11device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d11device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d11device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d11device_default_CreateDepthStencilView;
-    dst->CreateInputLayout = npt_id3d11device_default_CreateInputLayout;
-    dst->CreateVertexShader = npt_id3d11device_default_CreateVertexShader;
-    dst->CreateGeometryShader = npt_id3d11device_default_CreateGeometryShader;
-    dst->CreateGeometryShaderWithStreamOutput = npt_id3d11device_default_CreateGeometryShaderWithStreamOutput;
-    dst->CreatePixelShader = npt_id3d11device_default_CreatePixelShader;
-    dst->CreateHullShader = npt_id3d11device_default_CreateHullShader;
-    dst->CreateDomainShader = npt_id3d11device_default_CreateDomainShader;
-    dst->CreateComputeShader = npt_id3d11device_default_CreateComputeShader;
-    dst->CreateClassLinkage = npt_id3d11device_default_CreateClassLinkage;
-    dst->CreateBlendState = npt_id3d11device_default_CreateBlendState;
-    dst->CreateDepthStencilState = npt_id3d11device_default_CreateDepthStencilState;
-    dst->CreateRasterizerState = npt_id3d11device_default_CreateRasterizerState;
-    dst->CreateSamplerState = npt_id3d11device_default_CreateSamplerState;
-    dst->CreateQuery = npt_id3d11device_default_CreateQuery;
-    dst->CreatePredicate = npt_id3d11device_default_CreatePredicate;
-    dst->CreateCounter = npt_id3d11device_default_CreateCounter;
-    dst->CreateDeferredContext = npt_id3d11device_default_CreateDeferredContext;
-    dst->OpenSharedResource = npt_id3d11device_default_OpenSharedResource;
-    dst->CheckFormatSupport = npt_id3d11device_default_CheckFormatSupport;
-    dst->CheckMultisampleQualityLevels = npt_id3d11device_default_CheckMultisampleQualityLevels;
-    dst->CheckCounterInfo = npt_id3d11device_default_CheckCounterInfo;
-    dst->CheckCounter = npt_id3d11device_default_CheckCounter;
-    dst->CheckFeatureSupport = npt_id3d11device_default_CheckFeatureSupport;
-    dst->GetPrivateData = npt_id3d11device_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11device_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11device_default_SetPrivateDataInterface;
-    dst->GetFeatureLevel = npt_id3d11device_default_GetFeatureLevel;
-    dst->GetCreationFlags = npt_id3d11device_default_GetCreationFlags;
-    dst->GetDeviceRemovedReason = npt_id3d11device_default_GetDeviceRemovedReason;
-    dst->GetImmediateContext = npt_id3d11device_default_GetImmediateContext;
-    dst->SetExceptionMode = npt_id3d11device_default_SetExceptionMode;
-    dst->GetExceptionMode = npt_id3d11device_default_GetExceptionMode;
-    dst->GetImmediateContext1 = npt_id3d11device1_default_GetImmediateContext1;
-    dst->CreateDeferredContext1 = npt_id3d11device1_default_CreateDeferredContext1;
-    dst->CreateBlendState1 = npt_id3d11device1_default_CreateBlendState1;
-    dst->CreateRasterizerState1 = npt_id3d11device1_default_CreateRasterizerState1;
-    dst->CreateDeviceContextState = npt_id3d11device1_default_CreateDeviceContextState;
-    dst->OpenSharedResource1 = npt_id3d11device1_default_OpenSharedResource1;
-    dst->OpenSharedResourceByName = npt_id3d11device1_default_OpenSharedResourceByName;
-    dst->GetImmediateContext2 = npt_id3d11device2_default_GetImmediateContext2;
-    dst->CreateDeferredContext2 = npt_id3d11device2_default_CreateDeferredContext2;
-    dst->GetResourceTiling = npt_id3d11device2_default_GetResourceTiling;
-    dst->CheckMultisampleQualityLevels1 = npt_id3d11device2_default_CheckMultisampleQualityLevels1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11device2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11device2_client_vtbl npt_id3d11device2_default_vtbl_storage;
-
-void
-npt_id3d11device2_install_default_vtbl(void)
-{
-    npt_id3d11device2_fill_default_vtbl(&npt_id3d11device2_default_vtbl_storage);
-}
-
 void *
 npt_id3d11device2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1458,51 +1262,17 @@ npt_id3d11device2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11device2_default_vtbl_storage,
+        (const void **)&npt_id3d11device5_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11device;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11Device3                                                       */
+/* ID3D11Device3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11device3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11Device,
-    &NPT_IID_ID3D11Device1,
-    &NPT_IID_ID3D11Device2,
-    &NPT_IID_ID3D11Device3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11device3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11device3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateTexture2D1(void *self, const D3D11_TEXTURE2D_DESC1 * pDesc1, const D3D11_SUBRESOURCE_DATA * pInitialData, ID3D11Texture2D1 ** ppTexture2D)
@@ -1710,6 +1480,15 @@ npt_id3d11device3_default_CreateQuery1(void *self, const D3D11_QUERY_DESC1 * pQu
 void NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_GetImmediateContext3(void *self, ID3D11DeviceContext3 ** ppImmediateContext)
 {
+    if (ppImmediateContext) {
+        void *_memo = npt_com_memo_lookup(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device3, NPT_METHOD_ID3D11Device3_GetImmediateContext3), &NPT_IID_ID3D11DeviceContext3);
+        if (_memo) {
+            *ppImmediateContext = (ID3D11DeviceContext3 *)_memo;
+            return;
+        }
+    }
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     ID3D11DeviceContext3 *_raw_ppImmediateContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1718,17 +1497,21 @@ npt_id3d11device3_default_GetImmediateContext3(void *self, ID3D11DeviceContext3 
     ID3D11DeviceContext3 **_orig_ppImmediateContext = ppImmediateContext;
     if (ppImmediateContext)
         ppImmediateContext = (ID3D11DeviceContext3 **)&_raw_ppImmediateContext;
-    npt_async_ID3D11Device3_GetImmediateContext3(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext);
+    npt_call_ID3D11Device3_GetImmediateContext3(npt_com_self_ring(self),npt_com_self_id(self),ppImmediateContext,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppImmediateContext) {
-        if (_raw_ppImmediateContext)
-            *_orig_ppImmediateContext = (ID3D11DeviceContext3 *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D11DeviceContext3,
-                (uint64_t)(uintptr_t)_raw_ppImmediateContext,
-                (struct npt_com_base *)self);
+        if (_refs[_ref_i].id)
+            *_orig_ppImmediateContext = (ID3D11DeviceContext3 *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D11DeviceContext3);
         else
             *_orig_ppImmediateContext = NULL;
+        if (*_orig_ppImmediateContext)
+            npt_com_memo_store(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11Device3, NPT_METHOD_ID3D11Device3_GetImmediateContext3), &NPT_IID_ID3D11DeviceContext3,
+                               *_orig_ppImmediateContext);
     }
+    _ref_i++;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -1773,89 +1556,6 @@ npt_id3d11device3_default_ReadFromSubresource(void *self, void * pDstData, UINT 
 }
 
 
-void
-npt_id3d11device3_fill_default_vtbl(struct npt_id3d11device3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11device3_default_QueryInterface;
-    dst->AddRef         = npt_id3d11device3_default_AddRef;
-    dst->Release        = npt_id3d11device3_default_Release;
-    dst->CreateBuffer = npt_id3d11device_default_CreateBuffer;
-    dst->CreateTexture1D = npt_id3d11device_default_CreateTexture1D;
-    dst->CreateTexture2D = npt_id3d11device_default_CreateTexture2D;
-    dst->CreateTexture3D = npt_id3d11device_default_CreateTexture3D;
-    dst->CreateShaderResourceView = npt_id3d11device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d11device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d11device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d11device_default_CreateDepthStencilView;
-    dst->CreateInputLayout = npt_id3d11device_default_CreateInputLayout;
-    dst->CreateVertexShader = npt_id3d11device_default_CreateVertexShader;
-    dst->CreateGeometryShader = npt_id3d11device_default_CreateGeometryShader;
-    dst->CreateGeometryShaderWithStreamOutput = npt_id3d11device_default_CreateGeometryShaderWithStreamOutput;
-    dst->CreatePixelShader = npt_id3d11device_default_CreatePixelShader;
-    dst->CreateHullShader = npt_id3d11device_default_CreateHullShader;
-    dst->CreateDomainShader = npt_id3d11device_default_CreateDomainShader;
-    dst->CreateComputeShader = npt_id3d11device_default_CreateComputeShader;
-    dst->CreateClassLinkage = npt_id3d11device_default_CreateClassLinkage;
-    dst->CreateBlendState = npt_id3d11device_default_CreateBlendState;
-    dst->CreateDepthStencilState = npt_id3d11device_default_CreateDepthStencilState;
-    dst->CreateRasterizerState = npt_id3d11device_default_CreateRasterizerState;
-    dst->CreateSamplerState = npt_id3d11device_default_CreateSamplerState;
-    dst->CreateQuery = npt_id3d11device_default_CreateQuery;
-    dst->CreatePredicate = npt_id3d11device_default_CreatePredicate;
-    dst->CreateCounter = npt_id3d11device_default_CreateCounter;
-    dst->CreateDeferredContext = npt_id3d11device_default_CreateDeferredContext;
-    dst->OpenSharedResource = npt_id3d11device_default_OpenSharedResource;
-    dst->CheckFormatSupport = npt_id3d11device_default_CheckFormatSupport;
-    dst->CheckMultisampleQualityLevels = npt_id3d11device_default_CheckMultisampleQualityLevels;
-    dst->CheckCounterInfo = npt_id3d11device_default_CheckCounterInfo;
-    dst->CheckCounter = npt_id3d11device_default_CheckCounter;
-    dst->CheckFeatureSupport = npt_id3d11device_default_CheckFeatureSupport;
-    dst->GetPrivateData = npt_id3d11device_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11device_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11device_default_SetPrivateDataInterface;
-    dst->GetFeatureLevel = npt_id3d11device_default_GetFeatureLevel;
-    dst->GetCreationFlags = npt_id3d11device_default_GetCreationFlags;
-    dst->GetDeviceRemovedReason = npt_id3d11device_default_GetDeviceRemovedReason;
-    dst->GetImmediateContext = npt_id3d11device_default_GetImmediateContext;
-    dst->SetExceptionMode = npt_id3d11device_default_SetExceptionMode;
-    dst->GetExceptionMode = npt_id3d11device_default_GetExceptionMode;
-    dst->GetImmediateContext1 = npt_id3d11device1_default_GetImmediateContext1;
-    dst->CreateDeferredContext1 = npt_id3d11device1_default_CreateDeferredContext1;
-    dst->CreateBlendState1 = npt_id3d11device1_default_CreateBlendState1;
-    dst->CreateRasterizerState1 = npt_id3d11device1_default_CreateRasterizerState1;
-    dst->CreateDeviceContextState = npt_id3d11device1_default_CreateDeviceContextState;
-    dst->OpenSharedResource1 = npt_id3d11device1_default_OpenSharedResource1;
-    dst->OpenSharedResourceByName = npt_id3d11device1_default_OpenSharedResourceByName;
-    dst->GetImmediateContext2 = npt_id3d11device2_default_GetImmediateContext2;
-    dst->CreateDeferredContext2 = npt_id3d11device2_default_CreateDeferredContext2;
-    dst->GetResourceTiling = npt_id3d11device2_default_GetResourceTiling;
-    dst->CheckMultisampleQualityLevels1 = npt_id3d11device2_default_CheckMultisampleQualityLevels1;
-    dst->CreateTexture2D1 = npt_id3d11device3_default_CreateTexture2D1;
-    dst->CreateTexture3D1 = npt_id3d11device3_default_CreateTexture3D1;
-    dst->CreateRasterizerState2 = npt_id3d11device3_default_CreateRasterizerState2;
-    dst->CreateShaderResourceView1 = npt_id3d11device3_default_CreateShaderResourceView1;
-    dst->CreateUnorderedAccessView1 = npt_id3d11device3_default_CreateUnorderedAccessView1;
-    dst->CreateRenderTargetView1 = npt_id3d11device3_default_CreateRenderTargetView1;
-    dst->CreateQuery1 = npt_id3d11device3_default_CreateQuery1;
-    dst->GetImmediateContext3 = npt_id3d11device3_default_GetImmediateContext3;
-    dst->CreateDeferredContext3 = npt_id3d11device3_default_CreateDeferredContext3;
-    dst->WriteToSubresource = npt_id3d11device3_default_WriteToSubresource;
-    dst->ReadFromSubresource = npt_id3d11device3_default_ReadFromSubresource;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11device3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11device3_client_vtbl npt_id3d11device3_default_vtbl_storage;
-
-void
-npt_id3d11device3_install_default_vtbl(void)
-{
-    npt_id3d11device3_fill_default_vtbl(&npt_id3d11device3_default_vtbl_storage);
-}
-
 void *
 npt_id3d11device3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1863,52 +1563,17 @@ npt_id3d11device3_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11device3_default_vtbl_storage,
+        (const void **)&npt_id3d11device5_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11device;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11Device4                                                       */
+/* ID3D11Device4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11device4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11Device,
-    &NPT_IID_ID3D11Device1,
-    &NPT_IID_ID3D11Device2,
-    &NPT_IID_ID3D11Device3,
-    &NPT_IID_ID3D11Device4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11device4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11device4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device4_default_RegisterDeviceRemovedEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
@@ -1924,91 +1589,6 @@ npt_id3d11device4_default_UnregisterDeviceRemoved(void *self, DWORD dwCookie)
 }
 
 
-void
-npt_id3d11device4_fill_default_vtbl(struct npt_id3d11device4_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11device4_default_QueryInterface;
-    dst->AddRef         = npt_id3d11device4_default_AddRef;
-    dst->Release        = npt_id3d11device4_default_Release;
-    dst->CreateBuffer = npt_id3d11device_default_CreateBuffer;
-    dst->CreateTexture1D = npt_id3d11device_default_CreateTexture1D;
-    dst->CreateTexture2D = npt_id3d11device_default_CreateTexture2D;
-    dst->CreateTexture3D = npt_id3d11device_default_CreateTexture3D;
-    dst->CreateShaderResourceView = npt_id3d11device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d11device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d11device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d11device_default_CreateDepthStencilView;
-    dst->CreateInputLayout = npt_id3d11device_default_CreateInputLayout;
-    dst->CreateVertexShader = npt_id3d11device_default_CreateVertexShader;
-    dst->CreateGeometryShader = npt_id3d11device_default_CreateGeometryShader;
-    dst->CreateGeometryShaderWithStreamOutput = npt_id3d11device_default_CreateGeometryShaderWithStreamOutput;
-    dst->CreatePixelShader = npt_id3d11device_default_CreatePixelShader;
-    dst->CreateHullShader = npt_id3d11device_default_CreateHullShader;
-    dst->CreateDomainShader = npt_id3d11device_default_CreateDomainShader;
-    dst->CreateComputeShader = npt_id3d11device_default_CreateComputeShader;
-    dst->CreateClassLinkage = npt_id3d11device_default_CreateClassLinkage;
-    dst->CreateBlendState = npt_id3d11device_default_CreateBlendState;
-    dst->CreateDepthStencilState = npt_id3d11device_default_CreateDepthStencilState;
-    dst->CreateRasterizerState = npt_id3d11device_default_CreateRasterizerState;
-    dst->CreateSamplerState = npt_id3d11device_default_CreateSamplerState;
-    dst->CreateQuery = npt_id3d11device_default_CreateQuery;
-    dst->CreatePredicate = npt_id3d11device_default_CreatePredicate;
-    dst->CreateCounter = npt_id3d11device_default_CreateCounter;
-    dst->CreateDeferredContext = npt_id3d11device_default_CreateDeferredContext;
-    dst->OpenSharedResource = npt_id3d11device_default_OpenSharedResource;
-    dst->CheckFormatSupport = npt_id3d11device_default_CheckFormatSupport;
-    dst->CheckMultisampleQualityLevels = npt_id3d11device_default_CheckMultisampleQualityLevels;
-    dst->CheckCounterInfo = npt_id3d11device_default_CheckCounterInfo;
-    dst->CheckCounter = npt_id3d11device_default_CheckCounter;
-    dst->CheckFeatureSupport = npt_id3d11device_default_CheckFeatureSupport;
-    dst->GetPrivateData = npt_id3d11device_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11device_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11device_default_SetPrivateDataInterface;
-    dst->GetFeatureLevel = npt_id3d11device_default_GetFeatureLevel;
-    dst->GetCreationFlags = npt_id3d11device_default_GetCreationFlags;
-    dst->GetDeviceRemovedReason = npt_id3d11device_default_GetDeviceRemovedReason;
-    dst->GetImmediateContext = npt_id3d11device_default_GetImmediateContext;
-    dst->SetExceptionMode = npt_id3d11device_default_SetExceptionMode;
-    dst->GetExceptionMode = npt_id3d11device_default_GetExceptionMode;
-    dst->GetImmediateContext1 = npt_id3d11device1_default_GetImmediateContext1;
-    dst->CreateDeferredContext1 = npt_id3d11device1_default_CreateDeferredContext1;
-    dst->CreateBlendState1 = npt_id3d11device1_default_CreateBlendState1;
-    dst->CreateRasterizerState1 = npt_id3d11device1_default_CreateRasterizerState1;
-    dst->CreateDeviceContextState = npt_id3d11device1_default_CreateDeviceContextState;
-    dst->OpenSharedResource1 = npt_id3d11device1_default_OpenSharedResource1;
-    dst->OpenSharedResourceByName = npt_id3d11device1_default_OpenSharedResourceByName;
-    dst->GetImmediateContext2 = npt_id3d11device2_default_GetImmediateContext2;
-    dst->CreateDeferredContext2 = npt_id3d11device2_default_CreateDeferredContext2;
-    dst->GetResourceTiling = npt_id3d11device2_default_GetResourceTiling;
-    dst->CheckMultisampleQualityLevels1 = npt_id3d11device2_default_CheckMultisampleQualityLevels1;
-    dst->CreateTexture2D1 = npt_id3d11device3_default_CreateTexture2D1;
-    dst->CreateTexture3D1 = npt_id3d11device3_default_CreateTexture3D1;
-    dst->CreateRasterizerState2 = npt_id3d11device3_default_CreateRasterizerState2;
-    dst->CreateShaderResourceView1 = npt_id3d11device3_default_CreateShaderResourceView1;
-    dst->CreateUnorderedAccessView1 = npt_id3d11device3_default_CreateUnorderedAccessView1;
-    dst->CreateRenderTargetView1 = npt_id3d11device3_default_CreateRenderTargetView1;
-    dst->CreateQuery1 = npt_id3d11device3_default_CreateQuery1;
-    dst->GetImmediateContext3 = npt_id3d11device3_default_GetImmediateContext3;
-    dst->CreateDeferredContext3 = npt_id3d11device3_default_CreateDeferredContext3;
-    dst->WriteToSubresource = npt_id3d11device3_default_WriteToSubresource;
-    dst->ReadFromSubresource = npt_id3d11device3_default_ReadFromSubresource;
-    dst->RegisterDeviceRemovedEvent = npt_id3d11device4_default_RegisterDeviceRemovedEvent;
-    dst->UnregisterDeviceRemoved = npt_id3d11device4_default_UnregisterDeviceRemoved;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11device4_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11device4_client_vtbl npt_id3d11device4_default_vtbl_storage;
-
-void
-npt_id3d11device4_install_default_vtbl(void)
-{
-    npt_id3d11device4_fill_default_vtbl(&npt_id3d11device4_default_vtbl_storage);
-}
-
 void *
 npt_id3d11device4_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2016,53 +1596,17 @@ npt_id3d11device4_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11device4_default_vtbl_storage,
+        (const void **)&npt_id3d11device5_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11device;
+    p->tier = 4;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11Device5                                                       */
+/* ID3D11Device5 (tier 5)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11device5_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11Device,
-    &NPT_IID_ID3D11Device1,
-    &NPT_IID_ID3D11Device2,
-    &NPT_IID_ID3D11Device3,
-    &NPT_IID_ID3D11Device4,
-    &NPT_IID_ID3D11Device5,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11device5_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11device5_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device5_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11device5_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device5_default_OpenSharedFence(void *self, HANDLE hFence, const IID * ReturnedInterface, void ** ppFence)
@@ -2126,9 +1670,9 @@ npt_id3d11device5_default_CreateFence(void *self, UINT64 InitialValue, D3D11_FEN
 void
 npt_id3d11device5_fill_default_vtbl(struct npt_id3d11device5_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d11device5_default_QueryInterface;
-    dst->AddRef         = npt_id3d11device5_default_AddRef;
-    dst->Release        = npt_id3d11device5_default_Release;
+    dst->QueryInterface = npt_id3d11device_default_QueryInterface;
+    dst->AddRef         = npt_id3d11device_default_AddRef;
+    dst->Release        = npt_id3d11device_default_Release;
     dst->CreateBuffer = npt_id3d11device_default_CreateBuffer;
     dst->CreateTexture1D = npt_id3d11device_default_CreateTexture1D;
     dst->CreateTexture2D = npt_id3d11device_default_CreateTexture2D;
@@ -2198,7 +1742,7 @@ npt_id3d11device5_fill_default_vtbl(struct npt_id3d11device5_client_vtbl *dst)
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d11device5_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -2219,6 +1763,8 @@ npt_id3d11device5_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d11device5_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11device;
+    p->tier = 5;
     return p;
 }
 

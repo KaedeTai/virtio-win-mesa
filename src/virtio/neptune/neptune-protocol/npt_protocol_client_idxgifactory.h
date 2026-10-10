@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_IDXGIFACTORY_H
 
 #include "npt_protocol_guest_idxgifactory.h"
+#include "npt_protocol_client_table.h"
 #include "npt_protocol_client_idxgiobject.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
@@ -28,6 +29,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family idxgifactory: IDXGIFactory, IDXGIFactory1, IDXGIFactory2, IDXGIFactory3, IDXGIFactory4, IDXGIFactory5, IDXGIFactory6, IDXGIFactory7
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_idxgifactory_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgifactory_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgifactory_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_idxgifactory;
 
 
 /* ================================================================== */
@@ -82,32 +101,12 @@ npt_idxgifactory_default_CreateSwapChain(void *self, IUnknown * pDevice, DXGI_SW
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory_default_CreateSoftwareAdapter(void *self, HMODULE Module, IDXGIAdapter ** ppAdapter);
 
-/* Default IUnknown thunks for IDXGIFactory.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory_fill_default_vtbl(struct npt_idxgifactory_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory_client_vtbl npt_idxgifactory_default_vtbl_storage;
-extern void
-npt_idxgifactory_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_idxgifactory_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -162,32 +161,17 @@ npt_idxgifactory1_default_EnumAdapters1(void *self, UINT Adapter, IDXGIAdapter1 
 extern BOOL NPT_STDMETHODCALLTYPE
 npt_idxgifactory1_default_IsCurrent(void *self);
 
-/* Default IUnknown thunks for IDXGIFactory1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory1_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory1_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory1_default_Release        npt_idxgifactory_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory1_fill_default_vtbl(struct npt_idxgifactory1_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory1_client_vtbl npt_idxgifactory1_default_vtbl_storage;
-extern void
-npt_idxgifactory1_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory1_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_idxgifactory1_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -282,32 +266,17 @@ npt_idxgifactory2_default_UnregisterOcclusionStatus(void *self, DWORD dwCookie);
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_CreateSwapChainForComposition(void *self, IUnknown * pDevice, const DXGI_SWAP_CHAIN_DESC1 * pDesc, IDXGIOutput * pRestrictToOutput, IDXGISwapChain1 ** ppSwapChain);
 
-/* Default IUnknown thunks for IDXGIFactory2.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory2_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory2_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory2_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory2_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory2_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory2_default_Release        npt_idxgifactory_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory2_fill_default_vtbl(struct npt_idxgifactory2_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory2_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory2_client_vtbl npt_idxgifactory2_default_vtbl_storage;
-extern void
-npt_idxgifactory2_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory2_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 2, and returns it. */
 extern void *
 npt_idxgifactory2_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -384,32 +353,17 @@ struct npt_idxgifactory3_client_vtbl {
 extern UINT NPT_STDMETHODCALLTYPE
 npt_idxgifactory3_default_GetCreationFlags(void *self);
 
-/* Default IUnknown thunks for IDXGIFactory3.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory3_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory3_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory3_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory3_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory3_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory3_default_Release        npt_idxgifactory_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory3_fill_default_vtbl(struct npt_idxgifactory3_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory3_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory3_client_vtbl npt_idxgifactory3_default_vtbl_storage;
-extern void
-npt_idxgifactory3_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory3_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 3, and returns it. */
 extern void *
 npt_idxgifactory3_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -492,32 +446,17 @@ npt_idxgifactory4_default_EnumAdapterByLuid(void *self, LUID AdapterLuid, const 
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory4_default_EnumWarpAdapter(void *self, const IID * riid, void ** ppvAdapter);
 
-/* Default IUnknown thunks for IDXGIFactory4.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory4_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory4_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory4_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory4_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory4_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory4_default_Release        npt_idxgifactory_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory4_fill_default_vtbl(struct npt_idxgifactory4_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory4_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory4_client_vtbl npt_idxgifactory4_default_vtbl_storage;
-extern void
-npt_idxgifactory4_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory4_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 4, and returns it. */
 extern void *
 npt_idxgifactory4_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -600,32 +539,17 @@ struct npt_idxgifactory5_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory5_default_CheckFeatureSupport(void *self, DXGI_FEATURE Feature, void * pFeatureSupportData, UINT FeatureSupportDataSize);
 
-/* Default IUnknown thunks for IDXGIFactory5.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory5_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory5_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory5_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory5_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory5_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory5_default_Release        npt_idxgifactory_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory5_fill_default_vtbl(struct npt_idxgifactory5_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory5_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory5_client_vtbl npt_idxgifactory5_default_vtbl_storage;
-extern void
-npt_idxgifactory5_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory5_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 5, and returns it. */
 extern void *
 npt_idxgifactory5_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -710,32 +634,17 @@ struct npt_idxgifactory6_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory6_default_EnumAdapterByGpuPreference(void *self, UINT Adapter, DXGI_GPU_PREFERENCE GpuPreference, const IID * riid, void ** ppvAdapter);
 
-/* Default IUnknown thunks for IDXGIFactory6.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory6_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory6_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory6_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory6_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory6_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory6_default_Release        npt_idxgifactory_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgifactory6_fill_default_vtbl(struct npt_idxgifactory6_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory6_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgifactory6_client_vtbl npt_idxgifactory6_default_vtbl_storage;
-extern void
-npt_idxgifactory6_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIFactory7's. */
+#define npt_idxgifactory6_default_vtbl_storage npt_idxgifactory7_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 6, and returns it. */
 extern void *
 npt_idxgifactory6_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -826,15 +735,10 @@ npt_idxgifactory7_default_RegisterAdaptersChangedEvent(void *self, HANDLE hEvent
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory7_default_UnregisterAdaptersChangedEvent(void *self, DWORD dwCookie);
 
-/* Default IUnknown thunks for IDXGIFactory7.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgifactory7_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory7_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgifactory7_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgifactory7_default_QueryInterface npt_idxgifactory_default_QueryInterface
+#define npt_idxgifactory7_default_AddRef         npt_idxgifactory_default_AddRef
+#define npt_idxgifactory7_default_Release        npt_idxgifactory_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -842,16 +746,18 @@ npt_idxgifactory7_default_Release(void *self);
 extern void
 npt_idxgifactory7_fill_default_vtbl(struct npt_idxgifactory7_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgifactory7_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_idxgifactory7_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_idxgifactory7_client_vtbl npt_idxgifactory7_default_vtbl_storage;
 extern void
 npt_idxgifactory7_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 7, and returns it. */
 extern void *
 npt_idxgifactory7_client_create(struct npt_device *dev, uint64_t host_id);
 

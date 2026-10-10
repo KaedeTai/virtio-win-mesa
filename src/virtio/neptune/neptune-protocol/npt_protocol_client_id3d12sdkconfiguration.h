@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_ID3D12SDKCONFIGURATION_H
 
 #include "npt_protocol_guest_id3d12sdkconfiguration.h"
+#include "npt_protocol_client_table.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
  * trigger the "declared inside parameter list" warning.  The full
@@ -27,6 +28,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family id3d12sdkconfiguration: ID3D12SDKConfiguration, ID3D12SDKConfiguration1
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_id3d12sdkconfiguration_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_id3d12sdkconfiguration_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_id3d12sdkconfiguration_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_id3d12sdkconfiguration;
 
 
 /* ================================================================== */
@@ -57,32 +76,12 @@ struct npt_id3d12sdkconfiguration_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12sdkconfiguration_default_SetSDKVersion(void *self, UINT SDKVersion, const CHAR * SDKPath);
 
-/* Default IUnknown thunks for ID3D12SDKConfiguration.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12sdkconfiguration_fill_default_vtbl(struct npt_id3d12sdkconfiguration_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12sdkconfiguration_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12sdkconfiguration_client_vtbl npt_id3d12sdkconfiguration_default_vtbl_storage;
-extern void
-npt_id3d12sdkconfiguration_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12SDKConfiguration1's. */
+#define npt_id3d12sdkconfiguration_default_vtbl_storage npt_id3d12sdkconfiguration1_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_id3d12sdkconfiguration_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -121,15 +120,10 @@ npt_id3d12sdkconfiguration1_default_CreateDeviceFactory(void *self, UINT SDKVers
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12sdkconfiguration1_default_FreeUnusedSDKs(void *self);
 
-/* Default IUnknown thunks for ID3D12SDKConfiguration1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12sdkconfiguration1_default_QueryInterface npt_id3d12sdkconfiguration_default_QueryInterface
+#define npt_id3d12sdkconfiguration1_default_AddRef         npt_id3d12sdkconfiguration_default_AddRef
+#define npt_id3d12sdkconfiguration1_default_Release        npt_id3d12sdkconfiguration_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -137,16 +131,18 @@ npt_id3d12sdkconfiguration1_default_Release(void *self);
 extern void
 npt_id3d12sdkconfiguration1_fill_default_vtbl(struct npt_id3d12sdkconfiguration1_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12sdkconfiguration1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_id3d12sdkconfiguration1_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_id3d12sdkconfiguration1_client_vtbl npt_id3d12sdkconfiguration1_default_vtbl_storage;
 extern void
 npt_id3d12sdkconfiguration1_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_id3d12sdkconfiguration1_client_create(struct npt_device *dev, uint64_t host_id);
 

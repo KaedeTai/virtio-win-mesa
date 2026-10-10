@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12deviceremovedextendeddatasettings.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,45 @@
 
 
 /* ================================================================== */
-/* ID3D12DeviceRemovedExtendedDataSettings                                                       */
+/* Family id3d12deviceremovedextendeddatasettings                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12deviceremovedextendeddatasettings_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12deviceremovedextendeddatasettings_tiers[] = {
     &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings,
+    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings1,
+    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings2,
     NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12deviceremovedextendeddatasettings_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12DEVICEREMOVEDEXTENDEDDATASETTINGS,
+    NPT_OBJECT_TYPE_ID3D12DEVICEREMOVEDEXTENDEDDATASETTINGS1,
+    NPT_OBJECT_TYPE_ID3D12DEVICEREMOVEDEXTENDEDDATASETTINGS2,
+};
+
+static const GUID *const npt_com_family_id3d12deviceremovedextendeddatasettings_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12deviceremovedextendeddatasettings = {
+    .name = "id3d12deviceremovedextendeddatasettings",
+    .index = NPT_IFACE_FAMILY_ID3D12DEVICEREMOVEDEXTENDEDDATASETTINGS,
+    .tier_iids = npt_com_family_id3d12deviceremovedextendeddatasettings_tiers,
+    .tier_types = npt_com_family_id3d12deviceremovedextendeddatasettings_tier_types,
+    .tier_count = 3,
+    .ancestor_iids = npt_com_family_id3d12deviceremovedextendeddatasettings_ancestors,
+    .vtbl = (const void **)&npt_id3d12deviceremovedextendeddatasettings2_default_vtbl_storage,
+    .vtbl_install = npt_id3d12deviceremovedextendeddatasettings2_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12deviceremovedextendeddatasettings_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12deviceremovedextendeddatasettings_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -54,6 +74,11 @@ npt_id3d12deviceremovedextendeddatasettings_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12DeviceRemovedExtendedDataSettings (tier 0)                                  */
+/* ================================================================== */
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12deviceremovedextendeddatasettings_default_SetAutoBreadcrumbsEnablement(void *self, D3D12_DRED_ENABLEMENT Enablement)
@@ -74,30 +99,6 @@ npt_id3d12deviceremovedextendeddatasettings_default_SetWatsonDumpEnablement(void
 }
 
 
-void
-npt_id3d12deviceremovedextendeddatasettings_fill_default_vtbl(struct npt_id3d12deviceremovedextendeddatasettings_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12deviceremovedextendeddatasettings_default_QueryInterface;
-    dst->AddRef         = npt_id3d12deviceremovedextendeddatasettings_default_AddRef;
-    dst->Release        = npt_id3d12deviceremovedextendeddatasettings_default_Release;
-    dst->SetAutoBreadcrumbsEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetAutoBreadcrumbsEnablement;
-    dst->SetPageFaultEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetPageFaultEnablement;
-    dst->SetWatsonDumpEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetWatsonDumpEnablement;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12deviceremovedextendeddatasettings_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12deviceremovedextendeddatasettings_client_vtbl npt_id3d12deviceremovedextendeddatasettings_default_vtbl_storage;
-
-void
-npt_id3d12deviceremovedextendeddatasettings_install_default_vtbl(void)
-{
-    npt_id3d12deviceremovedextendeddatasettings_fill_default_vtbl(&npt_id3d12deviceremovedextendeddatasettings_default_vtbl_storage);
-}
-
 void *
 npt_id3d12deviceremovedextendeddatasettings_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -105,49 +106,17 @@ npt_id3d12deviceremovedextendeddatasettings_client_create(struct npt_device *dev
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12deviceremovedextendeddatasettings_default_vtbl_storage,
+        (const void **)&npt_id3d12deviceremovedextendeddatasettings2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12deviceremovedextendeddatasettings;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12DeviceRemovedExtendedDataSettings1                                                       */
+/* ID3D12DeviceRemovedExtendedDataSettings1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12deviceremovedextendeddatasettings1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings,
-    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12deviceremovedextendeddatasettings1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12deviceremovedextendeddatasettings1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12deviceremovedextendeddatasettings1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12deviceremovedextendeddatasettings1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12deviceremovedextendeddatasettings1_default_SetBreadcrumbContextEnablement(void *self, D3D12_DRED_ENABLEMENT Enablement)
@@ -156,31 +125,6 @@ npt_id3d12deviceremovedextendeddatasettings1_default_SetBreadcrumbContextEnablem
 }
 
 
-void
-npt_id3d12deviceremovedextendeddatasettings1_fill_default_vtbl(struct npt_id3d12deviceremovedextendeddatasettings1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12deviceremovedextendeddatasettings1_default_QueryInterface;
-    dst->AddRef         = npt_id3d12deviceremovedextendeddatasettings1_default_AddRef;
-    dst->Release        = npt_id3d12deviceremovedextendeddatasettings1_default_Release;
-    dst->SetAutoBreadcrumbsEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetAutoBreadcrumbsEnablement;
-    dst->SetPageFaultEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetPageFaultEnablement;
-    dst->SetWatsonDumpEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetWatsonDumpEnablement;
-    dst->SetBreadcrumbContextEnablement = npt_id3d12deviceremovedextendeddatasettings1_default_SetBreadcrumbContextEnablement;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12deviceremovedextendeddatasettings1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12deviceremovedextendeddatasettings1_client_vtbl npt_id3d12deviceremovedextendeddatasettings1_default_vtbl_storage;
-
-void
-npt_id3d12deviceremovedextendeddatasettings1_install_default_vtbl(void)
-{
-    npt_id3d12deviceremovedextendeddatasettings1_fill_default_vtbl(&npt_id3d12deviceremovedextendeddatasettings1_default_vtbl_storage);
-}
-
 void *
 npt_id3d12deviceremovedextendeddatasettings1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -188,50 +132,17 @@ npt_id3d12deviceremovedextendeddatasettings1_client_create(struct npt_device *de
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12deviceremovedextendeddatasettings1_default_vtbl_storage,
+        (const void **)&npt_id3d12deviceremovedextendeddatasettings2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12deviceremovedextendeddatasettings;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12DeviceRemovedExtendedDataSettings2                                                       */
+/* ID3D12DeviceRemovedExtendedDataSettings2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12deviceremovedextendeddatasettings2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings,
-    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings1,
-    &NPT_IID_ID3D12DeviceRemovedExtendedDataSettings2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12deviceremovedextendeddatasettings2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12deviceremovedextendeddatasettings2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12deviceremovedextendeddatasettings2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12deviceremovedextendeddatasettings2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12deviceremovedextendeddatasettings2_default_UseMarkersOnlyAutoBreadcrumbs(void *self, BOOL MarkersOnly)
@@ -243,9 +154,9 @@ npt_id3d12deviceremovedextendeddatasettings2_default_UseMarkersOnlyAutoBreadcrum
 void
 npt_id3d12deviceremovedextendeddatasettings2_fill_default_vtbl(struct npt_id3d12deviceremovedextendeddatasettings2_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d12deviceremovedextendeddatasettings2_default_QueryInterface;
-    dst->AddRef         = npt_id3d12deviceremovedextendeddatasettings2_default_AddRef;
-    dst->Release        = npt_id3d12deviceremovedextendeddatasettings2_default_Release;
+    dst->QueryInterface = npt_id3d12deviceremovedextendeddatasettings_default_QueryInterface;
+    dst->AddRef         = npt_id3d12deviceremovedextendeddatasettings_default_AddRef;
+    dst->Release        = npt_id3d12deviceremovedextendeddatasettings_default_Release;
     dst->SetAutoBreadcrumbsEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetAutoBreadcrumbsEnablement;
     dst->SetPageFaultEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetPageFaultEnablement;
     dst->SetWatsonDumpEnablement = npt_id3d12deviceremovedextendeddatasettings_default_SetWatsonDumpEnablement;
@@ -254,7 +165,7 @@ npt_id3d12deviceremovedextendeddatasettings2_fill_default_vtbl(struct npt_id3d12
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12deviceremovedextendeddatasettings2_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -275,6 +186,8 @@ npt_id3d12deviceremovedextendeddatasettings2_client_create(struct npt_device *de
     npt_com_base_init(p,
         (const void **)&npt_id3d12deviceremovedextendeddatasettings2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12deviceremovedextendeddatasettings;
+    p->tier = 2;
     return p;
 }
 

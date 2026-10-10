@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12metacommand.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,31 +22,44 @@
 
 
 /* ================================================================== */
-/* ID3D12MetaCommand                                                       */
+/* Family id3d12metacommand                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12metacommand_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12metacommand_tiers[] = {
+    &NPT_IID_ID3D12MetaCommand,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12metacommand_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12METACOMMAND,
+};
+
+static const GUID *const npt_com_family_id3d12metacommand_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D12Object,
     &NPT_IID_ID3D12DeviceChild,
     &NPT_IID_ID3D12Pageable,
-    &NPT_IID_ID3D12MetaCommand,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12metacommand = {
+    .name = "id3d12metacommand",
+    .index = NPT_IFACE_FAMILY_ID3D12METACOMMAND,
+    .tier_iids = npt_com_family_id3d12metacommand_tiers,
+    .tier_types = npt_com_family_id3d12metacommand_tier_types,
+    .tier_count = 1,
+    .ancestor_iids = npt_com_family_id3d12metacommand_ancestors,
+    .vtbl = (const void **)&npt_id3d12metacommand_default_vtbl_storage,
+    .vtbl_install = npt_id3d12metacommand_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12metacommand_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12metacommand_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -57,6 +73,11 @@ npt_id3d12metacommand_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12MetaCommand (tier 0)                                  */
+/* ================================================================== */
 
 UINT64 NPT_STDMETHODCALLTYPE
 npt_id3d12metacommand_default_GetRequiredParameterResourceSize(void *self, D3D12_META_COMMAND_PARAMETER_STAGE Stage, UINT ParameterIndex)
@@ -81,7 +102,7 @@ npt_id3d12metacommand_fill_default_vtbl(struct npt_id3d12metacommand_client_vtbl
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12metacommand_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -102,6 +123,8 @@ npt_id3d12metacommand_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d12metacommand_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12metacommand;
+    p->tier = 0;
     return p;
 }
 

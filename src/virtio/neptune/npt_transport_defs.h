@@ -192,9 +192,11 @@ struct npt_cmd_com_release {
     * npt_cmd_com_release_wait) entries. */
 };
 
-/* Synchronous: the caller branches on E_NOINTERFACE to decide
- * whether the wrapper stays live.  Guest pre-allocates `guest_id`;
- * on success the host registers the returned interface under it. */
+/* Synchronous.  `guest_id` is the id the host registers the interface
+ * under when it does not already hold the object under one; the reply
+ * names the id it is registered under either way (ref.id), the
+ * object's primary registration and its type.  ref is zero when
+ * cmd_return is not S_OK. */
 struct npt_cmd_com_query_interface {
    struct npt_command_header header;
    /* header.object_id = source object's guest id */
@@ -204,6 +206,7 @@ struct npt_cmd_com_query_interface {
 
 struct npt_cmd_com_query_interface_reply {
    struct npt_reply_header header;
+   struct npt_wire_object_ref ref;
 };
 
 /* ====================================================================== */

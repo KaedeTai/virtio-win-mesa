@@ -459,6 +459,7 @@ struct npt_command_ID3D11On12Device1_GetD3D12Device {
      * this field and inserts {_guest_id_ppvDevice -> *ppvDevice} in the
      * context object table. */
     uint64_t _guest_id_ppvDevice;
+    struct npt_wire_object_ref _ref_ppvDevice;
     HRESULT ret;
 };
 
@@ -515,15 +516,21 @@ npt_sizeof_ID3D11On12Device1_GetD3D12Device_reply(const IID * riid,void ** ppvDe
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip riid (input only) */
-/* skip ppvDevice (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvDevice: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11On12Device1_GetD3D12Device_reply(struct npt_cs_decoder *dec,
                                                   void ** ppvDevice,
-                                                  HRESULT *ret)
+                                                  HRESULT *ret,
+                                                  struct npt_wire_object_ref *_refs,
+                                                  size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11On12Device1,
@@ -543,7 +550,11 @@ npt_decode_ID3D11On12Device1_GetD3D12Device_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppvDevice (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -575,28 +586,20 @@ npt_submit_ID3D11On12Device1_GetD3D12Device(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D11On12Device1_GetD3D12Device(struct npt_ring *ring,
-                                           npt_object_id object_id,
-                                           const IID * riid,
-                                           void ** ppvDevice)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11On12Device1_GetD3D12Device(ring, 0, object_id, riid, ppvDevice, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D11On12Device1_GetD3D12Device(struct npt_ring *ring,
                                           npt_object_id object_id,
                                           const IID * riid,
-                                          void ** ppvDevice)
+                                          void ** ppvDevice,
+                                          struct npt_wire_object_ref *_refs,
+                                          size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11On12Device1_GetD3D12Device(ring, NPT_CMD_FLAG_REPLY, object_id, riid, ppvDevice, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D11On12Device1_GetD3D12Device_reply(dec, ppvDevice, &_ret);
+        npt_decode_ID3D11On12Device1_GetD3D12Device_reply(dec, ppvDevice, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -619,6 +622,7 @@ struct npt_command_ID3D11On12Device2_UnwrapUnderlyingResource {
      * this field and inserts {_guest_id_ppvResource12 -> *ppvResource12} in the
      * context object table. */
     uint64_t _guest_id_ppvResource12;
+    struct npt_wire_object_ref _ref_ppvResource12;
     HRESULT ret;
 };
 
@@ -683,15 +687,21 @@ npt_sizeof_ID3D11On12Device2_UnwrapUnderlyingResource_reply(const ID3D11Resource
 /* skip pResource11 (input only) */
 /* skip pCommandQueue (input only) */
 /* skip riid (input only) */
-/* skip ppvResource12 (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppvResource12: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11On12Device2_UnwrapUnderlyingResource_reply(struct npt_cs_decoder *dec,
                                                             void ** ppvResource12,
-                                                            HRESULT *ret)
+                                                            HRESULT *ret,
+                                                            struct npt_wire_object_ref *_refs,
+                                                            size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11On12Device2,
@@ -711,7 +721,11 @@ npt_decode_ID3D11On12Device2_UnwrapUnderlyingResource_reply(struct npt_cs_decode
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppvResource12 (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -745,32 +759,22 @@ npt_submit_ID3D11On12Device2_UnwrapUnderlyingResource(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D11On12Device2_UnwrapUnderlyingResource(struct npt_ring *ring,
-                                                     npt_object_id object_id,
-                                                     ID3D11Resource * pResource11,
-                                                     ID3D12CommandQueue * pCommandQueue,
-                                                     const IID * riid,
-                                                     void ** ppvResource12)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11On12Device2_UnwrapUnderlyingResource(ring, 0, object_id, pResource11, pCommandQueue, riid, ppvResource12, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D11On12Device2_UnwrapUnderlyingResource(struct npt_ring *ring,
                                                     npt_object_id object_id,
                                                     ID3D11Resource * pResource11,
                                                     ID3D12CommandQueue * pCommandQueue,
                                                     const IID * riid,
-                                                    void ** ppvResource12)
+                                                    void ** ppvResource12,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11On12Device2_UnwrapUnderlyingResource(ring, NPT_CMD_FLAG_REPLY, object_id, pResource11, pCommandQueue, riid, ppvResource12, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D11On12Device2_UnwrapUnderlyingResource_reply(dec, ppvResource12, &_ret);
+        npt_decode_ID3D11On12Device2_UnwrapUnderlyingResource_reply(dec, ppvResource12, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

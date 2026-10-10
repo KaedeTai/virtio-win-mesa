@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgioutputduplication.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,42 @@
 
 
 /* ================================================================== */
-/* IDXGIOutputDuplication                                                       */
+/* Family idxgioutputduplication                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgioutputduplication_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgioutputduplication_tiers[] = {
     &NPT_IID_IDXGIOutputDuplication,
     NULL,
+};
+
+static const npt_object_type npt_com_family_idxgioutputduplication_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGIOUTPUTDUPLICATION,
+};
+
+static const GUID *const npt_com_family_idxgioutputduplication_ancestors[] = {
+    &NPT_IID_IUnknown,
+    &NPT_IID_IDXGIObject,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgioutputduplication = {
+    .name = "idxgioutputduplication",
+    .index = NPT_IFACE_FAMILY_IDXGIOUTPUTDUPLICATION,
+    .tier_iids = npt_com_family_idxgioutputduplication_tiers,
+    .tier_types = npt_com_family_idxgioutputduplication_tier_types,
+    .tier_count = 1,
+    .ancestor_iids = npt_com_family_idxgioutputduplication_ancestors,
+    .vtbl = (const void **)&npt_idxgioutputduplication_default_vtbl_storage,
+    .vtbl_install = npt_idxgioutputduplication_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgioutputduplication_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgioutputduplication_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,6 +72,11 @@ npt_idxgioutputduplication_default_Release(void *self)
     return npt_com_default_release(self);
 }
 
+
+/* ================================================================== */
+/* IDXGIOutputDuplication (tier 0)                                  */
+/* ================================================================== */
+
 void NPT_STDMETHODCALLTYPE
 npt_idxgioutputduplication_default_GetDesc(void *self, DXGI_OUTDUPL_DESC * pDesc)
 {
@@ -65,6 +86,8 @@ npt_idxgioutputduplication_default_GetDesc(void *self, DXGI_OUTDUPL_DESC * pDesc
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgioutputduplication_default_AcquireNextFrame(void *self, UINT TimeoutInMilliseconds, DXGI_OUTDUPL_FRAME_INFO * pFrameInfo, IDXGIResource ** ppDesktopResource)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIResource *_raw_ppDesktopResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -73,22 +96,18 @@ npt_idxgioutputduplication_default_AcquireNextFrame(void *self, UINT TimeoutInMi
     IDXGIResource **_orig_ppDesktopResource = ppDesktopResource;
     if (ppDesktopResource)
         ppDesktopResource = (IDXGIResource **)&_raw_ppDesktopResource;
-    HRESULT _ret = npt_call_IDXGIOutputDuplication_AcquireNextFrame(npt_com_self_ring(self),npt_com_self_id(self),TimeoutInMilliseconds,pFrameInfo,ppDesktopResource);
+    HRESULT _ret = npt_call_IDXGIOutputDuplication_AcquireNextFrame(npt_com_self_ring(self),npt_com_self_id(self),TimeoutInMilliseconds,pFrameInfo,ppDesktopResource,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppDesktopResource) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppDesktopResource)
-            *_orig_ppDesktopResource = (IDXGIResource *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIResource,
-                (uint64_t)(uintptr_t)_raw_ppDesktopResource,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppDesktopResource = (IDXGIResource *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIResource);
         else
             *_orig_ppDesktopResource = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
@@ -164,7 +183,7 @@ npt_idxgioutputduplication_fill_default_vtbl(struct npt_idxgioutputduplication_c
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgioutputduplication_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -185,6 +204,8 @@ npt_idxgioutputduplication_client_create(struct npt_device *dev, uint64_t host_i
     npt_com_base_init(p,
         (const void **)&npt_idxgioutputduplication_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgioutputduplication;
+    p->tier = 0;
     return p;
 }
 

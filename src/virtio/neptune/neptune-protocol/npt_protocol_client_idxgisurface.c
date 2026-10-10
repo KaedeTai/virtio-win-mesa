@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgisurface.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,30 +22,47 @@
 
 
 /* ================================================================== */
-/* IDXGISurface                                                       */
+/* Family idxgisurface                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgisurface_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgisurface_tiers[] = {
+    &NPT_IID_IDXGISurface,
+    &NPT_IID_IDXGISurface1,
+    &NPT_IID_IDXGISurface2,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_idxgisurface_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGISURFACE,
+    NPT_OBJECT_TYPE_IDXGISURFACE1,
+    NPT_OBJECT_TYPE_IDXGISURFACE2,
+};
+
+static const GUID *const npt_com_family_idxgisurface_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_IDXGIObject,
     &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISurface,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgisurface = {
+    .name = "idxgisurface",
+    .index = NPT_IFACE_FAMILY_IDXGISURFACE,
+    .tier_iids = npt_com_family_idxgisurface_tiers,
+    .tier_types = npt_com_family_idxgisurface_tier_types,
+    .tier_count = 3,
+    .ancestor_iids = npt_com_family_idxgisurface_ancestors,
+    .vtbl = (const void **)&npt_idxgisurface2_default_vtbl_storage,
+    .vtbl_install = npt_idxgisurface2_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgisurface_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,6 +76,11 @@ npt_idxgisurface_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* IDXGISurface (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface_default_GetDesc(void *self, DXGI_SURFACE_DESC * pDesc)
@@ -83,35 +108,6 @@ npt_idxgisurface_default_Unmap(void *self)
 }
 
 
-void
-npt_idxgisurface_fill_default_vtbl(struct npt_idxgisurface_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgisurface_default_QueryInterface;
-    dst->AddRef         = npt_idxgisurface_default_AddRef;
-    dst->Release        = npt_idxgisurface_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->GetDevice = npt_idxgidevicesubobject_default_GetDevice;
-    dst->GetDesc = npt_idxgisurface_default_GetDesc;
-    dst->Map = npt_idxgisurface_default_Map;
-    dst->Unmap = npt_idxgisurface_default_Unmap;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgisurface_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgisurface_client_vtbl npt_idxgisurface_default_vtbl_storage;
-
-void
-npt_idxgisurface_install_default_vtbl(void)
-{
-    npt_idxgisurface_fill_default_vtbl(&npt_idxgisurface_default_vtbl_storage);
-}
-
 void *
 npt_idxgisurface_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -119,51 +115,17 @@ npt_idxgisurface_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgisurface_default_vtbl_storage,
+        (const void **)&npt_idxgisurface2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgisurface;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGISurface1                                                       */
+/* IDXGISurface1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgisurface1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISurface,
-    &NPT_IID_IDXGISurface1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgisurface1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgisurface1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface1_default_GetDC(void *self, BOOL Discard, HDC * phdc)
@@ -184,37 +146,6 @@ npt_idxgisurface1_default_ReleaseDC(void *self, RECT * pDirtyRect)
 }
 
 
-void
-npt_idxgisurface1_fill_default_vtbl(struct npt_idxgisurface1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgisurface1_default_QueryInterface;
-    dst->AddRef         = npt_idxgisurface1_default_AddRef;
-    dst->Release        = npt_idxgisurface1_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->GetDevice = npt_idxgidevicesubobject_default_GetDevice;
-    dst->GetDesc = npt_idxgisurface_default_GetDesc;
-    dst->Map = npt_idxgisurface_default_Map;
-    dst->Unmap = npt_idxgisurface_default_Unmap;
-    dst->GetDC = npt_idxgisurface1_default_GetDC;
-    dst->ReleaseDC = npt_idxgisurface1_default_ReleaseDC;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgisurface1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgisurface1_client_vtbl npt_idxgisurface1_default_vtbl_storage;
-
-void
-npt_idxgisurface1_install_default_vtbl(void)
-{
-    npt_idxgisurface1_fill_default_vtbl(&npt_idxgisurface1_default_vtbl_storage);
-}
-
 void *
 npt_idxgisurface1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -222,56 +153,23 @@ npt_idxgisurface1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgisurface1_default_vtbl_storage,
+        (const void **)&npt_idxgisurface2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgisurface;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGISurface2                                                       */
+/* IDXGISurface2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgisurface2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISurface,
-    &NPT_IID_IDXGISurface1,
-    &NPT_IID_IDXGISurface2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgisurface2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgisurface2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface2_default_GetResource(void *self, const IID * riid, void ** ppParentResource, UINT * pSubresourceIndex)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppParentResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -280,22 +178,18 @@ npt_idxgisurface2_default_GetResource(void *self, const IID * riid, void ** ppPa
     void **_orig_ppParentResource = ppParentResource;
     if (ppParentResource)
         ppParentResource = (void **)&_raw_ppParentResource;
-    HRESULT _ret = npt_call_IDXGISurface2_GetResource(npt_com_self_ring(self),npt_com_self_id(self),riid,ppParentResource,pSubresourceIndex);
+    HRESULT _ret = npt_call_IDXGISurface2_GetResource(npt_com_self_ring(self),npt_com_self_id(self),riid,ppParentResource,pSubresourceIndex,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppParentResource) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppParentResource)
-            *_orig_ppParentResource = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppParentResource,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppParentResource = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppParentResource = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
@@ -303,9 +197,9 @@ npt_idxgisurface2_default_GetResource(void *self, const IID * riid, void ** ppPa
 void
 npt_idxgisurface2_fill_default_vtbl(struct npt_idxgisurface2_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_idxgisurface2_default_QueryInterface;
-    dst->AddRef         = npt_idxgisurface2_default_AddRef;
-    dst->Release        = npt_idxgisurface2_default_Release;
+    dst->QueryInterface = npt_idxgisurface_default_QueryInterface;
+    dst->AddRef         = npt_idxgisurface_default_AddRef;
+    dst->Release        = npt_idxgisurface_default_Release;
     dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
     dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
     dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
@@ -320,7 +214,7 @@ npt_idxgisurface2_fill_default_vtbl(struct npt_idxgisurface2_client_vtbl *dst)
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgisurface2_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -341,6 +235,8 @@ npt_idxgisurface2_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgisurface2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgisurface;
+    p->tier = 2;
     return p;
 }
 

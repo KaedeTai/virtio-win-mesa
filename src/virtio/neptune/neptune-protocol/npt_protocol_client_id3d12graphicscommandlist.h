@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_ID3D12GRAPHICSCOMMANDLIST_H
 
 #include "npt_protocol_guest_id3d12graphicscommandlist.h"
+#include "npt_protocol_client_table.h"
 #include "npt_protocol_client_id3d12commandlist.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
@@ -28,6 +29,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family id3d12graphicscommandlist: ID3D12GraphicsCommandList, ID3D12GraphicsCommandList1, ID3D12GraphicsCommandList2, ID3D12GraphicsCommandList3, ID3D12GraphicsCommandList4, ID3D12GraphicsCommandList5, ID3D12GraphicsCommandList6, ID3D12GraphicsCommandList7, ID3D12GraphicsCommandList8, ID3D12GraphicsCommandList9, ID3D12GraphicsCommandList10
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_id3d12graphicscommandlist_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_id3d12graphicscommandlist_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_id3d12graphicscommandlist_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_id3d12graphicscommandlist;
 
 
 /* ================================================================== */
@@ -270,32 +289,12 @@ npt_id3d12graphicscommandlist_default_EndEvent(void *self);
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist_default_ExecuteIndirect(void *self, ID3D12CommandSignature * pCommandSignature, UINT MaxCommandCount, ID3D12Resource * pArgumentBuffer, UINT64 ArgumentBufferOffset, ID3D12Resource * pCountBuffer, UINT64 CountBufferOffset);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist_fill_default_vtbl(struct npt_id3d12graphicscommandlist_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist_client_vtbl npt_id3d12graphicscommandlist_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -462,32 +461,17 @@ npt_id3d12graphicscommandlist1_default_ResolveSubresourceRegion(void *self, ID3D
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist1_default_SetViewInstanceMask(void *self, UINT Mask);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist1_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist1_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist1_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist1_fill_default_vtbl(struct npt_id3d12graphicscommandlist1_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist1_client_vtbl npt_id3d12graphicscommandlist1_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist1_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist1_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist1_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -646,32 +630,17 @@ struct npt_id3d12graphicscommandlist2_client_vtbl {
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist2_default_WriteBufferImmediate(void *self, UINT Count, const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER * pParams, const D3D12_WRITEBUFFERIMMEDIATE_MODE * pModes);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList2.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist2_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist2_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist2_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist2_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist2_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist2_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist2_fill_default_vtbl(struct npt_id3d12graphicscommandlist2_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist2_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist2_client_vtbl npt_id3d12graphicscommandlist2_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist2_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist2_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 2, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist2_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -832,32 +801,17 @@ struct npt_id3d12graphicscommandlist3_client_vtbl {
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist3_default_SetProtectedResourceSession(void *self, ID3D12ProtectedResourceSession * pProtectedResourceSession);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList3.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist3_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist3_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist3_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist3_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist3_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist3_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist3_fill_default_vtbl(struct npt_id3d12graphicscommandlist3_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist3_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist3_client_vtbl npt_id3d12graphicscommandlist3_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist3_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist3_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 3, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist3_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -1052,32 +1006,17 @@ npt_id3d12graphicscommandlist4_default_SetPipelineState1(void *self, ID3D12State
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist4_default_DispatchRays(void *self, const D3D12_DISPATCH_RAYS_DESC * pDesc);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList4.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist4_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist4_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist4_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist4_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist4_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist4_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist4_fill_default_vtbl(struct npt_id3d12graphicscommandlist4_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist4_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist4_client_vtbl npt_id3d12graphicscommandlist4_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist4_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist4_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 4, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist4_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -1262,32 +1201,17 @@ npt_id3d12graphicscommandlist5_default_RSSetShadingRate(void *self, D3D12_SHADIN
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist5_default_RSSetShadingRateImage(void *self, ID3D12Resource * shadingRateImage);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList5.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist5_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist5_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist5_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist5_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist5_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist5_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist5_fill_default_vtbl(struct npt_id3d12graphicscommandlist5_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist5_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist5_client_vtbl npt_id3d12graphicscommandlist5_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist5_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist5_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 5, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist5_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -1472,32 +1396,17 @@ struct npt_id3d12graphicscommandlist6_client_vtbl {
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist6_default_DispatchMesh(void *self, UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList6.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist6_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist6_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist6_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist6_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist6_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist6_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist6_fill_default_vtbl(struct npt_id3d12graphicscommandlist6_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist6_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist6_client_vtbl npt_id3d12graphicscommandlist6_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist6_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist6_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 6, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist6_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -1684,32 +1593,17 @@ struct npt_id3d12graphicscommandlist7_client_vtbl {
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist7_default_Barrier(void *self, UINT32 NumBarrierGroups, const D3D12_BARRIER_GROUP * pBarrierGroups);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList7.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist7_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist7_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist7_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist7_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist7_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist7_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist7_fill_default_vtbl(struct npt_id3d12graphicscommandlist7_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist7_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist7_client_vtbl npt_id3d12graphicscommandlist7_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist7_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist7_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 7, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist7_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -1898,32 +1792,17 @@ struct npt_id3d12graphicscommandlist8_client_vtbl {
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist8_default_OMSetFrontAndBackStencilRef(void *self, UINT FrontStencilRef, UINT BackStencilRef);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList8.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist8_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist8_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist8_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist8_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist8_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist8_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist8_fill_default_vtbl(struct npt_id3d12graphicscommandlist8_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist8_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist8_client_vtbl npt_id3d12graphicscommandlist8_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist8_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist8_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 8, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist8_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -2118,32 +1997,17 @@ npt_id3d12graphicscommandlist9_default_RSSetDepthBias(void *self, FLOAT DepthBia
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist9_default_IASetIndexBufferStripCutValue(void *self, D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList9.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist9_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist9_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist9_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist9_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist9_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist9_default_Release        npt_id3d12graphicscommandlist_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d12graphicscommandlist9_fill_default_vtbl(struct npt_id3d12graphicscommandlist9_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist9_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d12graphicscommandlist9_client_vtbl npt_id3d12graphicscommandlist9_default_vtbl_storage;
-extern void
-npt_id3d12graphicscommandlist9_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D12GraphicsCommandList10's. */
+#define npt_id3d12graphicscommandlist9_default_vtbl_storage npt_id3d12graphicscommandlist10_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 9, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist9_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -2342,15 +2206,10 @@ npt_id3d12graphicscommandlist10_default_SetProgram(void *self, const D3D12_SET_P
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d12graphicscommandlist10_default_DispatchGraph(void *self, const D3D12_DISPATCH_GRAPH_DESC * pDesc);
 
-/* Default IUnknown thunks for ID3D12GraphicsCommandList10.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist10_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist10_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12graphicscommandlist10_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d12graphicscommandlist10_default_QueryInterface npt_id3d12graphicscommandlist_default_QueryInterface
+#define npt_id3d12graphicscommandlist10_default_AddRef         npt_id3d12graphicscommandlist_default_AddRef
+#define npt_id3d12graphicscommandlist10_default_Release        npt_id3d12graphicscommandlist_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -2358,16 +2217,18 @@ npt_id3d12graphicscommandlist10_default_Release(void *self);
 extern void
 npt_id3d12graphicscommandlist10_fill_default_vtbl(struct npt_id3d12graphicscommandlist10_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d12graphicscommandlist10_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_id3d12graphicscommandlist10_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_id3d12graphicscommandlist10_client_vtbl npt_id3d12graphicscommandlist10_default_vtbl_storage;
 extern void
 npt_id3d12graphicscommandlist10_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 10, and returns it. */
 extern void *
 npt_id3d12graphicscommandlist10_client_create(struct npt_device *dev, uint64_t host_id);
 

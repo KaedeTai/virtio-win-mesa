@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12deviceconfiguration.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,43 @@
 
 
 /* ================================================================== */
-/* ID3D12DeviceConfiguration                                                       */
+/* Family id3d12deviceconfiguration                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12deviceconfiguration_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12deviceconfiguration_tiers[] = {
     &NPT_IID_ID3D12DeviceConfiguration,
+    &NPT_IID_ID3D12DeviceConfiguration1,
     NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12deviceconfiguration_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12DEVICECONFIGURATION,
+    NPT_OBJECT_TYPE_ID3D12DEVICECONFIGURATION1,
+};
+
+static const GUID *const npt_com_family_id3d12deviceconfiguration_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12deviceconfiguration = {
+    .name = "id3d12deviceconfiguration",
+    .index = NPT_IFACE_FAMILY_ID3D12DEVICECONFIGURATION,
+    .tier_iids = npt_com_family_id3d12deviceconfiguration_tiers,
+    .tier_types = npt_com_family_id3d12deviceconfiguration_tier_types,
+    .tier_count = 2,
+    .ancestor_iids = npt_com_family_id3d12deviceconfiguration_ancestors,
+    .vtbl = (const void **)&npt_id3d12deviceconfiguration1_default_vtbl_storage,
+    .vtbl_install = npt_id3d12deviceconfiguration1_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12deviceconfiguration_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12deviceconfiguration_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -54,6 +72,11 @@ npt_id3d12deviceconfiguration_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12DeviceConfiguration (tier 0)                                  */
+/* ================================================================== */
 
 D3D12_DEVICE_CONFIGURATION_DESC * NPT_STDMETHODCALLTYPE
 npt_id3d12deviceconfiguration_default_GetDesc(void *self, D3D12_DEVICE_CONFIGURATION_DESC *_ret_out)
@@ -75,6 +98,8 @@ npt_id3d12deviceconfiguration_default_GetEnabledExperimentalFeatures(void *self,
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12deviceconfiguration_default_SerializeVersionedRootSignature(void *self, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC * pDesc, ID3DBlob ** ppResult, ID3DBlob ** ppError)
 {
+    struct npt_wire_object_ref _refs[2];
+    memset(_refs, 0, sizeof(_refs));
     ID3DBlob *_raw_ppResult = NULL;
     ID3DBlob *_raw_ppError = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
@@ -87,32 +112,27 @@ npt_id3d12deviceconfiguration_default_SerializeVersionedRootSignature(void *self
     ID3DBlob **_orig_ppError = ppError;
     if (ppError)
         ppError = (ID3DBlob **)&_raw_ppError;
-    npt_async_ID3D12DeviceConfiguration_SerializeVersionedRootSignature(npt_com_self_ring(self),npt_com_self_id(self),pDesc,ppResult,ppError);
+    HRESULT _ret = npt_call_ID3D12DeviceConfiguration_SerializeVersionedRootSignature(npt_com_self_ring(self),npt_com_self_id(self),pDesc,ppResult,ppError,_refs,2);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppResult) {
-        if (_raw_ppResult)
-            *_orig_ppResult = (ID3DBlob *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D10Blob,
-                (uint64_t)(uintptr_t)_raw_ppResult,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppResult = (ID3DBlob *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D10Blob);
         else
             *_orig_ppResult = NULL;
     }
+    _ref_i++;
     if (_orig_ppError) {
-        if (_raw_ppError)
-            *_orig_ppError = (ID3DBlob *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_ID3D10Blob,
-                (uint64_t)(uintptr_t)_raw_ppError,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppError = (ID3DBlob *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_ID3D10Blob);
         else
             *_orig_ppError = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -145,31 +165,6 @@ npt_id3d12deviceconfiguration_default_CreateVersionedRootSignatureDeserializer(v
 }
 
 
-void
-npt_id3d12deviceconfiguration_fill_default_vtbl(struct npt_id3d12deviceconfiguration_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12deviceconfiguration_default_QueryInterface;
-    dst->AddRef         = npt_id3d12deviceconfiguration_default_AddRef;
-    dst->Release        = npt_id3d12deviceconfiguration_default_Release;
-    dst->GetDesc = npt_id3d12deviceconfiguration_default_GetDesc;
-    dst->GetEnabledExperimentalFeatures = npt_id3d12deviceconfiguration_default_GetEnabledExperimentalFeatures;
-    dst->SerializeVersionedRootSignature = npt_id3d12deviceconfiguration_default_SerializeVersionedRootSignature;
-    dst->CreateVersionedRootSignatureDeserializer = npt_id3d12deviceconfiguration_default_CreateVersionedRootSignatureDeserializer;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12deviceconfiguration_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12deviceconfiguration_client_vtbl npt_id3d12deviceconfiguration_default_vtbl_storage;
-
-void
-npt_id3d12deviceconfiguration_install_default_vtbl(void)
-{
-    npt_id3d12deviceconfiguration_fill_default_vtbl(&npt_id3d12deviceconfiguration_default_vtbl_storage);
-}
-
 void *
 npt_id3d12deviceconfiguration_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -177,49 +172,17 @@ npt_id3d12deviceconfiguration_client_create(struct npt_device *dev, uint64_t hos
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12deviceconfiguration_default_vtbl_storage,
+        (const void **)&npt_id3d12deviceconfiguration1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12deviceconfiguration;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12DeviceConfiguration1                                                       */
+/* ID3D12DeviceConfiguration1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12deviceconfiguration1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12DeviceConfiguration,
-    &NPT_IID_ID3D12DeviceConfiguration1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12deviceconfiguration1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12deviceconfiguration1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12deviceconfiguration1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12deviceconfiguration1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12deviceconfiguration1_default_CreateVersionedRootSignatureDeserializerFromSubobjectInLibrary(void *self, const void * pLibraryBlob, SIZE_T Size, const WCHAR * RootSignatureSubobjectName, const IID * riid, void ** ppvDeserializer)
@@ -254,9 +217,9 @@ npt_id3d12deviceconfiguration1_default_CreateVersionedRootSignatureDeserializerF
 void
 npt_id3d12deviceconfiguration1_fill_default_vtbl(struct npt_id3d12deviceconfiguration1_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d12deviceconfiguration1_default_QueryInterface;
-    dst->AddRef         = npt_id3d12deviceconfiguration1_default_AddRef;
-    dst->Release        = npt_id3d12deviceconfiguration1_default_Release;
+    dst->QueryInterface = npt_id3d12deviceconfiguration_default_QueryInterface;
+    dst->AddRef         = npt_id3d12deviceconfiguration_default_AddRef;
+    dst->Release        = npt_id3d12deviceconfiguration_default_Release;
     dst->GetDesc = npt_id3d12deviceconfiguration_default_GetDesc;
     dst->GetEnabledExperimentalFeatures = npt_id3d12deviceconfiguration_default_GetEnabledExperimentalFeatures;
     dst->SerializeVersionedRootSignature = npt_id3d12deviceconfiguration_default_SerializeVersionedRootSignature;
@@ -265,7 +228,7 @@ npt_id3d12deviceconfiguration1_fill_default_vtbl(struct npt_id3d12deviceconfigur
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12deviceconfiguration1_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -286,6 +249,8 @@ npt_id3d12deviceconfiguration1_client_create(struct npt_device *dev, uint64_t ho
     npt_com_base_init(p,
         (const void **)&npt_id3d12deviceconfiguration1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12deviceconfiguration;
+    p->tier = 1;
     return p;
 }
 

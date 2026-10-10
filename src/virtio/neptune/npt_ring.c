@@ -821,6 +821,26 @@ npt_ring_send_com_release(struct npt_device *dev, uint64_t host_id)
       free(edges);
 }
 
+void
+npt_ring_send_com_release_immediate(struct npt_device *dev, uint64_t host_id)
+{
+   if (!dev || !dev->ring || !host_id)
+      return;
+
+   struct npt_ring *ring = npt_tls_peek_ring(dev);
+   if (!ring)
+      ring = dev->ring;
+
+   struct npt_cmd_com_release header;
+   memset(&header, 0, sizeof(header));
+   header.header.cmd_type =
+      NPT_TRANSPORT_CMD_TYPE(NPT_TRANSPORT_SUBGROUP_COM,
+                             NPT_TRANSPORT_COM_RELEASE);
+   header.header.cmd_size = sizeof(header);
+   header.header.object_id = host_id;
+   npt_ring_submit_raw_with_payload(ring, &header, sizeof(header), NULL, 0, 0);
+}
+
 /* Lock-free pre-check: true when `ring` was already ordered after
  * target_id at or beyond seqno. */
 static bool

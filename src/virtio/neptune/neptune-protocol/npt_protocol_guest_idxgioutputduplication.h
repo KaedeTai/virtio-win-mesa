@@ -164,6 +164,7 @@ struct npt_command_IDXGIOutputDuplication_AcquireNextFrame {
      * this field and inserts {_guest_id_ppDesktopResource -> *ppDesktopResource} in the
      * context object table. */
     uint64_t _guest_id_ppDesktopResource;
+    struct npt_wire_object_ref _ref_ppDesktopResource;
     HRESULT ret;
 };
 
@@ -222,7 +223,7 @@ npt_sizeof_IDXGIOutputDuplication_AcquireNextFrame_reply(const UINT TimeoutInMil
 /* skip TimeoutInMilliseconds (input only) */
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_DXGI_OUTDUPL_FRAME_INFO(&(const DXGI_OUTDUPL_FRAME_INFO){0}, 1);
-/* skip ppDesktopResource (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppDesktopResource: registered id */
     return cmd_size;
 }
 
@@ -230,8 +231,14 @@ static inline void
 npt_decode_IDXGIOutputDuplication_AcquireNextFrame_reply(struct npt_cs_decoder *dec,
                                                          DXGI_OUTDUPL_FRAME_INFO * pFrameInfo,
                                                          IDXGIResource ** ppDesktopResource,
-                                                         HRESULT *ret)
+                                                         HRESULT *ret,
+                                                         struct npt_wire_object_ref *_refs,
+                                                         size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIOutputDuplication,
@@ -255,7 +262,11 @@ npt_decode_IDXGIOutputDuplication_AcquireNextFrame_reply(struct npt_cs_decoder *
         if (pFrameInfo)
             npt_decode_DXGI_OUTDUPL_FRAME_INFO(dec, (DXGI_OUTDUPL_FRAME_INFO *)pFrameInfo);
     }
-/* skip ppDesktopResource (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -288,30 +299,21 @@ npt_submit_IDXGIOutputDuplication_AcquireNextFrame(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIOutputDuplication_AcquireNextFrame(struct npt_ring *ring,
-                                                  npt_object_id object_id,
-                                                  UINT TimeoutInMilliseconds,
-                                                  DXGI_OUTDUPL_FRAME_INFO * pFrameInfo,
-                                                  IDXGIResource ** ppDesktopResource)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIOutputDuplication_AcquireNextFrame(ring, 0, object_id, TimeoutInMilliseconds, pFrameInfo, ppDesktopResource, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIOutputDuplication_AcquireNextFrame(struct npt_ring *ring,
                                                  npt_object_id object_id,
                                                  UINT TimeoutInMilliseconds,
                                                  DXGI_OUTDUPL_FRAME_INFO * pFrameInfo,
-                                                 IDXGIResource ** ppDesktopResource)
+                                                 IDXGIResource ** ppDesktopResource,
+                                                 struct npt_wire_object_ref *_refs,
+                                                 size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIOutputDuplication_AcquireNextFrame(ring, NPT_CMD_FLAG_REPLY, object_id, TimeoutInMilliseconds, pFrameInfo, ppDesktopResource, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIOutputDuplication_AcquireNextFrame_reply(dec, pFrameInfo, ppDesktopResource, &_ret);
+        npt_decode_IDXGIOutputDuplication_AcquireNextFrame_reply(dec, pFrameInfo, ppDesktopResource, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

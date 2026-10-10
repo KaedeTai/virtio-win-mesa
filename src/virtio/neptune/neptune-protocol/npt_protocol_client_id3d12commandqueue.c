@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12commandqueue.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,31 +22,44 @@
 
 
 /* ================================================================== */
-/* ID3D12CommandQueue                                                       */
+/* Family id3d12commandqueue                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12commandqueue_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12commandqueue_tiers[] = {
+    &NPT_IID_ID3D12CommandQueue,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12commandqueue_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12COMMANDQUEUE,
+};
+
+static const GUID *const npt_com_family_id3d12commandqueue_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D12Object,
     &NPT_IID_ID3D12DeviceChild,
     &NPT_IID_ID3D12Pageable,
-    &NPT_IID_ID3D12CommandQueue,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12commandqueue = {
+    .name = "id3d12commandqueue",
+    .index = NPT_IFACE_FAMILY_ID3D12COMMANDQUEUE,
+    .tier_iids = npt_com_family_id3d12commandqueue_tiers,
+    .tier_types = npt_com_family_id3d12commandqueue_tier_types,
+    .tier_count = 1,
+    .ancestor_iids = npt_com_family_id3d12commandqueue_ancestors,
+    .vtbl = (const void **)&npt_id3d12commandqueue_default_vtbl_storage,
+    .vtbl_install = npt_id3d12commandqueue_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12commandqueue_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12commandqueue_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -57,6 +73,11 @@ npt_id3d12commandqueue_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12CommandQueue (tier 0)                                  */
+/* ================================================================== */
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12commandqueue_default_UpdateTileMappings(void *self, ID3D12Resource * pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE * pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE * pResourceRegionSizes, ID3D12Heap * pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS * pRangeFlags, const UINT * pHeapRangeStartOffsets, const UINT * pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags)
@@ -166,7 +187,7 @@ npt_id3d12commandqueue_fill_default_vtbl(struct npt_id3d12commandqueue_client_vt
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12commandqueue_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -187,6 +208,8 @@ npt_id3d12commandqueue_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d12commandqueue_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12commandqueue;
+    p->tier = 0;
     return p;
 }
 

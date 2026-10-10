@@ -41,11 +41,16 @@
 #define NPT_API NPT_DLLEXPORT
 #endif
 
-struct npt_com_qi_memo_entry;
+struct npt_com_memo_entry;
+struct npt_com_family;
+struct npt_wire_object_ref;
 
 /*
  * Every Neptune COM wrapper starts with `lpVtbl` followed by struct
- * npt_object.  `base.id` is the host COM pointer cast to uint64_t.
+ * npt_object.  `base.id` is the guest-minted id the host registered the
+ * object under; the host answers a getter or QueryInterface with the id
+ * it already holds for an object, so one host object has one wrapper
+ * per interface family.
  */
 struct npt_com_base {
    const void **lpVtbl;
@@ -56,9 +61,24 @@ struct npt_com_base {
    void *aux;
    /* Owns aux's lifetime; called by npt_com_destroy. */
    void (*aux_destroy)(void *aux);
-   /* Host QueryInterface verdicts learned for this wrapper, one wire
-    * round trip per IID for the wrapper's lifetime (npt_com.c). */
-   struct npt_com_qi_memo_entry *qi_memo;
+   /* Answers memoized for the wrapper's lifetime: host QueryInterface
+    * verdicts and the results of the getters the registry marks
+    * canonical "memo" (npt_com.c). */
+   struct npt_com_memo_entry *memo;
+   /* The interface family whose vtable this wrapper carries, and the
+    * highest tier of it the host has confirmed (npt_com_query_interface_
+    * family answers tiers up to it locally).  tier_denied is the lowest
+    * tier the host refused, UINT32_MAX until it refuses one.  NULL
+    * family: a hand-built wrapper (guest swapchain, output) with its own
+    * QueryInterface. */
+   const struct npt_com_family *family;
+   _Atomic uint32_t tier;
+   _Atomic uint32_t tier_denied;
+   /* The wrapper QueryInterface(IID_IUnknown) answers with: the object's
+    * primary registration when this wrapper is another interface family's
+    * view of it, NULL when it is the primary itself.  Held (priv_ref)
+    * for this wrapper's lifetime so the answer stays one pointer. */
+   struct npt_com_base *identity;
 };
 
 /* npt_object_get_id (npt_cs.h) reads host_id through struct npt_com_head;
@@ -102,7 +122,11 @@ npt_com_base_init(struct npt_com_base *com, const void **vtbl,
    npt_object_init(&com->base, host_id, dev);
    com->aux = NULL;
    com->aux_destroy = NULL;
-   com->qi_memo = NULL;
+   com->memo = NULL;
+   com->family = NULL;
+   atomic_store_explicit(&com->tier, 0, memory_order_relaxed);
+   atomic_store_explicit(&com->tier_denied, UINT32_MAX, memory_order_relaxed);
+   com->identity = NULL;
 }
 
 static inline uint64_t
@@ -192,6 +216,49 @@ npt_com_default_query_interface_chain(void *self, const GUID *riid,
                                       void **out, const GUID *const *chain);
 
 /*
+ * QueryInterface for a wrapper that carries a family vtable (the
+ * generated families' default).  IID_IUnknown answers the object's
+ * identity; the family's ancestors and its tiers up to the confirmed
+ * one answer self; a higher tier is confirmed by one host round trip
+ * (the host answers this wrapper's own id when the object implements
+ * it) and then answers self for the wrapper's lifetime; any other IID
+ * takes npt_com_query_interface_host.
+ */
+HRESULT
+npt_com_query_interface_family(void *self, const GUID *riid, void **out);
+
+/*
+ * The wrapper for an object the host described in a reply (struct
+ * npt_wire_object_ref: the id it is registered under, its primary
+ * registration, its type), with one public ref for the caller.  The id's
+ * live wrapper when the guest holds one -- the host counted this
+ * answer as a second registration, which the runtime releases again at
+ * once -- else a new wrapper built as the host's type (falling back to
+ * `iid`, the interface the caller asked for), parentless, holding the
+ * device, pointing at the primary for identity.  The tier `iid` names
+ * is confirmed on the wrapper either way.  NULL for a NULL slot, on
+ * OOM, or when neither type has a constructor; the registration is
+ * released again in the failure cases.
+ */
+void *
+npt_com_wrap_canonical(struct npt_device *dev,
+                       const struct npt_wire_object_ref *ref, const GUID *iid);
+
+/*
+ * Memoized answers on a wrapper, keyed by (key, IID): key 0 is host
+ * QueryInterface, a canonical "memo" getter uses its command type.  A
+ * lookup returns the memoized wrapper with a fresh public ref, or NULL.
+ * A store takes its own public ref on `wrapper`; the memo is flushed
+ * when the wrapper's public count drains and at destruction.  A store
+ * of `self` itself is ignored: the wrapper's tier records that answer.
+ */
+void *
+npt_com_memo_lookup(void *self, uint32_t key, const GUID *riid);
+
+void
+npt_com_memo_store(void *self, uint32_t key, const GUID *riid, void *wrapper);
+
+/*
  * Cache lookup for `host_id` in dev's wrapper cache.  Hit returns the
  * cached wrapper with an extra public ref; miss runs the registered
  * ctor for `iid` and inserts the new wrapper.  `parent_wrapper`
@@ -246,9 +313,10 @@ typedef void (*npt_com_aux_init_fn)(struct npt_com_base *com,
 
 /*
  * Register a tiered family.  `tier_iids` is a NULL-terminated list
- * (e.g. {ID3D11Device, Device1, ..., Device5, NULL}); each wrapper
- * keeps its own tier's vtbl, so callers must QI to obtain a wider-
- * tier pointer.  Must run after the default-ctor populator.
+ * (e.g. {ID3D11Device, Device1, ..., Device5, NULL}).  Every tier's
+ * wrapper carries the family's one vtbl (the generated client) and
+ * answers QueryInterface locally up to the tier the host has confirmed.
+ * Must run after the default-ctor populator.
  */
 void
 npt_com_register_family(const GUID *const *tier_iids,
@@ -295,11 +363,13 @@ void
 npt_com_send_release(struct npt_device *dev, uint64_t host_id);
 
 /*
- * QueryInterface fallback for IIDs outside the wrapper's parent chain:
- * resolves against the host object, memoized per (wrapper, IID) --
+ * QueryInterface against the host object, memoized per (wrapper, IID):
  * one wire round trip for the wrapper's lifetime, after which repeat
- * QIs return the same interface pointer with a fresh public ref and
- * no wire traffic.  Called by the generated default QI thunks.
+ * QIs return the same interface pointer with a fresh public ref and no
+ * wire traffic.  The host answers the id the interface is registered
+ * under, so another family's view of the object the guest already holds
+ * comes back as that wrapper, and the object's own wrapper comes back
+ * as self with the tier confirmed.
  */
 HRESULT
 npt_com_query_interface_host(void *self, const GUID *riid, void **ppvObject);

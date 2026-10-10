@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12device.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,70 @@
 
 
 /* ================================================================== */
-/* ID3D12Device                                                       */
+/* Family id3d12device                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12device_tiers[] = {
+    &NPT_IID_ID3D12Device,
+    &NPT_IID_ID3D12Device1,
+    &NPT_IID_ID3D12Device2,
+    &NPT_IID_ID3D12Device3,
+    &NPT_IID_ID3D12Device4,
+    &NPT_IID_ID3D12Device5,
+    &NPT_IID_ID3D12Device6,
+    &NPT_IID_ID3D12Device7,
+    &NPT_IID_ID3D12Device8,
+    &NPT_IID_ID3D12Device9,
+    &NPT_IID_ID3D12Device10,
+    &NPT_IID_ID3D12Device11,
+    &NPT_IID_ID3D12Device12,
+    &NPT_IID_ID3D12Device13,
+    &NPT_IID_ID3D12Device14,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12device_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12DEVICE,
+    NPT_OBJECT_TYPE_ID3D12DEVICE1,
+    NPT_OBJECT_TYPE_ID3D12DEVICE2,
+    NPT_OBJECT_TYPE_ID3D12DEVICE3,
+    NPT_OBJECT_TYPE_ID3D12DEVICE4,
+    NPT_OBJECT_TYPE_ID3D12DEVICE5,
+    NPT_OBJECT_TYPE_ID3D12DEVICE6,
+    NPT_OBJECT_TYPE_ID3D12DEVICE7,
+    NPT_OBJECT_TYPE_ID3D12DEVICE8,
+    NPT_OBJECT_TYPE_ID3D12DEVICE9,
+    NPT_OBJECT_TYPE_ID3D12DEVICE10,
+    NPT_OBJECT_TYPE_ID3D12DEVICE11,
+    NPT_OBJECT_TYPE_ID3D12DEVICE12,
+    NPT_OBJECT_TYPE_ID3D12DEVICE13,
+    NPT_OBJECT_TYPE_ID3D12DEVICE14,
+};
+
+static const GUID *const npt_com_family_id3d12device_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12device = {
+    .name = "id3d12device",
+    .index = NPT_IFACE_FAMILY_ID3D12DEVICE,
+    .tier_iids = npt_com_family_id3d12device_tiers,
+    .tier_types = npt_com_family_id3d12device_tier_types,
+    .tier_count = 15,
+    .ancestor_iids = npt_com_family_id3d12device_ancestors,
+    .vtbl = (const void **)&npt_id3d12device14_default_vtbl_storage,
+    .vtbl_install = npt_id3d12device14_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -55,6 +99,11 @@ npt_id3d12device_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D12Device (tier 0)                                  */
+/* ================================================================== */
 
 UINT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_GetNodeCount(void *self)
@@ -668,68 +717,6 @@ npt_id3d12device_default_GetAdapterLuid(void *self, LUID *_ret_out)
 }
 
 
-void
-npt_id3d12device_fill_default_vtbl(struct npt_id3d12device_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device_default_AddRef;
-    dst->Release        = npt_id3d12device_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device_client_vtbl npt_id3d12device_default_vtbl_storage;
-
-void
-npt_id3d12device_install_default_vtbl(void)
-{
-    npt_id3d12device_fill_default_vtbl(&npt_id3d12device_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -737,50 +724,17 @@ npt_id3d12device_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device1                                                       */
+/* ID3D12Device1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device1_default_CreatePipelineLibrary(void *self, const void * pLibraryBlob, SIZE_T BlobLength, const IID * riid, void ** ppPipelineLibrary)
@@ -834,71 +788,6 @@ npt_id3d12device1_default_SetResidencyPriority(void *self, UINT NumObjects, ID3D
 }
 
 
-void
-npt_id3d12device1_fill_default_vtbl(struct npt_id3d12device1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device1_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device1_default_AddRef;
-    dst->Release        = npt_id3d12device1_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device1_client_vtbl npt_id3d12device1_default_vtbl_storage;
-
-void
-npt_id3d12device1_install_default_vtbl(void)
-{
-    npt_id3d12device1_fill_default_vtbl(&npt_id3d12device1_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -906,51 +795,17 @@ npt_id3d12device1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device1_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device2                                                       */
+/* ID3D12Device2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device2_default_CreatePipelineState(void *self, const D3D12_PIPELINE_STATE_STREAM_DESC * pDesc, const IID * riid, void ** ppPipelineState)
@@ -982,72 +837,6 @@ npt_id3d12device2_default_CreatePipelineState(void *self, const D3D12_PIPELINE_S
 }
 
 
-void
-npt_id3d12device2_fill_default_vtbl(struct npt_id3d12device2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device2_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device2_default_AddRef;
-    dst->Release        = npt_id3d12device2_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device2_client_vtbl npt_id3d12device2_default_vtbl_storage;
-
-void
-npt_id3d12device2_install_default_vtbl(void)
-{
-    npt_id3d12device2_fill_default_vtbl(&npt_id3d12device2_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1055,52 +844,17 @@ npt_id3d12device2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device2_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device3                                                       */
+/* ID3D12Device3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device3_default_OpenExistingHeapFromAddress(void *self, const void * pAddress, const IID * riid, void ** ppvHeap)
@@ -1172,75 +926,6 @@ npt_id3d12device3_default_EnqueueMakeResident(void *self, D3D12_RESIDENCY_FLAGS 
 }
 
 
-void
-npt_id3d12device3_fill_default_vtbl(struct npt_id3d12device3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device3_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device3_default_AddRef;
-    dst->Release        = npt_id3d12device3_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device3_client_vtbl npt_id3d12device3_default_vtbl_storage;
-
-void
-npt_id3d12device3_install_default_vtbl(void)
-{
-    npt_id3d12device3_fill_default_vtbl(&npt_id3d12device3_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1248,53 +933,17 @@ npt_id3d12device3_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device3_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device4                                                       */
+/* ID3D12Device4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device4_default_CreateCommandList1(void *self, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, D3D12_COMMAND_LIST_FLAGS flags, const IID * riid, void ** ppCommandList)
@@ -1452,81 +1101,6 @@ npt_id3d12device4_default_GetResourceAllocationInfo1(void *self, D3D12_RESOURCE_
 }
 
 
-void
-npt_id3d12device4_fill_default_vtbl(struct npt_id3d12device4_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device4_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device4_default_AddRef;
-    dst->Release        = npt_id3d12device4_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device4_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device4_client_vtbl npt_id3d12device4_default_vtbl_storage;
-
-void
-npt_id3d12device4_install_default_vtbl(void)
-{
-    npt_id3d12device4_fill_default_vtbl(&npt_id3d12device4_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device4_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1534,54 +1108,17 @@ npt_id3d12device4_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device4_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 4;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device5                                                       */
+/* ID3D12Device5 (tier 5)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device5_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device5_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device5_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device5_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device5_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device5_default_CreateLifetimeTracker(void *self, ID3D12LifetimeOwner * pOwner, const IID * riid, void ** ppvTracker)
@@ -1704,89 +1241,6 @@ npt_id3d12device5_default_CheckDriverMatchingIdentifier(void *self, D3D12_SERIAL
 }
 
 
-void
-npt_id3d12device5_fill_default_vtbl(struct npt_id3d12device5_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device5_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device5_default_AddRef;
-    dst->Release        = npt_id3d12device5_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device5_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device5_client_vtbl npt_id3d12device5_default_vtbl_storage;
-
-void
-npt_id3d12device5_install_default_vtbl(void)
-{
-    npt_id3d12device5_fill_default_vtbl(&npt_id3d12device5_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device5_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1794,55 +1248,17 @@ npt_id3d12device5_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device5_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 5;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device6                                                       */
+/* ID3D12Device6 (tier 6)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device6_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device6_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device6_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device6_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device6_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device6_default_SetBackgroundProcessingMode(void *self, D3D12_BACKGROUND_PROCESSING_MODE Mode, D3D12_MEASUREMENTS_ACTION MeasurementsAction, HANDLE hEventToSignalUponCompletion, BOOL * pbFurtherMeasurementsDesired)
@@ -1852,90 +1268,6 @@ npt_id3d12device6_default_SetBackgroundProcessingMode(void *self, D3D12_BACKGROU
 }
 
 
-void
-npt_id3d12device6_fill_default_vtbl(struct npt_id3d12device6_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device6_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device6_default_AddRef;
-    dst->Release        = npt_id3d12device6_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device6_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device6_client_vtbl npt_id3d12device6_default_vtbl_storage;
-
-void
-npt_id3d12device6_install_default_vtbl(void)
-{
-    npt_id3d12device6_fill_default_vtbl(&npt_id3d12device6_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device6_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -1943,60 +1275,23 @@ npt_id3d12device6_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device6_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 6;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device7                                                       */
+/* ID3D12Device7 (tier 7)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device7_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device7_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device7_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device7_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device7_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device7_default_AddToStateObject(void *self, const D3D12_STATE_OBJECT_DESC * pAddition, ID3D12StateObject * pStateObjectToGrowFrom, const IID * riid, void ** ppNewStateObject)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppNewStateObject = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -2005,22 +1300,19 @@ npt_id3d12device7_default_AddToStateObject(void *self, const D3D12_STATE_OBJECT_
     void **_orig_ppNewStateObject = ppNewStateObject;
     if (ppNewStateObject)
         ppNewStateObject = (void **)&_raw_ppNewStateObject;
-    npt_async_ID3D12Device7_AddToStateObject(npt_com_self_ring(self),npt_com_self_id(self),pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject);
+    HRESULT _ret = npt_call_ID3D12Device7_AddToStateObject(npt_com_self_ring(self),npt_com_self_id(self),pAddition,pStateObjectToGrowFrom,riid,ppNewStateObject,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppNewStateObject) {
-        if (_raw_ppNewStateObject)
-            *_orig_ppNewStateObject = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppNewStateObject,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppNewStateObject = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppNewStateObject = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -2053,92 +1345,6 @@ npt_id3d12device7_default_CreateProtectedResourceSession1(void *self, const D3D1
 }
 
 
-void
-npt_id3d12device7_fill_default_vtbl(struct npt_id3d12device7_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device7_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device7_default_AddRef;
-    dst->Release        = npt_id3d12device7_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device7_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device7_client_vtbl npt_id3d12device7_default_vtbl_storage;
-
-void
-npt_id3d12device7_install_default_vtbl(void)
-{
-    npt_id3d12device7_fill_default_vtbl(&npt_id3d12device7_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device7_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2146,57 +1352,17 @@ npt_id3d12device7_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device7_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 7;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device8                                                       */
+/* ID3D12Device8 (tier 8)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device8_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device8_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device8_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device8_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device8_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 D3D12_RESOURCE_ALLOCATION_INFO * NPT_STDMETHODCALLTYPE
 npt_id3d12device8_default_GetResourceAllocationInfo2(void *self, D3D12_RESOURCE_ALLOCATION_INFO *_ret_out, UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC1 * pResourceDescs, D3D12_RESOURCE_ALLOCATION_INFO1 * pResourceAllocationInfo1)
@@ -2279,97 +1445,6 @@ npt_id3d12device8_default_GetCopyableFootprints1(void *self, const D3D12_RESOURC
 }
 
 
-void
-npt_id3d12device8_fill_default_vtbl(struct npt_id3d12device8_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device8_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device8_default_AddRef;
-    dst->Release        = npt_id3d12device8_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-    dst->GetResourceAllocationInfo2 = npt_id3d12device8_default_GetResourceAllocationInfo2;
-    dst->CreateCommittedResource2 = npt_id3d12device8_default_CreateCommittedResource2;
-    dst->CreatePlacedResource1 = npt_id3d12device8_default_CreatePlacedResource1;
-    dst->CreateSamplerFeedbackUnorderedAccessView = npt_id3d12device8_default_CreateSamplerFeedbackUnorderedAccessView;
-    dst->GetCopyableFootprints1 = npt_id3d12device8_default_GetCopyableFootprints1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device8_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device8_client_vtbl npt_id3d12device8_default_vtbl_storage;
-
-void
-npt_id3d12device8_install_default_vtbl(void)
-{
-    npt_id3d12device8_fill_default_vtbl(&npt_id3d12device8_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device8_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2377,58 +1452,17 @@ npt_id3d12device8_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device8_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 8;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device9                                                       */
+/* ID3D12Device9 (tier 9)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device9_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    &NPT_IID_ID3D12Device9,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device9_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device9_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device9_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device9_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device9_default_CreateShaderCacheSession(void *self, const D3D12_SHADER_CACHE_SESSION_DESC * pDesc, const IID * riid, void ** ppvSession)
@@ -2500,100 +1534,6 @@ npt_id3d12device9_default_CreateCommandQueue1(void *self, const D3D12_COMMAND_QU
 }
 
 
-void
-npt_id3d12device9_fill_default_vtbl(struct npt_id3d12device9_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device9_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device9_default_AddRef;
-    dst->Release        = npt_id3d12device9_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-    dst->GetResourceAllocationInfo2 = npt_id3d12device8_default_GetResourceAllocationInfo2;
-    dst->CreateCommittedResource2 = npt_id3d12device8_default_CreateCommittedResource2;
-    dst->CreatePlacedResource1 = npt_id3d12device8_default_CreatePlacedResource1;
-    dst->CreateSamplerFeedbackUnorderedAccessView = npt_id3d12device8_default_CreateSamplerFeedbackUnorderedAccessView;
-    dst->GetCopyableFootprints1 = npt_id3d12device8_default_GetCopyableFootprints1;
-    dst->CreateShaderCacheSession = npt_id3d12device9_default_CreateShaderCacheSession;
-    dst->ShaderCacheControl = npt_id3d12device9_default_ShaderCacheControl;
-    dst->CreateCommandQueue1 = npt_id3d12device9_default_CreateCommandQueue1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device9_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device9_client_vtbl npt_id3d12device9_default_vtbl_storage;
-
-void
-npt_id3d12device9_install_default_vtbl(void)
-{
-    npt_id3d12device9_fill_default_vtbl(&npt_id3d12device9_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device9_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2601,59 +1541,17 @@ npt_id3d12device9_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device9_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 9;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device10                                                       */
+/* ID3D12Device10 (tier 10)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device10_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    &NPT_IID_ID3D12Device9,
-    &NPT_IID_ID3D12Device10,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device10_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device10_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device10_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device10_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device10_default_CreateCommittedResource3(void *self, const D3D12_HEAP_PROPERTIES * pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1 * pDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE * pOptimizedClearValue, ID3D12ProtectedResourceSession * pProtectedSession, UINT32 NumCastableFormats, const DXGI_FORMAT * pCastableFormats, const IID * riidResource, void ** ppvResource)
@@ -2743,103 +1641,6 @@ npt_id3d12device10_default_CreateReservedResource2(void *self, const D3D12_RESOU
 }
 
 
-void
-npt_id3d12device10_fill_default_vtbl(struct npt_id3d12device10_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device10_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device10_default_AddRef;
-    dst->Release        = npt_id3d12device10_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-    dst->GetResourceAllocationInfo2 = npt_id3d12device8_default_GetResourceAllocationInfo2;
-    dst->CreateCommittedResource2 = npt_id3d12device8_default_CreateCommittedResource2;
-    dst->CreatePlacedResource1 = npt_id3d12device8_default_CreatePlacedResource1;
-    dst->CreateSamplerFeedbackUnorderedAccessView = npt_id3d12device8_default_CreateSamplerFeedbackUnorderedAccessView;
-    dst->GetCopyableFootprints1 = npt_id3d12device8_default_GetCopyableFootprints1;
-    dst->CreateShaderCacheSession = npt_id3d12device9_default_CreateShaderCacheSession;
-    dst->ShaderCacheControl = npt_id3d12device9_default_ShaderCacheControl;
-    dst->CreateCommandQueue1 = npt_id3d12device9_default_CreateCommandQueue1;
-    dst->CreateCommittedResource3 = npt_id3d12device10_default_CreateCommittedResource3;
-    dst->CreatePlacedResource2 = npt_id3d12device10_default_CreatePlacedResource2;
-    dst->CreateReservedResource2 = npt_id3d12device10_default_CreateReservedResource2;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device10_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device10_client_vtbl npt_id3d12device10_default_vtbl_storage;
-
-void
-npt_id3d12device10_install_default_vtbl(void)
-{
-    npt_id3d12device10_fill_default_vtbl(&npt_id3d12device10_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device10_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -2847,60 +1648,17 @@ npt_id3d12device10_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device10_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 10;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device11                                                       */
+/* ID3D12Device11 (tier 11)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device11_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    &NPT_IID_ID3D12Device9,
-    &NPT_IID_ID3D12Device10,
-    &NPT_IID_ID3D12Device11,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device11_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device11_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device11_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device11_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d12device11_default_CreateSampler2(void *self, const D3D12_SAMPLER_DESC2 * pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -2909,104 +1667,6 @@ npt_id3d12device11_default_CreateSampler2(void *self, const D3D12_SAMPLER_DESC2 
 }
 
 
-void
-npt_id3d12device11_fill_default_vtbl(struct npt_id3d12device11_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device11_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device11_default_AddRef;
-    dst->Release        = npt_id3d12device11_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-    dst->GetResourceAllocationInfo2 = npt_id3d12device8_default_GetResourceAllocationInfo2;
-    dst->CreateCommittedResource2 = npt_id3d12device8_default_CreateCommittedResource2;
-    dst->CreatePlacedResource1 = npt_id3d12device8_default_CreatePlacedResource1;
-    dst->CreateSamplerFeedbackUnorderedAccessView = npt_id3d12device8_default_CreateSamplerFeedbackUnorderedAccessView;
-    dst->GetCopyableFootprints1 = npt_id3d12device8_default_GetCopyableFootprints1;
-    dst->CreateShaderCacheSession = npt_id3d12device9_default_CreateShaderCacheSession;
-    dst->ShaderCacheControl = npt_id3d12device9_default_ShaderCacheControl;
-    dst->CreateCommandQueue1 = npt_id3d12device9_default_CreateCommandQueue1;
-    dst->CreateCommittedResource3 = npt_id3d12device10_default_CreateCommittedResource3;
-    dst->CreatePlacedResource2 = npt_id3d12device10_default_CreatePlacedResource2;
-    dst->CreateReservedResource2 = npt_id3d12device10_default_CreateReservedResource2;
-    dst->CreateSampler2 = npt_id3d12device11_default_CreateSampler2;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device11_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device11_client_vtbl npt_id3d12device11_default_vtbl_storage;
-
-void
-npt_id3d12device11_install_default_vtbl(void)
-{
-    npt_id3d12device11_fill_default_vtbl(&npt_id3d12device11_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device11_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -3014,61 +1674,17 @@ npt_id3d12device11_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device11_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 11;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device12                                                       */
+/* ID3D12Device12 (tier 12)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device12_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    &NPT_IID_ID3D12Device9,
-    &NPT_IID_ID3D12Device10,
-    &NPT_IID_ID3D12Device11,
-    &NPT_IID_ID3D12Device12,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device12_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device12_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device12_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device12_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 D3D12_RESOURCE_ALLOCATION_INFO * NPT_STDMETHODCALLTYPE
 npt_id3d12device12_default_GetResourceAllocationInfo3(void *self, D3D12_RESOURCE_ALLOCATION_INFO *_ret_out, UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC1 * pResourceDescs, const UINT32 * pNumCastableFormats, const DXGI_FORMAT ** ppCastableFormats, D3D12_RESOURCE_ALLOCATION_INFO1 * pResourceAllocationInfo1)
@@ -3081,105 +1697,6 @@ npt_id3d12device12_default_GetResourceAllocationInfo3(void *self, D3D12_RESOURCE
 }
 
 
-void
-npt_id3d12device12_fill_default_vtbl(struct npt_id3d12device12_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device12_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device12_default_AddRef;
-    dst->Release        = npt_id3d12device12_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-    dst->GetResourceAllocationInfo2 = npt_id3d12device8_default_GetResourceAllocationInfo2;
-    dst->CreateCommittedResource2 = npt_id3d12device8_default_CreateCommittedResource2;
-    dst->CreatePlacedResource1 = npt_id3d12device8_default_CreatePlacedResource1;
-    dst->CreateSamplerFeedbackUnorderedAccessView = npt_id3d12device8_default_CreateSamplerFeedbackUnorderedAccessView;
-    dst->GetCopyableFootprints1 = npt_id3d12device8_default_GetCopyableFootprints1;
-    dst->CreateShaderCacheSession = npt_id3d12device9_default_CreateShaderCacheSession;
-    dst->ShaderCacheControl = npt_id3d12device9_default_ShaderCacheControl;
-    dst->CreateCommandQueue1 = npt_id3d12device9_default_CreateCommandQueue1;
-    dst->CreateCommittedResource3 = npt_id3d12device10_default_CreateCommittedResource3;
-    dst->CreatePlacedResource2 = npt_id3d12device10_default_CreatePlacedResource2;
-    dst->CreateReservedResource2 = npt_id3d12device10_default_CreateReservedResource2;
-    dst->CreateSampler2 = npt_id3d12device11_default_CreateSampler2;
-    dst->GetResourceAllocationInfo3 = npt_id3d12device12_default_GetResourceAllocationInfo3;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device12_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device12_client_vtbl npt_id3d12device12_default_vtbl_storage;
-
-void
-npt_id3d12device12_install_default_vtbl(void)
-{
-    npt_id3d12device12_fill_default_vtbl(&npt_id3d12device12_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device12_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -3187,62 +1704,17 @@ npt_id3d12device12_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device12_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 12;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device13                                                       */
+/* ID3D12Device13 (tier 13)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device13_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    &NPT_IID_ID3D12Device9,
-    &NPT_IID_ID3D12Device10,
-    &NPT_IID_ID3D12Device11,
-    &NPT_IID_ID3D12Device12,
-    &NPT_IID_ID3D12Device13,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device13_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device13_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device13_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device13_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device13_default_OpenExistingHeapFromAddress1(void *self, const void * pAddress, SIZE_T size, const IID * riid, void ** ppvHeap)
@@ -3274,106 +1746,6 @@ npt_id3d12device13_default_OpenExistingHeapFromAddress1(void *self, const void *
 }
 
 
-void
-npt_id3d12device13_fill_default_vtbl(struct npt_id3d12device13_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12device13_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device13_default_AddRef;
-    dst->Release        = npt_id3d12device13_default_Release;
-    dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
-    dst->SetName = npt_id3d12object_default_SetName;
-    dst->GetNodeCount = npt_id3d12device_default_GetNodeCount;
-    dst->CreateCommandQueue = npt_id3d12device_default_CreateCommandQueue;
-    dst->CreateCommandAllocator = npt_id3d12device_default_CreateCommandAllocator;
-    dst->CreateGraphicsPipelineState = npt_id3d12device_default_CreateGraphicsPipelineState;
-    dst->CreateComputePipelineState = npt_id3d12device_default_CreateComputePipelineState;
-    dst->CreateCommandList = npt_id3d12device_default_CreateCommandList;
-    dst->CheckFeatureSupport = npt_id3d12device_default_CheckFeatureSupport;
-    dst->CreateDescriptorHeap = npt_id3d12device_default_CreateDescriptorHeap;
-    dst->GetDescriptorHandleIncrementSize = npt_id3d12device_default_GetDescriptorHandleIncrementSize;
-    dst->CreateRootSignature = npt_id3d12device_default_CreateRootSignature;
-    dst->CreateConstantBufferView = npt_id3d12device_default_CreateConstantBufferView;
-    dst->CreateShaderResourceView = npt_id3d12device_default_CreateShaderResourceView;
-    dst->CreateUnorderedAccessView = npt_id3d12device_default_CreateUnorderedAccessView;
-    dst->CreateRenderTargetView = npt_id3d12device_default_CreateRenderTargetView;
-    dst->CreateDepthStencilView = npt_id3d12device_default_CreateDepthStencilView;
-    dst->CreateSampler = npt_id3d12device_default_CreateSampler;
-    dst->CopyDescriptors = npt_id3d12device_default_CopyDescriptors;
-    dst->CopyDescriptorsSimple = npt_id3d12device_default_CopyDescriptorsSimple;
-    dst->GetResourceAllocationInfo = npt_id3d12device_default_GetResourceAllocationInfo;
-    dst->GetCustomHeapProperties = npt_id3d12device_default_GetCustomHeapProperties;
-    dst->CreateCommittedResource = npt_id3d12device_default_CreateCommittedResource;
-    dst->CreateHeap = npt_id3d12device_default_CreateHeap;
-    dst->CreatePlacedResource = npt_id3d12device_default_CreatePlacedResource;
-    dst->CreateReservedResource = npt_id3d12device_default_CreateReservedResource;
-    dst->CreateSharedHandle = npt_id3d12device_default_CreateSharedHandle;
-    dst->OpenSharedHandle = npt_id3d12device_default_OpenSharedHandle;
-    dst->OpenSharedHandleByName = npt_id3d12device_default_OpenSharedHandleByName;
-    dst->MakeResident = npt_id3d12device_default_MakeResident;
-    dst->Evict = npt_id3d12device_default_Evict;
-    dst->CreateFence = npt_id3d12device_default_CreateFence;
-    dst->GetDeviceRemovedReason = npt_id3d12device_default_GetDeviceRemovedReason;
-    dst->GetCopyableFootprints = npt_id3d12device_default_GetCopyableFootprints;
-    dst->CreateQueryHeap = npt_id3d12device_default_CreateQueryHeap;
-    dst->SetStablePowerState = npt_id3d12device_default_SetStablePowerState;
-    dst->CreateCommandSignature = npt_id3d12device_default_CreateCommandSignature;
-    dst->GetResourceTiling = npt_id3d12device_default_GetResourceTiling;
-    dst->GetAdapterLuid = npt_id3d12device_default_GetAdapterLuid;
-    dst->CreatePipelineLibrary = npt_id3d12device1_default_CreatePipelineLibrary;
-    dst->SetEventOnMultipleFenceCompletion = npt_id3d12device1_default_SetEventOnMultipleFenceCompletion;
-    dst->SetResidencyPriority = npt_id3d12device1_default_SetResidencyPriority;
-    dst->CreatePipelineState = npt_id3d12device2_default_CreatePipelineState;
-    dst->OpenExistingHeapFromAddress = npt_id3d12device3_default_OpenExistingHeapFromAddress;
-    dst->OpenExistingHeapFromFileMapping = npt_id3d12device3_default_OpenExistingHeapFromFileMapping;
-    dst->EnqueueMakeResident = npt_id3d12device3_default_EnqueueMakeResident;
-    dst->CreateCommandList1 = npt_id3d12device4_default_CreateCommandList1;
-    dst->CreateProtectedResourceSession = npt_id3d12device4_default_CreateProtectedResourceSession;
-    dst->CreateCommittedResource1 = npt_id3d12device4_default_CreateCommittedResource1;
-    dst->CreateHeap1 = npt_id3d12device4_default_CreateHeap1;
-    dst->CreateReservedResource1 = npt_id3d12device4_default_CreateReservedResource1;
-    dst->GetResourceAllocationInfo1 = npt_id3d12device4_default_GetResourceAllocationInfo1;
-    dst->CreateLifetimeTracker = npt_id3d12device5_default_CreateLifetimeTracker;
-    dst->RemoveDevice = npt_id3d12device5_default_RemoveDevice;
-    dst->EnumerateMetaCommands = npt_id3d12device5_default_EnumerateMetaCommands;
-    dst->EnumerateMetaCommandParameters = npt_id3d12device5_default_EnumerateMetaCommandParameters;
-    dst->CreateMetaCommand = npt_id3d12device5_default_CreateMetaCommand;
-    dst->CreateStateObject = npt_id3d12device5_default_CreateStateObject;
-    dst->GetRaytracingAccelerationStructurePrebuildInfo = npt_id3d12device5_default_GetRaytracingAccelerationStructurePrebuildInfo;
-    dst->CheckDriverMatchingIdentifier = npt_id3d12device5_default_CheckDriverMatchingIdentifier;
-    dst->SetBackgroundProcessingMode = npt_id3d12device6_default_SetBackgroundProcessingMode;
-    dst->AddToStateObject = npt_id3d12device7_default_AddToStateObject;
-    dst->CreateProtectedResourceSession1 = npt_id3d12device7_default_CreateProtectedResourceSession1;
-    dst->GetResourceAllocationInfo2 = npt_id3d12device8_default_GetResourceAllocationInfo2;
-    dst->CreateCommittedResource2 = npt_id3d12device8_default_CreateCommittedResource2;
-    dst->CreatePlacedResource1 = npt_id3d12device8_default_CreatePlacedResource1;
-    dst->CreateSamplerFeedbackUnorderedAccessView = npt_id3d12device8_default_CreateSamplerFeedbackUnorderedAccessView;
-    dst->GetCopyableFootprints1 = npt_id3d12device8_default_GetCopyableFootprints1;
-    dst->CreateShaderCacheSession = npt_id3d12device9_default_CreateShaderCacheSession;
-    dst->ShaderCacheControl = npt_id3d12device9_default_ShaderCacheControl;
-    dst->CreateCommandQueue1 = npt_id3d12device9_default_CreateCommandQueue1;
-    dst->CreateCommittedResource3 = npt_id3d12device10_default_CreateCommittedResource3;
-    dst->CreatePlacedResource2 = npt_id3d12device10_default_CreatePlacedResource2;
-    dst->CreateReservedResource2 = npt_id3d12device10_default_CreateReservedResource2;
-    dst->CreateSampler2 = npt_id3d12device11_default_CreateSampler2;
-    dst->GetResourceAllocationInfo3 = npt_id3d12device12_default_GetResourceAllocationInfo3;
-    dst->OpenExistingHeapFromAddress1 = npt_id3d12device13_default_OpenExistingHeapFromAddress1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12device13_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12device13_client_vtbl npt_id3d12device13_default_vtbl_storage;
-
-void
-npt_id3d12device13_install_default_vtbl(void)
-{
-    npt_id3d12device13_fill_default_vtbl(&npt_id3d12device13_default_vtbl_storage);
-}
-
 void *
 npt_id3d12device13_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -3381,63 +1753,17 @@ npt_id3d12device13_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12device13_default_vtbl_storage,
+        (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 13;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12Device14                                                       */
+/* ID3D12Device14 (tier 14)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12device14_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12Object,
-    &NPT_IID_ID3D12Device,
-    &NPT_IID_ID3D12Device1,
-    &NPT_IID_ID3D12Device2,
-    &NPT_IID_ID3D12Device3,
-    &NPT_IID_ID3D12Device4,
-    &NPT_IID_ID3D12Device5,
-    &NPT_IID_ID3D12Device6,
-    &NPT_IID_ID3D12Device7,
-    &NPT_IID_ID3D12Device8,
-    &NPT_IID_ID3D12Device9,
-    &NPT_IID_ID3D12Device10,
-    &NPT_IID_ID3D12Device11,
-    &NPT_IID_ID3D12Device12,
-    &NPT_IID_ID3D12Device13,
-    &NPT_IID_ID3D12Device14,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12device14_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12device14_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device14_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12device14_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device14_default_CreateRootSignatureFromSubobjectInLibrary(void *self, UINT nodeMask, const void * pLibraryBlob, SIZE_T blobLengthInBytes, const WCHAR * subobjectName, const IID * riid, void ** ppvRootSignature)
@@ -3472,9 +1798,9 @@ npt_id3d12device14_default_CreateRootSignatureFromSubobjectInLibrary(void *self,
 void
 npt_id3d12device14_fill_default_vtbl(struct npt_id3d12device14_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d12device14_default_QueryInterface;
-    dst->AddRef         = npt_id3d12device14_default_AddRef;
-    dst->Release        = npt_id3d12device14_default_Release;
+    dst->QueryInterface = npt_id3d12device_default_QueryInterface;
+    dst->AddRef         = npt_id3d12device_default_AddRef;
+    dst->Release        = npt_id3d12device_default_Release;
     dst->GetPrivateData = npt_id3d12object_default_GetPrivateData;
     dst->SetPrivateData = npt_id3d12object_default_SetPrivateData;
     dst->SetPrivateDataInterface = npt_id3d12object_default_SetPrivateDataInterface;
@@ -3558,7 +1884,7 @@ npt_id3d12device14_fill_default_vtbl(struct npt_id3d12device14_client_vtbl *dst)
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12device14_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -3579,6 +1905,8 @@ npt_id3d12device14_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d12device14_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12device;
+    p->tier = 14;
     return p;
 }
 

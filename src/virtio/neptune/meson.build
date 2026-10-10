@@ -25,7 +25,6 @@ npt_common_src = files(
   'npt_overrides_d3d11_fence.c',
   'npt_overrides_d3d11_query.c',
   'npt_overrides_d3d11_texture.c',
-  'npt_overrides_d3d11_view.c',
   'npt_overrides_d3d12_device.c',
   'npt_overrides_d3d12_fence.c',
   'npt_overrides_d3d12_list.c',

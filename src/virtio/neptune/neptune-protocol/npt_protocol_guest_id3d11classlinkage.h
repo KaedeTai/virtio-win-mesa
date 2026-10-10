@@ -33,6 +33,7 @@ struct npt_command_ID3D11ClassLinkage_GetClassInstance {
      * this field and inserts {_guest_id_ppInstance -> *ppInstance} in the
      * context object table. */
     uint64_t _guest_id_ppInstance;
+    struct npt_wire_object_ref _ref_ppInstance;
     HRESULT ret;
 };
 
@@ -102,15 +103,21 @@ npt_sizeof_ID3D11ClassLinkage_GetClassInstance_reply(const CHAR * pClassInstance
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip pClassInstanceName (input only) */
 /* skip InstanceIndex (input only) */
-/* skip ppInstance (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppInstance: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_ID3D11ClassLinkage_GetClassInstance_reply(struct npt_cs_decoder *dec,
                                                      ID3D11ClassInstance ** ppInstance,
-                                                     HRESULT *ret)
+                                                     HRESULT *ret,
+                                                     struct npt_wire_object_ref *_refs,
+                                                     size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11ClassLinkage,
@@ -130,7 +137,11 @@ npt_decode_ID3D11ClassLinkage_GetClassInstance_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppInstance (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -163,30 +174,21 @@ npt_submit_ID3D11ClassLinkage_GetClassInstance(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_ID3D11ClassLinkage_GetClassInstance(struct npt_ring *ring,
-                                              npt_object_id object_id,
-                                              const CHAR * pClassInstanceName,
-                                              UINT InstanceIndex,
-                                              ID3D11ClassInstance ** ppInstance)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_ID3D11ClassLinkage_GetClassInstance(ring, 0, object_id, pClassInstanceName, InstanceIndex, ppInstance, &submit);
-}
-
 static inline HRESULT
 npt_call_ID3D11ClassLinkage_GetClassInstance(struct npt_ring *ring,
                                              npt_object_id object_id,
                                              const CHAR * pClassInstanceName,
                                              UINT InstanceIndex,
-                                             ID3D11ClassInstance ** ppInstance)
+                                             ID3D11ClassInstance ** ppInstance,
+                                             struct npt_wire_object_ref *_refs,
+                                             size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_ID3D11ClassLinkage_GetClassInstance(ring, NPT_CMD_FLAG_REPLY, object_id, pClassInstanceName, InstanceIndex, ppInstance, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_ID3D11ClassLinkage_GetClassInstance_reply(dec, ppInstance, &_ret);
+        npt_decode_ID3D11ClassLinkage_GetClassInstance_reply(dec, ppInstance, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

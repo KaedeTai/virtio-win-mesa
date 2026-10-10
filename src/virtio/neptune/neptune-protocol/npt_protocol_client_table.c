@@ -111,201 +111,213 @@
 #include "npt_protocol_client_idxgiswapchain.h"
 #include "npt_protocol_client_idxgiswapchainmedia.h"
 
+/* Indexed by npt_object_type_family[] / struct npt_com_family::index. */
+const struct npt_com_family *const npt_com_families[NPT_IFACE_FAMILY_COUNT] = {
+    [NPT_IFACE_FAMILY_ID3D10BLOB] = &npt_com_family_id3d10blob,
+    [NPT_IFACE_FAMILY_ID3D11ASYNCHRONOUS] = &npt_com_family_id3d11asynchronous,
+    [NPT_IFACE_FAMILY_ID3D11AUTHENTICATEDCHANNEL] = &npt_com_family_id3d11authenticatedchannel,
+    [NPT_IFACE_FAMILY_ID3D11BLENDSTATE] = &npt_com_family_id3d11blendstate,
+    [NPT_IFACE_FAMILY_ID3D11BUFFER] = &npt_com_family_id3d11buffer,
+    [NPT_IFACE_FAMILY_ID3D11CLASSINSTANCE] = &npt_com_family_id3d11classinstance,
+    [NPT_IFACE_FAMILY_ID3D11CLASSLINKAGE] = &npt_com_family_id3d11classlinkage,
+    [NPT_IFACE_FAMILY_ID3D11COMMANDLIST] = &npt_com_family_id3d11commandlist,
+    [NPT_IFACE_FAMILY_ID3D11COMPUTESHADER] = &npt_com_family_id3d11computeshader,
+    [NPT_IFACE_FAMILY_ID3D11COUNTER] = &npt_com_family_id3d11counter,
+    [NPT_IFACE_FAMILY_ID3D11CRYPTOSESSION] = &npt_com_family_id3d11cryptosession,
+    [NPT_IFACE_FAMILY_ID3D11DEPTHSTENCILSTATE] = &npt_com_family_id3d11depthstencilstate,
+    [NPT_IFACE_FAMILY_ID3D11DEPTHSTENCILVIEW] = &npt_com_family_id3d11depthstencilview,
+    [NPT_IFACE_FAMILY_ID3D11DEVICE] = &npt_com_family_id3d11device,
+    [NPT_IFACE_FAMILY_ID3D11DEVICECHILD] = &npt_com_family_id3d11devicechild,
+    [NPT_IFACE_FAMILY_ID3D11DEVICECONTEXT] = &npt_com_family_id3d11devicecontext,
+    [NPT_IFACE_FAMILY_ID3D11DOMAINSHADER] = &npt_com_family_id3d11domainshader,
+    [NPT_IFACE_FAMILY_ID3D11FENCE] = &npt_com_family_id3d11fence,
+    [NPT_IFACE_FAMILY_ID3D11GEOMETRYSHADER] = &npt_com_family_id3d11geometryshader,
+    [NPT_IFACE_FAMILY_ID3D11HULLSHADER] = &npt_com_family_id3d11hullshader,
+    [NPT_IFACE_FAMILY_ID3D11INPUTLAYOUT] = &npt_com_family_id3d11inputlayout,
+    [NPT_IFACE_FAMILY_ID3D11MULTITHREAD] = &npt_com_family_id3d11multithread,
+    [NPT_IFACE_FAMILY_ID3D11ON12DEVICE] = &npt_com_family_id3d11on12device,
+    [NPT_IFACE_FAMILY_ID3D11PIXELSHADER] = &npt_com_family_id3d11pixelshader,
+    [NPT_IFACE_FAMILY_ID3D11PREDICATE] = &npt_com_family_id3d11predicate,
+    [NPT_IFACE_FAMILY_ID3D11QUERY] = &npt_com_family_id3d11query,
+    [NPT_IFACE_FAMILY_ID3D11RASTERIZERSTATE] = &npt_com_family_id3d11rasterizerstate,
+    [NPT_IFACE_FAMILY_ID3D11RENDERTARGETVIEW] = &npt_com_family_id3d11rendertargetview,
+    [NPT_IFACE_FAMILY_ID3D11RESOURCE] = &npt_com_family_id3d11resource,
+    [NPT_IFACE_FAMILY_ID3D11SAMPLERSTATE] = &npt_com_family_id3d11samplerstate,
+    [NPT_IFACE_FAMILY_ID3D11SHADERRESOURCEVIEW] = &npt_com_family_id3d11shaderresourceview,
+    [NPT_IFACE_FAMILY_ID3D11TEXTURE1D] = &npt_com_family_id3d11texture1d,
+    [NPT_IFACE_FAMILY_ID3D11TEXTURE2D] = &npt_com_family_id3d11texture2d,
+    [NPT_IFACE_FAMILY_ID3D11TEXTURE3D] = &npt_com_family_id3d11texture3d,
+    [NPT_IFACE_FAMILY_ID3D11UNORDEREDACCESSVIEW] = &npt_com_family_id3d11unorderedaccessview,
+    [NPT_IFACE_FAMILY_ID3D11VERTEXSHADER] = &npt_com_family_id3d11vertexshader,
+    [NPT_IFACE_FAMILY_ID3D11VIDEOCONTEXT] = &npt_com_family_id3d11videocontext,
+    [NPT_IFACE_FAMILY_ID3D11VIDEODECODER] = &npt_com_family_id3d11videodecoder,
+    [NPT_IFACE_FAMILY_ID3D11VIDEODECODEROUTPUTVIEW] = &npt_com_family_id3d11videodecoderoutputview,
+    [NPT_IFACE_FAMILY_ID3D11VIDEODEVICE] = &npt_com_family_id3d11videodevice,
+    [NPT_IFACE_FAMILY_ID3D11VIDEOPROCESSOR] = &npt_com_family_id3d11videoprocessor,
+    [NPT_IFACE_FAMILY_ID3D11VIDEOPROCESSORENUMERATOR] = &npt_com_family_id3d11videoprocessorenumerator,
+    [NPT_IFACE_FAMILY_ID3D11VIDEOPROCESSORINPUTVIEW] = &npt_com_family_id3d11videoprocessorinputview,
+    [NPT_IFACE_FAMILY_ID3D11VIDEOPROCESSOROUTPUTVIEW] = &npt_com_family_id3d11videoprocessoroutputview,
+    [NPT_IFACE_FAMILY_ID3D11VIEW] = &npt_com_family_id3d11view,
+    [NPT_IFACE_FAMILY_ID3D12COMMANDALLOCATOR] = &npt_com_family_id3d12commandallocator,
+    [NPT_IFACE_FAMILY_ID3D12COMMANDLIST] = &npt_com_family_id3d12commandlist,
+    [NPT_IFACE_FAMILY_ID3D12COMMANDQUEUE] = &npt_com_family_id3d12commandqueue,
+    [NPT_IFACE_FAMILY_ID3D12COMMANDSIGNATURE] = &npt_com_family_id3d12commandsignature,
+    [NPT_IFACE_FAMILY_ID3D12DESCRIPTORHEAP] = &npt_com_family_id3d12descriptorheap,
+    [NPT_IFACE_FAMILY_ID3D12DEVICE] = &npt_com_family_id3d12device,
+    [NPT_IFACE_FAMILY_ID3D12DEVICECHILD] = &npt_com_family_id3d12devicechild,
+    [NPT_IFACE_FAMILY_ID3D12DEVICECONFIGURATION] = &npt_com_family_id3d12deviceconfiguration,
+    [NPT_IFACE_FAMILY_ID3D12DEVICEFACTORY] = &npt_com_family_id3d12devicefactory,
+    [NPT_IFACE_FAMILY_ID3D12DEVICEREMOVEDEXTENDEDDATA] = &npt_com_family_id3d12deviceremovedextendeddata,
+    [NPT_IFACE_FAMILY_ID3D12DEVICEREMOVEDEXTENDEDDATASETTINGS] = &npt_com_family_id3d12deviceremovedextendeddatasettings,
+    [NPT_IFACE_FAMILY_ID3D12FENCE] = &npt_com_family_id3d12fence,
+    [NPT_IFACE_FAMILY_ID3D12GRAPHICSCOMMANDLIST] = &npt_com_family_id3d12graphicscommandlist,
+    [NPT_IFACE_FAMILY_ID3D12HEAP] = &npt_com_family_id3d12heap,
+    [NPT_IFACE_FAMILY_ID3D12LIFETIMEOWNER] = &npt_com_family_id3d12lifetimeowner,
+    [NPT_IFACE_FAMILY_ID3D12LIFETIMETRACKER] = &npt_com_family_id3d12lifetimetracker,
+    [NPT_IFACE_FAMILY_ID3D12METACOMMAND] = &npt_com_family_id3d12metacommand,
+    [NPT_IFACE_FAMILY_ID3D12OBJECT] = &npt_com_family_id3d12object,
+    [NPT_IFACE_FAMILY_ID3D12PAGEABLE] = &npt_com_family_id3d12pageable,
+    [NPT_IFACE_FAMILY_ID3D12PIPELINELIBRARY] = &npt_com_family_id3d12pipelinelibrary,
+    [NPT_IFACE_FAMILY_ID3D12PIPELINESTATE] = &npt_com_family_id3d12pipelinestate,
+    [NPT_IFACE_FAMILY_ID3D12PROTECTEDRESOURCESESSION] = &npt_com_family_id3d12protectedresourcesession,
+    [NPT_IFACE_FAMILY_ID3D12PROTECTEDSESSION] = &npt_com_family_id3d12protectedsession,
+    [NPT_IFACE_FAMILY_ID3D12QUERYHEAP] = &npt_com_family_id3d12queryheap,
+    [NPT_IFACE_FAMILY_ID3D12RESOURCE] = &npt_com_family_id3d12resource,
+    [NPT_IFACE_FAMILY_ID3D12ROOTSIGNATURE] = &npt_com_family_id3d12rootsignature,
+    [NPT_IFACE_FAMILY_ID3D12ROOTSIGNATUREDESERIALIZER] = &npt_com_family_id3d12rootsignaturedeserializer,
+    [NPT_IFACE_FAMILY_ID3D12SDKCONFIGURATION] = &npt_com_family_id3d12sdkconfiguration,
+    [NPT_IFACE_FAMILY_ID3D12SHADERCACHESESSION] = &npt_com_family_id3d12shadercachesession,
+    [NPT_IFACE_FAMILY_ID3D12STATEOBJECT] = &npt_com_family_id3d12stateobject,
+    [NPT_IFACE_FAMILY_ID3D12STATEOBJECTPROPERTIES] = &npt_com_family_id3d12stateobjectproperties,
+    [NPT_IFACE_FAMILY_ID3D12SWAPCHAINASSISTANT] = &npt_com_family_id3d12swapchainassistant,
+    [NPT_IFACE_FAMILY_ID3D12TOOLS] = &npt_com_family_id3d12tools,
+    [NPT_IFACE_FAMILY_ID3D12VERSIONEDROOTSIGNATUREDESERIALIZER] = &npt_com_family_id3d12versionedrootsignaturedeserializer,
+    [NPT_IFACE_FAMILY_ID3D12VIRTUALIZATIONGUESTDEVICE] = &npt_com_family_id3d12virtualizationguestdevice,
+    [NPT_IFACE_FAMILY_ID3D12WORKGRAPHPROPERTIES] = &npt_com_family_id3d12workgraphproperties,
+    [NPT_IFACE_FAMILY_ID3DDESTRUCTIONNOTIFIER] = &npt_com_family_id3ddestructionnotifier,
+    [NPT_IFACE_FAMILY_ID3DDEVICECONTEXTSTATE] = &npt_com_family_id3ddevicecontextstate,
+    [NPT_IFACE_FAMILY_ID3DUSERDEFINEDANNOTATION] = &npt_com_family_id3duserdefinedannotation,
+    [NPT_IFACE_FAMILY_IDXGIADAPTER] = &npt_com_family_idxgiadapter,
+    [NPT_IFACE_FAMILY_IDXGIDECODESWAPCHAIN] = &npt_com_family_idxgidecodeswapchain,
+    [NPT_IFACE_FAMILY_IDXGIDEVICE] = &npt_com_family_idxgidevice,
+    [NPT_IFACE_FAMILY_IDXGIDEVICESUBOBJECT] = &npt_com_family_idxgidevicesubobject,
+    [NPT_IFACE_FAMILY_IDXGIDISPLAYCONTROL] = &npt_com_family_idxgidisplaycontrol,
+    [NPT_IFACE_FAMILY_IDXGIFACTORY] = &npt_com_family_idxgifactory,
+    [NPT_IFACE_FAMILY_IDXGIFACTORYMEDIA] = &npt_com_family_idxgifactorymedia,
+    [NPT_IFACE_FAMILY_IDXGIKEYEDMUTEX] = &npt_com_family_idxgikeyedmutex,
+    [NPT_IFACE_FAMILY_IDXGIOBJECT] = &npt_com_family_idxgiobject,
+    [NPT_IFACE_FAMILY_IDXGIOUTPUT] = &npt_com_family_idxgioutput,
+    [NPT_IFACE_FAMILY_IDXGIOUTPUTDUPLICATION] = &npt_com_family_idxgioutputduplication,
+    [NPT_IFACE_FAMILY_IDXGIRESOURCE] = &npt_com_family_idxgiresource,
+    [NPT_IFACE_FAMILY_IDXGISURFACE] = &npt_com_family_idxgisurface,
+    [NPT_IFACE_FAMILY_IDXGISWAPCHAIN] = &npt_com_family_idxgiswapchain,
+    [NPT_IFACE_FAMILY_IDXGISWAPCHAINMEDIA] = &npt_com_family_idxgiswapchainmedia,
+};
+
 void
 npt_com_init_default_ctors(void)
 {
-    /* Populate every per-interface default vtable.  Must run before
-     * any client_create call so the wrapper has a usable vtbl. */
-    npt_id3d10blob_install_default_vtbl();
-    npt_id3d11asynchronous_install_default_vtbl();
-    npt_id3d11authenticatedchannel_install_default_vtbl();
-    npt_id3d11blendstate_install_default_vtbl();
-    npt_id3d11blendstate1_install_default_vtbl();
-    npt_id3d11buffer_install_default_vtbl();
-    npt_id3d11classinstance_install_default_vtbl();
-    npt_id3d11classlinkage_install_default_vtbl();
-    npt_id3d11commandlist_install_default_vtbl();
-    npt_id3d11computeshader_install_default_vtbl();
-    npt_id3d11counter_install_default_vtbl();
-    npt_id3d11cryptosession_install_default_vtbl();
-    npt_id3d11depthstencilstate_install_default_vtbl();
-    npt_id3d11depthstencilview_install_default_vtbl();
-    npt_id3d11device_install_default_vtbl();
-    npt_id3d11device1_install_default_vtbl();
-    npt_id3d11device2_install_default_vtbl();
-    npt_id3d11device3_install_default_vtbl();
-    npt_id3d11device4_install_default_vtbl();
-    npt_id3d11device5_install_default_vtbl();
-    npt_id3d11devicechild_install_default_vtbl();
-    npt_id3d11devicecontext_install_default_vtbl();
-    npt_id3d11devicecontext1_install_default_vtbl();
-    npt_id3d11devicecontext2_install_default_vtbl();
-    npt_id3d11devicecontext3_install_default_vtbl();
-    npt_id3d11devicecontext4_install_default_vtbl();
-    npt_id3d11domainshader_install_default_vtbl();
-    npt_id3d11fence_install_default_vtbl();
-    npt_id3d11geometryshader_install_default_vtbl();
-    npt_id3d11hullshader_install_default_vtbl();
-    npt_id3d11inputlayout_install_default_vtbl();
-    npt_id3d11multithread_install_default_vtbl();
-    npt_id3d11on12device_install_default_vtbl();
-    npt_id3d11on12device1_install_default_vtbl();
-    npt_id3d11on12device2_install_default_vtbl();
-    npt_id3d11pixelshader_install_default_vtbl();
-    npt_id3d11predicate_install_default_vtbl();
-    npt_id3d11query_install_default_vtbl();
-    npt_id3d11query1_install_default_vtbl();
-    npt_id3d11rasterizerstate_install_default_vtbl();
-    npt_id3d11rasterizerstate1_install_default_vtbl();
-    npt_id3d11rasterizerstate2_install_default_vtbl();
-    npt_id3d11rendertargetview_install_default_vtbl();
-    npt_id3d11rendertargetview1_install_default_vtbl();
-    npt_id3d11resource_install_default_vtbl();
-    npt_id3d11samplerstate_install_default_vtbl();
-    npt_id3d11shaderresourceview_install_default_vtbl();
-    npt_id3d11shaderresourceview1_install_default_vtbl();
-    npt_id3d11texture1d_install_default_vtbl();
-    npt_id3d11texture2d_install_default_vtbl();
-    npt_id3d11texture2d1_install_default_vtbl();
-    npt_id3d11texture3d_install_default_vtbl();
-    npt_id3d11texture3d1_install_default_vtbl();
-    npt_id3d11unorderedaccessview_install_default_vtbl();
-    npt_id3d11unorderedaccessview1_install_default_vtbl();
-    npt_id3d11vertexshader_install_default_vtbl();
-    npt_id3d11videocontext_install_default_vtbl();
-    npt_id3d11videocontext1_install_default_vtbl();
-    npt_id3d11videocontext2_install_default_vtbl();
-    npt_id3d11videocontext3_install_default_vtbl();
-    npt_id3d11videodecoder_install_default_vtbl();
-    npt_id3d11videodecoderoutputview_install_default_vtbl();
-    npt_id3d11videodevice_install_default_vtbl();
-    npt_id3d11videodevice1_install_default_vtbl();
-    npt_id3d11videodevice2_install_default_vtbl();
-    npt_id3d11videoprocessor_install_default_vtbl();
-    npt_id3d11videoprocessorenumerator_install_default_vtbl();
-    npt_id3d11videoprocessorenumerator1_install_default_vtbl();
-    npt_id3d11videoprocessorinputview_install_default_vtbl();
-    npt_id3d11videoprocessoroutputview_install_default_vtbl();
-    npt_id3d11view_install_default_vtbl();
-    npt_id3d12commandallocator_install_default_vtbl();
-    npt_id3d12commandlist_install_default_vtbl();
-    npt_id3d12commandqueue_install_default_vtbl();
-    npt_id3d12commandsignature_install_default_vtbl();
-    npt_id3d12descriptorheap_install_default_vtbl();
-    npt_id3d12device_install_default_vtbl();
-    npt_id3d12device1_install_default_vtbl();
-    npt_id3d12device2_install_default_vtbl();
-    npt_id3d12device3_install_default_vtbl();
-    npt_id3d12device4_install_default_vtbl();
-    npt_id3d12device5_install_default_vtbl();
-    npt_id3d12device6_install_default_vtbl();
-    npt_id3d12device7_install_default_vtbl();
-    npt_id3d12device8_install_default_vtbl();
-    npt_id3d12device9_install_default_vtbl();
-    npt_id3d12device10_install_default_vtbl();
-    npt_id3d12device11_install_default_vtbl();
-    npt_id3d12device12_install_default_vtbl();
-    npt_id3d12device13_install_default_vtbl();
-    npt_id3d12device14_install_default_vtbl();
-    npt_id3d12devicechild_install_default_vtbl();
-    npt_id3d12deviceconfiguration_install_default_vtbl();
-    npt_id3d12deviceconfiguration1_install_default_vtbl();
-    npt_id3d12devicefactory_install_default_vtbl();
-    npt_id3d12deviceremovedextendeddata_install_default_vtbl();
-    npt_id3d12deviceremovedextendeddata1_install_default_vtbl();
-    npt_id3d12deviceremovedextendeddata2_install_default_vtbl();
-    npt_id3d12deviceremovedextendeddatasettings_install_default_vtbl();
-    npt_id3d12deviceremovedextendeddatasettings1_install_default_vtbl();
-    npt_id3d12deviceremovedextendeddatasettings2_install_default_vtbl();
-    npt_id3d12fence_install_default_vtbl();
-    npt_id3d12fence1_install_default_vtbl();
-    npt_id3d12graphicscommandlist_install_default_vtbl();
-    npt_id3d12graphicscommandlist1_install_default_vtbl();
-    npt_id3d12graphicscommandlist2_install_default_vtbl();
-    npt_id3d12graphicscommandlist3_install_default_vtbl();
-    npt_id3d12graphicscommandlist4_install_default_vtbl();
-    npt_id3d12graphicscommandlist5_install_default_vtbl();
-    npt_id3d12graphicscommandlist6_install_default_vtbl();
-    npt_id3d12graphicscommandlist7_install_default_vtbl();
-    npt_id3d12graphicscommandlist8_install_default_vtbl();
-    npt_id3d12graphicscommandlist9_install_default_vtbl();
-    npt_id3d12graphicscommandlist10_install_default_vtbl();
-    npt_id3d12heap_install_default_vtbl();
-    npt_id3d12heap1_install_default_vtbl();
-    npt_id3d12lifetimeowner_install_default_vtbl();
-    npt_id3d12lifetimetracker_install_default_vtbl();
-    npt_id3d12metacommand_install_default_vtbl();
-    npt_id3d12object_install_default_vtbl();
-    npt_id3d12pageable_install_default_vtbl();
-    npt_id3d12pipelinelibrary_install_default_vtbl();
-    npt_id3d12pipelinelibrary1_install_default_vtbl();
-    npt_id3d12pipelinestate_install_default_vtbl();
-    npt_id3d12protectedresourcesession_install_default_vtbl();
-    npt_id3d12protectedresourcesession1_install_default_vtbl();
-    npt_id3d12protectedsession_install_default_vtbl();
-    npt_id3d12queryheap_install_default_vtbl();
-    npt_id3d12resource_install_default_vtbl();
-    npt_id3d12resource1_install_default_vtbl();
-    npt_id3d12resource2_install_default_vtbl();
-    npt_id3d12rootsignature_install_default_vtbl();
-    npt_id3d12rootsignaturedeserializer_install_default_vtbl();
-    npt_id3d12sdkconfiguration_install_default_vtbl();
-    npt_id3d12sdkconfiguration1_install_default_vtbl();
-    npt_id3d12shadercachesession_install_default_vtbl();
-    npt_id3d12stateobject_install_default_vtbl();
-    npt_id3d12stateobjectproperties_install_default_vtbl();
-    npt_id3d12stateobjectproperties1_install_default_vtbl();
-    npt_id3d12swapchainassistant_install_default_vtbl();
-    npt_id3d12tools_install_default_vtbl();
-    npt_id3d12versionedrootsignaturedeserializer_install_default_vtbl();
-    npt_id3d12virtualizationguestdevice_install_default_vtbl();
-    npt_id3d12workgraphproperties_install_default_vtbl();
-    npt_id3ddestructionnotifier_install_default_vtbl();
-    npt_id3ddevicecontextstate_install_default_vtbl();
-    npt_id3duserdefinedannotation_install_default_vtbl();
-    npt_idxgiadapter_install_default_vtbl();
-    npt_idxgiadapter1_install_default_vtbl();
-    npt_idxgiadapter2_install_default_vtbl();
-    npt_idxgiadapter3_install_default_vtbl();
-    npt_idxgiadapter4_install_default_vtbl();
-    npt_idxgidecodeswapchain_install_default_vtbl();
-    npt_idxgidevice_install_default_vtbl();
-    npt_idxgidevice1_install_default_vtbl();
-    npt_idxgidevice2_install_default_vtbl();
-    npt_idxgidevice3_install_default_vtbl();
-    npt_idxgidevice4_install_default_vtbl();
-    npt_idxgidevicesubobject_install_default_vtbl();
-    npt_idxgidisplaycontrol_install_default_vtbl();
-    npt_idxgifactory_install_default_vtbl();
-    npt_idxgifactory1_install_default_vtbl();
-    npt_idxgifactory2_install_default_vtbl();
-    npt_idxgifactory3_install_default_vtbl();
-    npt_idxgifactory4_install_default_vtbl();
-    npt_idxgifactory5_install_default_vtbl();
-    npt_idxgifactory6_install_default_vtbl();
-    npt_idxgifactory7_install_default_vtbl();
-    npt_idxgifactorymedia_install_default_vtbl();
-    npt_idxgikeyedmutex_install_default_vtbl();
-    npt_idxgiobject_install_default_vtbl();
-    npt_idxgioutput_install_default_vtbl();
-    npt_idxgioutput1_install_default_vtbl();
-    npt_idxgioutput2_install_default_vtbl();
-    npt_idxgioutput3_install_default_vtbl();
-    npt_idxgioutput4_install_default_vtbl();
-    npt_idxgioutput5_install_default_vtbl();
-    npt_idxgioutput6_install_default_vtbl();
-    npt_idxgioutputduplication_install_default_vtbl();
-    npt_idxgiresource_install_default_vtbl();
-    npt_idxgiresource1_install_default_vtbl();
-    npt_idxgisurface_install_default_vtbl();
-    npt_idxgisurface1_install_default_vtbl();
-    npt_idxgisurface2_install_default_vtbl();
-    npt_idxgiswapchain_install_default_vtbl();
-    npt_idxgiswapchain1_install_default_vtbl();
-    npt_idxgiswapchain2_install_default_vtbl();
-    npt_idxgiswapchain3_install_default_vtbl();
-    npt_idxgiswapchain4_install_default_vtbl();
-    npt_idxgiswapchainmedia_install_default_vtbl();
+    /* Populate every family's vtable.  Must run before any client_create
+     * call so the wrapper has a usable vtbl. */
+    npt_com_family_id3d10blob.vtbl_install();
+    npt_com_family_id3d11asynchronous.vtbl_install();
+    npt_com_family_id3d11authenticatedchannel.vtbl_install();
+    npt_com_family_id3d11blendstate.vtbl_install();
+    npt_com_family_id3d11buffer.vtbl_install();
+    npt_com_family_id3d11classinstance.vtbl_install();
+    npt_com_family_id3d11classlinkage.vtbl_install();
+    npt_com_family_id3d11commandlist.vtbl_install();
+    npt_com_family_id3d11computeshader.vtbl_install();
+    npt_com_family_id3d11counter.vtbl_install();
+    npt_com_family_id3d11cryptosession.vtbl_install();
+    npt_com_family_id3d11depthstencilstate.vtbl_install();
+    npt_com_family_id3d11depthstencilview.vtbl_install();
+    npt_com_family_id3d11device.vtbl_install();
+    npt_com_family_id3d11devicechild.vtbl_install();
+    npt_com_family_id3d11devicecontext.vtbl_install();
+    npt_com_family_id3d11domainshader.vtbl_install();
+    npt_com_family_id3d11fence.vtbl_install();
+    npt_com_family_id3d11geometryshader.vtbl_install();
+    npt_com_family_id3d11hullshader.vtbl_install();
+    npt_com_family_id3d11inputlayout.vtbl_install();
+    npt_com_family_id3d11multithread.vtbl_install();
+    npt_com_family_id3d11on12device.vtbl_install();
+    npt_com_family_id3d11pixelshader.vtbl_install();
+    npt_com_family_id3d11predicate.vtbl_install();
+    npt_com_family_id3d11query.vtbl_install();
+    npt_com_family_id3d11rasterizerstate.vtbl_install();
+    npt_com_family_id3d11rendertargetview.vtbl_install();
+    npt_com_family_id3d11resource.vtbl_install();
+    npt_com_family_id3d11samplerstate.vtbl_install();
+    npt_com_family_id3d11shaderresourceview.vtbl_install();
+    npt_com_family_id3d11texture1d.vtbl_install();
+    npt_com_family_id3d11texture2d.vtbl_install();
+    npt_com_family_id3d11texture3d.vtbl_install();
+    npt_com_family_id3d11unorderedaccessview.vtbl_install();
+    npt_com_family_id3d11vertexshader.vtbl_install();
+    npt_com_family_id3d11videocontext.vtbl_install();
+    npt_com_family_id3d11videodecoder.vtbl_install();
+    npt_com_family_id3d11videodecoderoutputview.vtbl_install();
+    npt_com_family_id3d11videodevice.vtbl_install();
+    npt_com_family_id3d11videoprocessor.vtbl_install();
+    npt_com_family_id3d11videoprocessorenumerator.vtbl_install();
+    npt_com_family_id3d11videoprocessorinputview.vtbl_install();
+    npt_com_family_id3d11videoprocessoroutputview.vtbl_install();
+    npt_com_family_id3d11view.vtbl_install();
+    npt_com_family_id3d12commandallocator.vtbl_install();
+    npt_com_family_id3d12commandlist.vtbl_install();
+    npt_com_family_id3d12commandqueue.vtbl_install();
+    npt_com_family_id3d12commandsignature.vtbl_install();
+    npt_com_family_id3d12descriptorheap.vtbl_install();
+    npt_com_family_id3d12device.vtbl_install();
+    npt_com_family_id3d12devicechild.vtbl_install();
+    npt_com_family_id3d12deviceconfiguration.vtbl_install();
+    npt_com_family_id3d12devicefactory.vtbl_install();
+    npt_com_family_id3d12deviceremovedextendeddata.vtbl_install();
+    npt_com_family_id3d12deviceremovedextendeddatasettings.vtbl_install();
+    npt_com_family_id3d12fence.vtbl_install();
+    npt_com_family_id3d12graphicscommandlist.vtbl_install();
+    npt_com_family_id3d12heap.vtbl_install();
+    npt_com_family_id3d12lifetimeowner.vtbl_install();
+    npt_com_family_id3d12lifetimetracker.vtbl_install();
+    npt_com_family_id3d12metacommand.vtbl_install();
+    npt_com_family_id3d12object.vtbl_install();
+    npt_com_family_id3d12pageable.vtbl_install();
+    npt_com_family_id3d12pipelinelibrary.vtbl_install();
+    npt_com_family_id3d12pipelinestate.vtbl_install();
+    npt_com_family_id3d12protectedresourcesession.vtbl_install();
+    npt_com_family_id3d12protectedsession.vtbl_install();
+    npt_com_family_id3d12queryheap.vtbl_install();
+    npt_com_family_id3d12resource.vtbl_install();
+    npt_com_family_id3d12rootsignature.vtbl_install();
+    npt_com_family_id3d12rootsignaturedeserializer.vtbl_install();
+    npt_com_family_id3d12sdkconfiguration.vtbl_install();
+    npt_com_family_id3d12shadercachesession.vtbl_install();
+    npt_com_family_id3d12stateobject.vtbl_install();
+    npt_com_family_id3d12stateobjectproperties.vtbl_install();
+    npt_com_family_id3d12swapchainassistant.vtbl_install();
+    npt_com_family_id3d12tools.vtbl_install();
+    npt_com_family_id3d12versionedrootsignaturedeserializer.vtbl_install();
+    npt_com_family_id3d12virtualizationguestdevice.vtbl_install();
+    npt_com_family_id3d12workgraphproperties.vtbl_install();
+    npt_com_family_id3ddestructionnotifier.vtbl_install();
+    npt_com_family_id3ddevicecontextstate.vtbl_install();
+    npt_com_family_id3duserdefinedannotation.vtbl_install();
+    npt_com_family_idxgiadapter.vtbl_install();
+    npt_com_family_idxgidecodeswapchain.vtbl_install();
+    npt_com_family_idxgidevice.vtbl_install();
+    npt_com_family_idxgidevicesubobject.vtbl_install();
+    npt_com_family_idxgidisplaycontrol.vtbl_install();
+    npt_com_family_idxgifactory.vtbl_install();
+    npt_com_family_idxgifactorymedia.vtbl_install();
+    npt_com_family_idxgikeyedmutex.vtbl_install();
+    npt_com_family_idxgiobject.vtbl_install();
+    npt_com_family_idxgioutput.vtbl_install();
+    npt_com_family_idxgioutputduplication.vtbl_install();
+    npt_com_family_idxgiresource.vtbl_install();
+    npt_com_family_idxgisurface.vtbl_install();
+    npt_com_family_idxgiswapchain.vtbl_install();
+    npt_com_family_idxgiswapchainmedia.vtbl_install();
 
     /* Register every default constructor in the IID -> ctor table. */
     npt_com_register_default_ctor(&NPT_IID_ID3D10Blob,

@@ -35,10 +35,16 @@ struct npt_ring;
  * COM
  * ========================================================================== */
 
+struct npt_wire_object_ref;
+
+/* Sync.  On S_OK `ref` names the id the interface is registered under
+ * (`guest_id` when the host did not already hold the object under one),
+ * the object's primary id and its type. */
 HRESULT npt_dispatch_com_query_interface(struct npt_ring *ring,
                                          uint64_t src_id,
                                          const GUID *iid,
-                                         uint64_t guest_id);
+                                         uint64_t guest_id,
+                                         struct npt_wire_object_ref *ref);
 
 /* ==========================================================================
  * RESOURCE

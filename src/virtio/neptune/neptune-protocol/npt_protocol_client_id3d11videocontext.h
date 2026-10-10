@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_ID3D11VIDEOCONTEXT_H
 
 #include "npt_protocol_guest_id3d11videocontext.h"
+#include "npt_protocol_client_table.h"
 #include "npt_protocol_client_id3d11devicechild.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
@@ -28,6 +29,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family id3d11videocontext: ID3D11VideoContext, ID3D11VideoContext1, ID3D11VideoContext2, ID3D11VideoContext3
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_id3d11videocontext_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_id3d11videocontext_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_id3d11videocontext_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_id3d11videocontext;
 
 
 /* ================================================================== */
@@ -294,32 +313,12 @@ npt_id3d11videocontext_default_VideoProcessorSetStreamRotation(void *self, ID3D1
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext_default_VideoProcessorGetStreamRotation(void *self, ID3D11VideoProcessor * pVideoProcessor, UINT StreamIndex, BOOL * pEnable, D3D11_VIDEO_PROCESSOR_ROTATION * pRotation);
 
-/* Default IUnknown thunks for ID3D11VideoContext.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d11videocontext_fill_default_vtbl(struct npt_id3d11videocontext_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d11videocontext_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d11videocontext_client_vtbl npt_id3d11videocontext_default_vtbl_storage;
-extern void
-npt_id3d11videocontext_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D11VideoContext3's. */
+#define npt_id3d11videocontext_default_vtbl_storage npt_id3d11videocontext3_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_id3d11videocontext_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -528,32 +527,17 @@ npt_id3d11videocontext1_default_VideoProcessorGetStreamMirror(void *self, ID3D11
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext1_default_VideoProcessorGetBehaviorHints(void *self, ID3D11VideoProcessor * pVideoProcessor, UINT OutputWidth, UINT OutputHeight, DXGI_FORMAT OutputFormat, UINT StreamCount, const D3D11_VIDEO_PROCESSOR_STREAM_BEHAVIOR_HINT * pStreams, UINT * pBehaviorHints);
 
-/* Default IUnknown thunks for ID3D11VideoContext1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d11videocontext1_default_QueryInterface npt_id3d11videocontext_default_QueryInterface
+#define npt_id3d11videocontext1_default_AddRef         npt_id3d11videocontext_default_AddRef
+#define npt_id3d11videocontext1_default_Release        npt_id3d11videocontext_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d11videocontext1_fill_default_vtbl(struct npt_id3d11videocontext1_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d11videocontext1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d11videocontext1_client_vtbl npt_id3d11videocontext1_default_vtbl_storage;
-extern void
-npt_id3d11videocontext1_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D11VideoContext3's. */
+#define npt_id3d11videocontext1_default_vtbl_storage npt_id3d11videocontext3_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_id3d11videocontext1_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -750,32 +734,17 @@ npt_id3d11videocontext2_default_VideoProcessorSetStreamHDRMetaData(void *self, I
 extern void NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext2_default_VideoProcessorGetStreamHDRMetaData(void *self, ID3D11VideoProcessor * pVideoProcessor, UINT StreamIndex, DXGI_HDR_METADATA_TYPE * pType, UINT Size, void * pMetaData);
 
-/* Default IUnknown thunks for ID3D11VideoContext2.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext2_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext2_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext2_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d11videocontext2_default_QueryInterface npt_id3d11videocontext_default_QueryInterface
+#define npt_id3d11videocontext2_default_AddRef         npt_id3d11videocontext_default_AddRef
+#define npt_id3d11videocontext2_default_Release        npt_id3d11videocontext_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_id3d11videocontext2_fill_default_vtbl(struct npt_id3d11videocontext2_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d11videocontext2_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_id3d11videocontext2_client_vtbl npt_id3d11videocontext2_default_vtbl_storage;
-extern void
-npt_id3d11videocontext2_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, ID3D11VideoContext3's. */
+#define npt_id3d11videocontext2_default_vtbl_storage npt_id3d11videocontext3_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 2, and returns it. */
 extern void *
 npt_id3d11videocontext2_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -972,15 +941,10 @@ npt_id3d11videocontext3_default_DecoderBeginFrame1(void *self, ID3D11VideoDecode
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext3_default_SubmitDecoderBuffers2(void *self, ID3D11VideoDecoder * pDecoder, UINT NumBuffers, const D3D11_VIDEO_DECODER_BUFFER_DESC2 * pBufferDesc);
 
-/* Default IUnknown thunks for ID3D11VideoContext3.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext3_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext3_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext3_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_id3d11videocontext3_default_QueryInterface npt_id3d11videocontext_default_QueryInterface
+#define npt_id3d11videocontext3_default_AddRef         npt_id3d11videocontext_default_AddRef
+#define npt_id3d11videocontext3_default_Release        npt_id3d11videocontext_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -988,16 +952,18 @@ npt_id3d11videocontext3_default_Release(void *self);
 extern void
 npt_id3d11videocontext3_fill_default_vtbl(struct npt_id3d11videocontext3_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_id3d11videocontext3_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_id3d11videocontext3_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_id3d11videocontext3_client_vtbl npt_id3d11videocontext3_default_vtbl_storage;
 extern void
 npt_id3d11videocontext3_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 3, and returns it. */
 extern void *
 npt_id3d11videocontext3_client_create(struct npt_device *dev, uint64_t host_id);
 

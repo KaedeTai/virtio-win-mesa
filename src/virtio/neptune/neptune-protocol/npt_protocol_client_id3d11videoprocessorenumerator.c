@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d11videoprocessorenumerator.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,44 @@
 
 
 /* ================================================================== */
-/* ID3D11VideoProcessorEnumerator                                                       */
+/* Family id3d11videoprocessorenumerator                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11videoprocessorenumerator_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d11videoprocessorenumerator_tiers[] = {
+    &NPT_IID_ID3D11VideoProcessorEnumerator,
+    &NPT_IID_ID3D11VideoProcessorEnumerator1,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d11videoprocessorenumerator_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D11VIDEOPROCESSORENUMERATOR,
+    NPT_OBJECT_TYPE_ID3D11VIDEOPROCESSORENUMERATOR1,
+};
+
+static const GUID *const npt_com_family_id3d11videoprocessorenumerator_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11VideoProcessorEnumerator,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d11videoprocessorenumerator = {
+    .name = "id3d11videoprocessorenumerator",
+    .index = NPT_IFACE_FAMILY_ID3D11VIDEOPROCESSORENUMERATOR,
+    .tier_iids = npt_com_family_id3d11videoprocessorenumerator_tiers,
+    .tier_types = npt_com_family_id3d11videoprocessorenumerator_tier_types,
+    .tier_count = 2,
+    .ancestor_iids = npt_com_family_id3d11videoprocessorenumerator_ancestors,
+    .vtbl = (const void **)&npt_id3d11videoprocessorenumerator1_default_vtbl_storage,
+    .vtbl_install = npt_id3d11videoprocessorenumerator1_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videoprocessorenumerator_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11videoprocessorenumerator_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -55,6 +73,11 @@ npt_id3d11videoprocessorenumerator_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D11VideoProcessorEnumerator (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videoprocessorenumerator_default_GetVideoProcessorContentDesc(void *self, D3D11_VIDEO_PROCESSOR_CONTENT_DESC * pContentDesc)
@@ -99,8 +122,35 @@ npt_id3d11videoprocessorenumerator_default_GetVideoProcessorFilterRange(void *se
 }
 
 
+void *
+npt_id3d11videoprocessorenumerator_client_create(struct npt_device *dev, uint64_t host_id)
+{
+    struct npt_com_base *p = (struct npt_com_base *)npt_alloc(sizeof(*p));
+    if (!p)
+        return NULL;
+    npt_com_base_init(p,
+        (const void **)&npt_id3d11videoprocessorenumerator1_default_vtbl_storage,
+        dev, host_id);
+    p->family = &npt_com_family_id3d11videoprocessorenumerator;
+    p->tier = 0;
+    return p;
+}
+
+
+/* ================================================================== */
+/* ID3D11VideoProcessorEnumerator1 (tier 1)                                  */
+/* ================================================================== */
+
+HRESULT NPT_STDMETHODCALLTYPE
+npt_id3d11videoprocessorenumerator1_default_CheckVideoProcessorFormatConversion(void *self, DXGI_FORMAT InputFormat, DXGI_COLOR_SPACE_TYPE InputColorSpace, DXGI_FORMAT OutputFormat, DXGI_COLOR_SPACE_TYPE OutputColorSpace, BOOL * pSupported)
+{
+    HRESULT _ret = npt_call_ID3D11VideoProcessorEnumerator1_CheckVideoProcessorFormatConversion(npt_com_self_ring(self),npt_com_self_id(self),InputFormat,InputColorSpace,OutputFormat,OutputColorSpace,pSupported);
+    return _ret;
+}
+
+
 void
-npt_id3d11videoprocessorenumerator_fill_default_vtbl(struct npt_id3d11videoprocessorenumerator_client_vtbl *dst)
+npt_id3d11videoprocessorenumerator1_fill_default_vtbl(struct npt_id3d11videoprocessorenumerator1_client_vtbl *dst)
 {
     dst->QueryInterface = npt_id3d11videoprocessorenumerator_default_QueryInterface;
     dst->AddRef         = npt_id3d11videoprocessorenumerator_default_AddRef;
@@ -115,102 +165,11 @@ npt_id3d11videoprocessorenumerator_fill_default_vtbl(struct npt_id3d11videoproce
     dst->GetVideoProcessorRateConversionCaps = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorRateConversionCaps;
     dst->GetVideoProcessorCustomRate = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorCustomRate;
     dst->GetVideoProcessorFilterRange = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorFilterRange;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11videoprocessorenumerator_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11videoprocessorenumerator_client_vtbl npt_id3d11videoprocessorenumerator_default_vtbl_storage;
-
-void
-npt_id3d11videoprocessorenumerator_install_default_vtbl(void)
-{
-    npt_id3d11videoprocessorenumerator_fill_default_vtbl(&npt_id3d11videoprocessorenumerator_default_vtbl_storage);
-}
-
-void *
-npt_id3d11videoprocessorenumerator_client_create(struct npt_device *dev, uint64_t host_id)
-{
-    struct npt_com_base *p = (struct npt_com_base *)npt_alloc(sizeof(*p));
-    if (!p)
-        return NULL;
-    npt_com_base_init(p,
-        (const void **)&npt_id3d11videoprocessorenumerator_default_vtbl_storage,
-        dev, host_id);
-    return p;
-}
-
-
-/* ================================================================== */
-/* ID3D11VideoProcessorEnumerator1                                                       */
-/* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11videoprocessorenumerator1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11VideoProcessorEnumerator,
-    &NPT_IID_ID3D11VideoProcessorEnumerator1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videoprocessorenumerator1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11videoprocessorenumerator1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videoprocessorenumerator1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videoprocessorenumerator1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videoprocessorenumerator1_default_CheckVideoProcessorFormatConversion(void *self, DXGI_FORMAT InputFormat, DXGI_COLOR_SPACE_TYPE InputColorSpace, DXGI_FORMAT OutputFormat, DXGI_COLOR_SPACE_TYPE OutputColorSpace, BOOL * pSupported)
-{
-    HRESULT _ret = npt_call_ID3D11VideoProcessorEnumerator1_CheckVideoProcessorFormatConversion(npt_com_self_ring(self),npt_com_self_id(self),InputFormat,InputColorSpace,OutputFormat,OutputColorSpace,pSupported);
-    return _ret;
-}
-
-
-void
-npt_id3d11videoprocessorenumerator1_fill_default_vtbl(struct npt_id3d11videoprocessorenumerator1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11videoprocessorenumerator1_default_QueryInterface;
-    dst->AddRef         = npt_id3d11videoprocessorenumerator1_default_AddRef;
-    dst->Release        = npt_id3d11videoprocessorenumerator1_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->GetVideoProcessorContentDesc = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorContentDesc;
-    dst->CheckVideoProcessorFormat = npt_id3d11videoprocessorenumerator_default_CheckVideoProcessorFormat;
-    dst->GetVideoProcessorCaps = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorCaps;
-    dst->GetVideoProcessorRateConversionCaps = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorRateConversionCaps;
-    dst->GetVideoProcessorCustomRate = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorCustomRate;
-    dst->GetVideoProcessorFilterRange = npt_id3d11videoprocessorenumerator_default_GetVideoProcessorFilterRange;
     dst->CheckVideoProcessorFormatConversion = npt_id3d11videoprocessorenumerator1_default_CheckVideoProcessorFormatConversion;
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d11videoprocessorenumerator1_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -231,6 +190,8 @@ npt_id3d11videoprocessorenumerator1_client_create(struct npt_device *dev, uint64
     npt_com_base_init(p,
         (const void **)&npt_id3d11videoprocessorenumerator1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11videoprocessorenumerator;
+    p->tier = 1;
     return p;
 }
 

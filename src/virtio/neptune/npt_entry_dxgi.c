@@ -59,10 +59,9 @@ CreateDXGIFactory(REFIID riid, void **ppFactory)
 
    void *raw = NULL;
    HRESULT hr = npt_call_CreateDXGIFactory(dev->ring, riid, &raw);
-   /* Wrap with the CALLER's riid: the returned pointer is used as that
-    * interface directly (e.g. CreateDXGIFactory1(IID_IDXGIFactory2) +
-    * CreateSwapChainForHwnd), so a lower-tier vtbl would send calls
-    * through slots past the end of the storage. */
+   /* Wrap with the CALLER's riid: a factory wrapper answers QueryInterface
+    * locally for its own tier and below, so a wrapper at the requested
+    * tier answers that tier without a host round trip. */
    return finish_create_dxgi_factory(dev, riid ? riid : &NPT_IID_IDXGIFactory,
                                      &NPT_IID_IDXGIFactory, raw, hr,
                                      ppFactory);

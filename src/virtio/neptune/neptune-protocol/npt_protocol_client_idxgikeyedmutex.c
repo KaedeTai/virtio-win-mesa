@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgikeyedmutex.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,30 +22,43 @@
 
 
 /* ================================================================== */
-/* IDXGIKeyedMutex                                                       */
+/* Family idxgikeyedmutex                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgikeyedmutex_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgikeyedmutex_tiers[] = {
+    &NPT_IID_IDXGIKeyedMutex,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_idxgikeyedmutex_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGIKEYEDMUTEX,
+};
+
+static const GUID *const npt_com_family_idxgikeyedmutex_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_IDXGIObject,
     &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGIKeyedMutex,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgikeyedmutex = {
+    .name = "idxgikeyedmutex",
+    .index = NPT_IFACE_FAMILY_IDXGIKEYEDMUTEX,
+    .tier_iids = npt_com_family_idxgikeyedmutex_tiers,
+    .tier_types = npt_com_family_idxgikeyedmutex_tier_types,
+    .tier_count = 1,
+    .ancestor_iids = npt_com_family_idxgikeyedmutex_ancestors,
+    .vtbl = (const void **)&npt_idxgikeyedmutex_default_vtbl_storage,
+    .vtbl_install = npt_idxgikeyedmutex_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgikeyedmutex_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgikeyedmutex_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,6 +72,11 @@ npt_idxgikeyedmutex_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* IDXGIKeyedMutex (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgikeyedmutex_default_AcquireSync(void *self, UINT64 Key, DWORD dwMilliseconds)
@@ -96,7 +117,7 @@ npt_idxgikeyedmutex_fill_default_vtbl(struct npt_idxgikeyedmutex_client_vtbl *ds
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgikeyedmutex_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -117,6 +138,8 @@ npt_idxgikeyedmutex_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgikeyedmutex_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgikeyedmutex;
+    p->tier = 0;
     return p;
 }
 

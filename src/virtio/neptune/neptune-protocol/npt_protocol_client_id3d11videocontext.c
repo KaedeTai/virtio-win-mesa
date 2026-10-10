@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d11videocontext.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,29 +22,48 @@
 
 
 /* ================================================================== */
-/* ID3D11VideoContext                                                       */
+/* Family id3d11videocontext                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11videocontext_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d11videocontext_tiers[] = {
+    &NPT_IID_ID3D11VideoContext,
+    &NPT_IID_ID3D11VideoContext1,
+    &NPT_IID_ID3D11VideoContext2,
+    &NPT_IID_ID3D11VideoContext3,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_id3d11videocontext_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D11VIDEOCONTEXT,
+    NPT_OBJECT_TYPE_ID3D11VIDEOCONTEXT1,
+    NPT_OBJECT_TYPE_ID3D11VIDEOCONTEXT2,
+    NPT_OBJECT_TYPE_ID3D11VIDEOCONTEXT3,
+};
+
+static const GUID *const npt_com_family_id3d11videocontext_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11VideoContext,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d11videocontext = {
+    .name = "id3d11videocontext",
+    .index = NPT_IFACE_FAMILY_ID3D11VIDEOCONTEXT,
+    .tier_iids = npt_com_family_id3d11videocontext_tiers,
+    .tier_types = npt_com_family_id3d11videocontext_tier_types,
+    .tier_count = 4,
+    .ancestor_iids = npt_com_family_id3d11videocontext_ancestors,
+    .vtbl = (const void **)&npt_id3d11videocontext3_default_vtbl_storage,
+    .vtbl_install = npt_id3d11videocontext3_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11videocontext_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -55,6 +77,11 @@ npt_id3d11videocontext_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D11VideoContext (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext_default_GetDecoderBuffer(void *self, ID3D11VideoDecoder * pDecoder, D3D11_VIDEO_DECODER_BUFFER_TYPE Type, UINT * pBufferSize, void ** ppBuffer)
@@ -441,89 +468,6 @@ npt_id3d11videocontext_default_VideoProcessorGetStreamRotation(void *self, ID3D1
 }
 
 
-void
-npt_id3d11videocontext_fill_default_vtbl(struct npt_id3d11videocontext_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11videocontext_default_QueryInterface;
-    dst->AddRef         = npt_id3d11videocontext_default_AddRef;
-    dst->Release        = npt_id3d11videocontext_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->GetDecoderBuffer = npt_id3d11videocontext_default_GetDecoderBuffer;
-    dst->ReleaseDecoderBuffer = npt_id3d11videocontext_default_ReleaseDecoderBuffer;
-    dst->DecoderBeginFrame = npt_id3d11videocontext_default_DecoderBeginFrame;
-    dst->DecoderEndFrame = npt_id3d11videocontext_default_DecoderEndFrame;
-    dst->SubmitDecoderBuffers = npt_id3d11videocontext_default_SubmitDecoderBuffers;
-    dst->DecoderExtension = npt_id3d11videocontext_default_DecoderExtension;
-    dst->VideoProcessorSetOutputTargetRect = npt_id3d11videocontext_default_VideoProcessorSetOutputTargetRect;
-    dst->VideoProcessorSetOutputBackgroundColor = npt_id3d11videocontext_default_VideoProcessorSetOutputBackgroundColor;
-    dst->VideoProcessorSetOutputColorSpace = npt_id3d11videocontext_default_VideoProcessorSetOutputColorSpace;
-    dst->VideoProcessorSetOutputAlphaFillMode = npt_id3d11videocontext_default_VideoProcessorSetOutputAlphaFillMode;
-    dst->VideoProcessorSetOutputConstriction = npt_id3d11videocontext_default_VideoProcessorSetOutputConstriction;
-    dst->VideoProcessorSetOutputStereoMode = npt_id3d11videocontext_default_VideoProcessorSetOutputStereoMode;
-    dst->VideoProcessorSetOutputExtension = npt_id3d11videocontext_default_VideoProcessorSetOutputExtension;
-    dst->VideoProcessorGetOutputTargetRect = npt_id3d11videocontext_default_VideoProcessorGetOutputTargetRect;
-    dst->VideoProcessorGetOutputBackgroundColor = npt_id3d11videocontext_default_VideoProcessorGetOutputBackgroundColor;
-    dst->VideoProcessorGetOutputColorSpace = npt_id3d11videocontext_default_VideoProcessorGetOutputColorSpace;
-    dst->VideoProcessorGetOutputAlphaFillMode = npt_id3d11videocontext_default_VideoProcessorGetOutputAlphaFillMode;
-    dst->VideoProcessorGetOutputConstriction = npt_id3d11videocontext_default_VideoProcessorGetOutputConstriction;
-    dst->VideoProcessorGetOutputStereoMode = npt_id3d11videocontext_default_VideoProcessorGetOutputStereoMode;
-    dst->VideoProcessorGetOutputExtension = npt_id3d11videocontext_default_VideoProcessorGetOutputExtension;
-    dst->VideoProcessorSetStreamFrameFormat = npt_id3d11videocontext_default_VideoProcessorSetStreamFrameFormat;
-    dst->VideoProcessorSetStreamColorSpace = npt_id3d11videocontext_default_VideoProcessorSetStreamColorSpace;
-    dst->VideoProcessorSetStreamOutputRate = npt_id3d11videocontext_default_VideoProcessorSetStreamOutputRate;
-    dst->VideoProcessorSetStreamSourceRect = npt_id3d11videocontext_default_VideoProcessorSetStreamSourceRect;
-    dst->VideoProcessorSetStreamDestRect = npt_id3d11videocontext_default_VideoProcessorSetStreamDestRect;
-    dst->VideoProcessorSetStreamAlpha = npt_id3d11videocontext_default_VideoProcessorSetStreamAlpha;
-    dst->VideoProcessorSetStreamPalette = npt_id3d11videocontext_default_VideoProcessorSetStreamPalette;
-    dst->VideoProcessorSetStreamPixelAspectRatio = npt_id3d11videocontext_default_VideoProcessorSetStreamPixelAspectRatio;
-    dst->VideoProcessorSetStreamLumaKey = npt_id3d11videocontext_default_VideoProcessorSetStreamLumaKey;
-    dst->VideoProcessorSetStreamStereoFormat = npt_id3d11videocontext_default_VideoProcessorSetStreamStereoFormat;
-    dst->VideoProcessorSetStreamAutoProcessingMode = npt_id3d11videocontext_default_VideoProcessorSetStreamAutoProcessingMode;
-    dst->VideoProcessorSetStreamFilter = npt_id3d11videocontext_default_VideoProcessorSetStreamFilter;
-    dst->VideoProcessorSetStreamExtension = npt_id3d11videocontext_default_VideoProcessorSetStreamExtension;
-    dst->VideoProcessorGetStreamFrameFormat = npt_id3d11videocontext_default_VideoProcessorGetStreamFrameFormat;
-    dst->VideoProcessorGetStreamColorSpace = npt_id3d11videocontext_default_VideoProcessorGetStreamColorSpace;
-    dst->VideoProcessorGetStreamOutputRate = npt_id3d11videocontext_default_VideoProcessorGetStreamOutputRate;
-    dst->VideoProcessorGetStreamSourceRect = npt_id3d11videocontext_default_VideoProcessorGetStreamSourceRect;
-    dst->VideoProcessorGetStreamDestRect = npt_id3d11videocontext_default_VideoProcessorGetStreamDestRect;
-    dst->VideoProcessorGetStreamAlpha = npt_id3d11videocontext_default_VideoProcessorGetStreamAlpha;
-    dst->VideoProcessorGetStreamPalette = npt_id3d11videocontext_default_VideoProcessorGetStreamPalette;
-    dst->VideoProcessorGetStreamPixelAspectRatio = npt_id3d11videocontext_default_VideoProcessorGetStreamPixelAspectRatio;
-    dst->VideoProcessorGetStreamLumaKey = npt_id3d11videocontext_default_VideoProcessorGetStreamLumaKey;
-    dst->VideoProcessorGetStreamStereoFormat = npt_id3d11videocontext_default_VideoProcessorGetStreamStereoFormat;
-    dst->VideoProcessorGetStreamAutoProcessingMode = npt_id3d11videocontext_default_VideoProcessorGetStreamAutoProcessingMode;
-    dst->VideoProcessorGetStreamFilter = npt_id3d11videocontext_default_VideoProcessorGetStreamFilter;
-    dst->VideoProcessorGetStreamExtension = npt_id3d11videocontext_default_VideoProcessorGetStreamExtension;
-    dst->VideoProcessorBlt = npt_id3d11videocontext_default_VideoProcessorBlt;
-    dst->NegotiateCryptoSessionKeyExchange = npt_id3d11videocontext_default_NegotiateCryptoSessionKeyExchange;
-    dst->EncryptionBlt = npt_id3d11videocontext_default_EncryptionBlt;
-    dst->DecryptionBlt = npt_id3d11videocontext_default_DecryptionBlt;
-    dst->StartSessionKeyRefresh = npt_id3d11videocontext_default_StartSessionKeyRefresh;
-    dst->FinishSessionKeyRefresh = npt_id3d11videocontext_default_FinishSessionKeyRefresh;
-    dst->GetEncryptionBltKey = npt_id3d11videocontext_default_GetEncryptionBltKey;
-    dst->NegotiateAuthenticatedChannelKeyExchange = npt_id3d11videocontext_default_NegotiateAuthenticatedChannelKeyExchange;
-    dst->QueryAuthenticatedChannel = npt_id3d11videocontext_default_QueryAuthenticatedChannel;
-    dst->ConfigureAuthenticatedChannel = npt_id3d11videocontext_default_ConfigureAuthenticatedChannel;
-    dst->VideoProcessorSetStreamRotation = npt_id3d11videocontext_default_VideoProcessorSetStreamRotation;
-    dst->VideoProcessorGetStreamRotation = npt_id3d11videocontext_default_VideoProcessorGetStreamRotation;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11videocontext_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11videocontext_client_vtbl npt_id3d11videocontext_default_vtbl_storage;
-
-void
-npt_id3d11videocontext_install_default_vtbl(void)
-{
-    npt_id3d11videocontext_fill_default_vtbl(&npt_id3d11videocontext_default_vtbl_storage);
-}
-
 void *
 npt_id3d11videocontext_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -531,50 +475,17 @@ npt_id3d11videocontext_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11videocontext_default_vtbl_storage,
+        (const void **)&npt_id3d11videocontext3_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11videocontext;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11VideoContext1                                                       */
+/* ID3D11VideoContext1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11videocontext1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11VideoContext,
-    &NPT_IID_ID3D11VideoContext1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11videocontext1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext1_default_SubmitDecoderBuffers1(void *self, ID3D11VideoDecoder * pDecoder, UINT NumBuffers, const D3D11_VIDEO_DECODER_BUFFER_DESC1 * pBufferDesc)
@@ -679,103 +590,6 @@ npt_id3d11videocontext1_default_VideoProcessorGetBehaviorHints(void *self, ID3D1
 }
 
 
-void
-npt_id3d11videocontext1_fill_default_vtbl(struct npt_id3d11videocontext1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11videocontext1_default_QueryInterface;
-    dst->AddRef         = npt_id3d11videocontext1_default_AddRef;
-    dst->Release        = npt_id3d11videocontext1_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->GetDecoderBuffer = npt_id3d11videocontext_default_GetDecoderBuffer;
-    dst->ReleaseDecoderBuffer = npt_id3d11videocontext_default_ReleaseDecoderBuffer;
-    dst->DecoderBeginFrame = npt_id3d11videocontext_default_DecoderBeginFrame;
-    dst->DecoderEndFrame = npt_id3d11videocontext_default_DecoderEndFrame;
-    dst->SubmitDecoderBuffers = npt_id3d11videocontext_default_SubmitDecoderBuffers;
-    dst->DecoderExtension = npt_id3d11videocontext_default_DecoderExtension;
-    dst->VideoProcessorSetOutputTargetRect = npt_id3d11videocontext_default_VideoProcessorSetOutputTargetRect;
-    dst->VideoProcessorSetOutputBackgroundColor = npt_id3d11videocontext_default_VideoProcessorSetOutputBackgroundColor;
-    dst->VideoProcessorSetOutputColorSpace = npt_id3d11videocontext_default_VideoProcessorSetOutputColorSpace;
-    dst->VideoProcessorSetOutputAlphaFillMode = npt_id3d11videocontext_default_VideoProcessorSetOutputAlphaFillMode;
-    dst->VideoProcessorSetOutputConstriction = npt_id3d11videocontext_default_VideoProcessorSetOutputConstriction;
-    dst->VideoProcessorSetOutputStereoMode = npt_id3d11videocontext_default_VideoProcessorSetOutputStereoMode;
-    dst->VideoProcessorSetOutputExtension = npt_id3d11videocontext_default_VideoProcessorSetOutputExtension;
-    dst->VideoProcessorGetOutputTargetRect = npt_id3d11videocontext_default_VideoProcessorGetOutputTargetRect;
-    dst->VideoProcessorGetOutputBackgroundColor = npt_id3d11videocontext_default_VideoProcessorGetOutputBackgroundColor;
-    dst->VideoProcessorGetOutputColorSpace = npt_id3d11videocontext_default_VideoProcessorGetOutputColorSpace;
-    dst->VideoProcessorGetOutputAlphaFillMode = npt_id3d11videocontext_default_VideoProcessorGetOutputAlphaFillMode;
-    dst->VideoProcessorGetOutputConstriction = npt_id3d11videocontext_default_VideoProcessorGetOutputConstriction;
-    dst->VideoProcessorGetOutputStereoMode = npt_id3d11videocontext_default_VideoProcessorGetOutputStereoMode;
-    dst->VideoProcessorGetOutputExtension = npt_id3d11videocontext_default_VideoProcessorGetOutputExtension;
-    dst->VideoProcessorSetStreamFrameFormat = npt_id3d11videocontext_default_VideoProcessorSetStreamFrameFormat;
-    dst->VideoProcessorSetStreamColorSpace = npt_id3d11videocontext_default_VideoProcessorSetStreamColorSpace;
-    dst->VideoProcessorSetStreamOutputRate = npt_id3d11videocontext_default_VideoProcessorSetStreamOutputRate;
-    dst->VideoProcessorSetStreamSourceRect = npt_id3d11videocontext_default_VideoProcessorSetStreamSourceRect;
-    dst->VideoProcessorSetStreamDestRect = npt_id3d11videocontext_default_VideoProcessorSetStreamDestRect;
-    dst->VideoProcessorSetStreamAlpha = npt_id3d11videocontext_default_VideoProcessorSetStreamAlpha;
-    dst->VideoProcessorSetStreamPalette = npt_id3d11videocontext_default_VideoProcessorSetStreamPalette;
-    dst->VideoProcessorSetStreamPixelAspectRatio = npt_id3d11videocontext_default_VideoProcessorSetStreamPixelAspectRatio;
-    dst->VideoProcessorSetStreamLumaKey = npt_id3d11videocontext_default_VideoProcessorSetStreamLumaKey;
-    dst->VideoProcessorSetStreamStereoFormat = npt_id3d11videocontext_default_VideoProcessorSetStreamStereoFormat;
-    dst->VideoProcessorSetStreamAutoProcessingMode = npt_id3d11videocontext_default_VideoProcessorSetStreamAutoProcessingMode;
-    dst->VideoProcessorSetStreamFilter = npt_id3d11videocontext_default_VideoProcessorSetStreamFilter;
-    dst->VideoProcessorSetStreamExtension = npt_id3d11videocontext_default_VideoProcessorSetStreamExtension;
-    dst->VideoProcessorGetStreamFrameFormat = npt_id3d11videocontext_default_VideoProcessorGetStreamFrameFormat;
-    dst->VideoProcessorGetStreamColorSpace = npt_id3d11videocontext_default_VideoProcessorGetStreamColorSpace;
-    dst->VideoProcessorGetStreamOutputRate = npt_id3d11videocontext_default_VideoProcessorGetStreamOutputRate;
-    dst->VideoProcessorGetStreamSourceRect = npt_id3d11videocontext_default_VideoProcessorGetStreamSourceRect;
-    dst->VideoProcessorGetStreamDestRect = npt_id3d11videocontext_default_VideoProcessorGetStreamDestRect;
-    dst->VideoProcessorGetStreamAlpha = npt_id3d11videocontext_default_VideoProcessorGetStreamAlpha;
-    dst->VideoProcessorGetStreamPalette = npt_id3d11videocontext_default_VideoProcessorGetStreamPalette;
-    dst->VideoProcessorGetStreamPixelAspectRatio = npt_id3d11videocontext_default_VideoProcessorGetStreamPixelAspectRatio;
-    dst->VideoProcessorGetStreamLumaKey = npt_id3d11videocontext_default_VideoProcessorGetStreamLumaKey;
-    dst->VideoProcessorGetStreamStereoFormat = npt_id3d11videocontext_default_VideoProcessorGetStreamStereoFormat;
-    dst->VideoProcessorGetStreamAutoProcessingMode = npt_id3d11videocontext_default_VideoProcessorGetStreamAutoProcessingMode;
-    dst->VideoProcessorGetStreamFilter = npt_id3d11videocontext_default_VideoProcessorGetStreamFilter;
-    dst->VideoProcessorGetStreamExtension = npt_id3d11videocontext_default_VideoProcessorGetStreamExtension;
-    dst->VideoProcessorBlt = npt_id3d11videocontext_default_VideoProcessorBlt;
-    dst->NegotiateCryptoSessionKeyExchange = npt_id3d11videocontext_default_NegotiateCryptoSessionKeyExchange;
-    dst->EncryptionBlt = npt_id3d11videocontext_default_EncryptionBlt;
-    dst->DecryptionBlt = npt_id3d11videocontext_default_DecryptionBlt;
-    dst->StartSessionKeyRefresh = npt_id3d11videocontext_default_StartSessionKeyRefresh;
-    dst->FinishSessionKeyRefresh = npt_id3d11videocontext_default_FinishSessionKeyRefresh;
-    dst->GetEncryptionBltKey = npt_id3d11videocontext_default_GetEncryptionBltKey;
-    dst->NegotiateAuthenticatedChannelKeyExchange = npt_id3d11videocontext_default_NegotiateAuthenticatedChannelKeyExchange;
-    dst->QueryAuthenticatedChannel = npt_id3d11videocontext_default_QueryAuthenticatedChannel;
-    dst->ConfigureAuthenticatedChannel = npt_id3d11videocontext_default_ConfigureAuthenticatedChannel;
-    dst->VideoProcessorSetStreamRotation = npt_id3d11videocontext_default_VideoProcessorSetStreamRotation;
-    dst->VideoProcessorGetStreamRotation = npt_id3d11videocontext_default_VideoProcessorGetStreamRotation;
-    dst->SubmitDecoderBuffers1 = npt_id3d11videocontext1_default_SubmitDecoderBuffers1;
-    dst->GetDataForNewHardwareKey = npt_id3d11videocontext1_default_GetDataForNewHardwareKey;
-    dst->CheckCryptoSessionStatus = npt_id3d11videocontext1_default_CheckCryptoSessionStatus;
-    dst->DecoderEnableDownsampling = npt_id3d11videocontext1_default_DecoderEnableDownsampling;
-    dst->DecoderUpdateDownsampling = npt_id3d11videocontext1_default_DecoderUpdateDownsampling;
-    dst->VideoProcessorSetOutputColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorSetOutputColorSpace1;
-    dst->VideoProcessorSetOutputShaderUsage = npt_id3d11videocontext1_default_VideoProcessorSetOutputShaderUsage;
-    dst->VideoProcessorGetOutputColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorGetOutputColorSpace1;
-    dst->VideoProcessorGetOutputShaderUsage = npt_id3d11videocontext1_default_VideoProcessorGetOutputShaderUsage;
-    dst->VideoProcessorSetStreamColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorSetStreamColorSpace1;
-    dst->VideoProcessorSetStreamMirror = npt_id3d11videocontext1_default_VideoProcessorSetStreamMirror;
-    dst->VideoProcessorGetStreamColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorGetStreamColorSpace1;
-    dst->VideoProcessorGetStreamMirror = npt_id3d11videocontext1_default_VideoProcessorGetStreamMirror;
-    dst->VideoProcessorGetBehaviorHints = npt_id3d11videocontext1_default_VideoProcessorGetBehaviorHints;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11videocontext1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11videocontext1_client_vtbl npt_id3d11videocontext1_default_vtbl_storage;
-
-void
-npt_id3d11videocontext1_install_default_vtbl(void)
-{
-    npt_id3d11videocontext1_fill_default_vtbl(&npt_id3d11videocontext1_default_vtbl_storage);
-}
-
 void *
 npt_id3d11videocontext1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -783,51 +597,17 @@ npt_id3d11videocontext1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11videocontext1_default_vtbl_storage,
+        (const void **)&npt_id3d11videocontext3_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11videocontext;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11VideoContext2                                                       */
+/* ID3D11VideoContext2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11videocontext2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11VideoContext,
-    &NPT_IID_ID3D11VideoContext1,
-    &NPT_IID_ID3D11VideoContext2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11videocontext2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 void NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext2_default_VideoProcessorSetOutputHDRMetaData(void *self, ID3D11VideoProcessor * pVideoProcessor, DXGI_HDR_METADATA_TYPE Type, UINT Size, const void * pHDRMetaData)
@@ -854,107 +634,6 @@ npt_id3d11videocontext2_default_VideoProcessorGetStreamHDRMetaData(void *self, I
 }
 
 
-void
-npt_id3d11videocontext2_fill_default_vtbl(struct npt_id3d11videocontext2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11videocontext2_default_QueryInterface;
-    dst->AddRef         = npt_id3d11videocontext2_default_AddRef;
-    dst->Release        = npt_id3d11videocontext2_default_Release;
-    dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
-    dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
-    dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_id3d11devicechild_default_SetPrivateDataInterface;
-    dst->GetDecoderBuffer = npt_id3d11videocontext_default_GetDecoderBuffer;
-    dst->ReleaseDecoderBuffer = npt_id3d11videocontext_default_ReleaseDecoderBuffer;
-    dst->DecoderBeginFrame = npt_id3d11videocontext_default_DecoderBeginFrame;
-    dst->DecoderEndFrame = npt_id3d11videocontext_default_DecoderEndFrame;
-    dst->SubmitDecoderBuffers = npt_id3d11videocontext_default_SubmitDecoderBuffers;
-    dst->DecoderExtension = npt_id3d11videocontext_default_DecoderExtension;
-    dst->VideoProcessorSetOutputTargetRect = npt_id3d11videocontext_default_VideoProcessorSetOutputTargetRect;
-    dst->VideoProcessorSetOutputBackgroundColor = npt_id3d11videocontext_default_VideoProcessorSetOutputBackgroundColor;
-    dst->VideoProcessorSetOutputColorSpace = npt_id3d11videocontext_default_VideoProcessorSetOutputColorSpace;
-    dst->VideoProcessorSetOutputAlphaFillMode = npt_id3d11videocontext_default_VideoProcessorSetOutputAlphaFillMode;
-    dst->VideoProcessorSetOutputConstriction = npt_id3d11videocontext_default_VideoProcessorSetOutputConstriction;
-    dst->VideoProcessorSetOutputStereoMode = npt_id3d11videocontext_default_VideoProcessorSetOutputStereoMode;
-    dst->VideoProcessorSetOutputExtension = npt_id3d11videocontext_default_VideoProcessorSetOutputExtension;
-    dst->VideoProcessorGetOutputTargetRect = npt_id3d11videocontext_default_VideoProcessorGetOutputTargetRect;
-    dst->VideoProcessorGetOutputBackgroundColor = npt_id3d11videocontext_default_VideoProcessorGetOutputBackgroundColor;
-    dst->VideoProcessorGetOutputColorSpace = npt_id3d11videocontext_default_VideoProcessorGetOutputColorSpace;
-    dst->VideoProcessorGetOutputAlphaFillMode = npt_id3d11videocontext_default_VideoProcessorGetOutputAlphaFillMode;
-    dst->VideoProcessorGetOutputConstriction = npt_id3d11videocontext_default_VideoProcessorGetOutputConstriction;
-    dst->VideoProcessorGetOutputStereoMode = npt_id3d11videocontext_default_VideoProcessorGetOutputStereoMode;
-    dst->VideoProcessorGetOutputExtension = npt_id3d11videocontext_default_VideoProcessorGetOutputExtension;
-    dst->VideoProcessorSetStreamFrameFormat = npt_id3d11videocontext_default_VideoProcessorSetStreamFrameFormat;
-    dst->VideoProcessorSetStreamColorSpace = npt_id3d11videocontext_default_VideoProcessorSetStreamColorSpace;
-    dst->VideoProcessorSetStreamOutputRate = npt_id3d11videocontext_default_VideoProcessorSetStreamOutputRate;
-    dst->VideoProcessorSetStreamSourceRect = npt_id3d11videocontext_default_VideoProcessorSetStreamSourceRect;
-    dst->VideoProcessorSetStreamDestRect = npt_id3d11videocontext_default_VideoProcessorSetStreamDestRect;
-    dst->VideoProcessorSetStreamAlpha = npt_id3d11videocontext_default_VideoProcessorSetStreamAlpha;
-    dst->VideoProcessorSetStreamPalette = npt_id3d11videocontext_default_VideoProcessorSetStreamPalette;
-    dst->VideoProcessorSetStreamPixelAspectRatio = npt_id3d11videocontext_default_VideoProcessorSetStreamPixelAspectRatio;
-    dst->VideoProcessorSetStreamLumaKey = npt_id3d11videocontext_default_VideoProcessorSetStreamLumaKey;
-    dst->VideoProcessorSetStreamStereoFormat = npt_id3d11videocontext_default_VideoProcessorSetStreamStereoFormat;
-    dst->VideoProcessorSetStreamAutoProcessingMode = npt_id3d11videocontext_default_VideoProcessorSetStreamAutoProcessingMode;
-    dst->VideoProcessorSetStreamFilter = npt_id3d11videocontext_default_VideoProcessorSetStreamFilter;
-    dst->VideoProcessorSetStreamExtension = npt_id3d11videocontext_default_VideoProcessorSetStreamExtension;
-    dst->VideoProcessorGetStreamFrameFormat = npt_id3d11videocontext_default_VideoProcessorGetStreamFrameFormat;
-    dst->VideoProcessorGetStreamColorSpace = npt_id3d11videocontext_default_VideoProcessorGetStreamColorSpace;
-    dst->VideoProcessorGetStreamOutputRate = npt_id3d11videocontext_default_VideoProcessorGetStreamOutputRate;
-    dst->VideoProcessorGetStreamSourceRect = npt_id3d11videocontext_default_VideoProcessorGetStreamSourceRect;
-    dst->VideoProcessorGetStreamDestRect = npt_id3d11videocontext_default_VideoProcessorGetStreamDestRect;
-    dst->VideoProcessorGetStreamAlpha = npt_id3d11videocontext_default_VideoProcessorGetStreamAlpha;
-    dst->VideoProcessorGetStreamPalette = npt_id3d11videocontext_default_VideoProcessorGetStreamPalette;
-    dst->VideoProcessorGetStreamPixelAspectRatio = npt_id3d11videocontext_default_VideoProcessorGetStreamPixelAspectRatio;
-    dst->VideoProcessorGetStreamLumaKey = npt_id3d11videocontext_default_VideoProcessorGetStreamLumaKey;
-    dst->VideoProcessorGetStreamStereoFormat = npt_id3d11videocontext_default_VideoProcessorGetStreamStereoFormat;
-    dst->VideoProcessorGetStreamAutoProcessingMode = npt_id3d11videocontext_default_VideoProcessorGetStreamAutoProcessingMode;
-    dst->VideoProcessorGetStreamFilter = npt_id3d11videocontext_default_VideoProcessorGetStreamFilter;
-    dst->VideoProcessorGetStreamExtension = npt_id3d11videocontext_default_VideoProcessorGetStreamExtension;
-    dst->VideoProcessorBlt = npt_id3d11videocontext_default_VideoProcessorBlt;
-    dst->NegotiateCryptoSessionKeyExchange = npt_id3d11videocontext_default_NegotiateCryptoSessionKeyExchange;
-    dst->EncryptionBlt = npt_id3d11videocontext_default_EncryptionBlt;
-    dst->DecryptionBlt = npt_id3d11videocontext_default_DecryptionBlt;
-    dst->StartSessionKeyRefresh = npt_id3d11videocontext_default_StartSessionKeyRefresh;
-    dst->FinishSessionKeyRefresh = npt_id3d11videocontext_default_FinishSessionKeyRefresh;
-    dst->GetEncryptionBltKey = npt_id3d11videocontext_default_GetEncryptionBltKey;
-    dst->NegotiateAuthenticatedChannelKeyExchange = npt_id3d11videocontext_default_NegotiateAuthenticatedChannelKeyExchange;
-    dst->QueryAuthenticatedChannel = npt_id3d11videocontext_default_QueryAuthenticatedChannel;
-    dst->ConfigureAuthenticatedChannel = npt_id3d11videocontext_default_ConfigureAuthenticatedChannel;
-    dst->VideoProcessorSetStreamRotation = npt_id3d11videocontext_default_VideoProcessorSetStreamRotation;
-    dst->VideoProcessorGetStreamRotation = npt_id3d11videocontext_default_VideoProcessorGetStreamRotation;
-    dst->SubmitDecoderBuffers1 = npt_id3d11videocontext1_default_SubmitDecoderBuffers1;
-    dst->GetDataForNewHardwareKey = npt_id3d11videocontext1_default_GetDataForNewHardwareKey;
-    dst->CheckCryptoSessionStatus = npt_id3d11videocontext1_default_CheckCryptoSessionStatus;
-    dst->DecoderEnableDownsampling = npt_id3d11videocontext1_default_DecoderEnableDownsampling;
-    dst->DecoderUpdateDownsampling = npt_id3d11videocontext1_default_DecoderUpdateDownsampling;
-    dst->VideoProcessorSetOutputColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorSetOutputColorSpace1;
-    dst->VideoProcessorSetOutputShaderUsage = npt_id3d11videocontext1_default_VideoProcessorSetOutputShaderUsage;
-    dst->VideoProcessorGetOutputColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorGetOutputColorSpace1;
-    dst->VideoProcessorGetOutputShaderUsage = npt_id3d11videocontext1_default_VideoProcessorGetOutputShaderUsage;
-    dst->VideoProcessorSetStreamColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorSetStreamColorSpace1;
-    dst->VideoProcessorSetStreamMirror = npt_id3d11videocontext1_default_VideoProcessorSetStreamMirror;
-    dst->VideoProcessorGetStreamColorSpace1 = npt_id3d11videocontext1_default_VideoProcessorGetStreamColorSpace1;
-    dst->VideoProcessorGetStreamMirror = npt_id3d11videocontext1_default_VideoProcessorGetStreamMirror;
-    dst->VideoProcessorGetBehaviorHints = npt_id3d11videocontext1_default_VideoProcessorGetBehaviorHints;
-    dst->VideoProcessorSetOutputHDRMetaData = npt_id3d11videocontext2_default_VideoProcessorSetOutputHDRMetaData;
-    dst->VideoProcessorGetOutputHDRMetaData = npt_id3d11videocontext2_default_VideoProcessorGetOutputHDRMetaData;
-    dst->VideoProcessorSetStreamHDRMetaData = npt_id3d11videocontext2_default_VideoProcessorSetStreamHDRMetaData;
-    dst->VideoProcessorGetStreamHDRMetaData = npt_id3d11videocontext2_default_VideoProcessorGetStreamHDRMetaData;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11videocontext2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11videocontext2_client_vtbl npt_id3d11videocontext2_default_vtbl_storage;
-
-void
-npt_id3d11videocontext2_install_default_vtbl(void)
-{
-    npt_id3d11videocontext2_fill_default_vtbl(&npt_id3d11videocontext2_default_vtbl_storage);
-}
-
 void *
 npt_id3d11videocontext2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -962,52 +641,17 @@ npt_id3d11videocontext2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11videocontext2_default_vtbl_storage,
+        (const void **)&npt_id3d11videocontext3_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11videocontext;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11VideoContext3                                                       */
+/* ID3D11VideoContext3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11videocontext3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11DeviceChild,
-    &NPT_IID_ID3D11VideoContext,
-    &NPT_IID_ID3D11VideoContext1,
-    &NPT_IID_ID3D11VideoContext2,
-    &NPT_IID_ID3D11VideoContext3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11videocontext3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11videocontext3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext3_default_DecoderBeginFrame1(void *self, ID3D11VideoDecoder * pDecoder, ID3D11VideoDecoderOutputView * pView, UINT ContentKeySize, const void * pContentKey, UINT NumComponentHistograms, const UINT * pHistogramOffsets, ID3D11Buffer ** ppHistogramBuffers)
@@ -1035,9 +679,9 @@ npt_id3d11videocontext3_default_SubmitDecoderBuffers2(void *self, ID3D11VideoDec
 void
 npt_id3d11videocontext3_fill_default_vtbl(struct npt_id3d11videocontext3_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d11videocontext3_default_QueryInterface;
-    dst->AddRef         = npt_id3d11videocontext3_default_AddRef;
-    dst->Release        = npt_id3d11videocontext3_default_Release;
+    dst->QueryInterface = npt_id3d11videocontext_default_QueryInterface;
+    dst->AddRef         = npt_id3d11videocontext_default_AddRef;
+    dst->Release        = npt_id3d11videocontext_default_Release;
     dst->GetDevice = npt_id3d11devicechild_default_GetDevice;
     dst->GetPrivateData = npt_id3d11devicechild_default_GetPrivateData;
     dst->SetPrivateData = npt_id3d11devicechild_default_SetPrivateData;
@@ -1123,7 +767,7 @@ npt_id3d11videocontext3_fill_default_vtbl(struct npt_id3d11videocontext3_client_
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d11videocontext3_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -1144,6 +788,8 @@ npt_id3d11videocontext3_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d11videocontext3_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11videocontext;
+    p->tier = 3;
     return p;
 }
 

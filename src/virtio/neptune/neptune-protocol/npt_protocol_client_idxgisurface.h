@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_IDXGISURFACE_H
 
 #include "npt_protocol_guest_idxgisurface.h"
+#include "npt_protocol_client_table.h"
 #include "npt_protocol_client_idxgidevicesubobject.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
@@ -28,6 +29,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family idxgisurface: IDXGISurface, IDXGISurface1, IDXGISurface2
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_idxgisurface_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgisurface_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgisurface_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_idxgisurface;
 
 
 /* ================================================================== */
@@ -76,32 +95,12 @@ npt_idxgisurface_default_Map(void *self, DXGI_MAPPED_RECT * pLockedRect, UINT Ma
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface_default_Unmap(void *self);
 
-/* Default IUnknown thunks for IDXGISurface.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgisurface_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgisurface_fill_default_vtbl(struct npt_idxgisurface_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgisurface_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgisurface_client_vtbl npt_idxgisurface_default_vtbl_storage;
-extern void
-npt_idxgisurface_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGISurface2's. */
+#define npt_idxgisurface_default_vtbl_storage npt_idxgisurface2_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_idxgisurface_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -154,32 +153,17 @@ npt_idxgisurface1_default_GetDC(void *self, BOOL Discard, HDC * phdc);
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface1_default_ReleaseDC(void *self, RECT * pDirtyRect);
 
-/* Default IUnknown thunks for IDXGISurface1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgisurface1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgisurface1_default_QueryInterface npt_idxgisurface_default_QueryInterface
+#define npt_idxgisurface1_default_AddRef         npt_idxgisurface_default_AddRef
+#define npt_idxgisurface1_default_Release        npt_idxgisurface_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgisurface1_fill_default_vtbl(struct npt_idxgisurface1_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgisurface1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgisurface1_client_vtbl npt_idxgisurface1_default_vtbl_storage;
-extern void
-npt_idxgisurface1_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGISurface2's. */
+#define npt_idxgisurface1_default_vtbl_storage npt_idxgisurface2_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_idxgisurface1_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -232,15 +216,10 @@ struct npt_idxgisurface2_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface2_default_GetResource(void *self, const IID * riid, void ** ppParentResource, UINT * pSubresourceIndex);
 
-/* Default IUnknown thunks for IDXGISurface2.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgisurface2_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface2_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgisurface2_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgisurface2_default_QueryInterface npt_idxgisurface_default_QueryInterface
+#define npt_idxgisurface2_default_AddRef         npt_idxgisurface_default_AddRef
+#define npt_idxgisurface2_default_Release        npt_idxgisurface_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -248,16 +227,18 @@ npt_idxgisurface2_default_Release(void *self);
 extern void
 npt_idxgisurface2_fill_default_vtbl(struct npt_idxgisurface2_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgisurface2_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_idxgisurface2_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_idxgisurface2_client_vtbl npt_idxgisurface2_default_vtbl_storage;
 extern void
 npt_idxgisurface2_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 2, and returns it. */
 extern void *
 npt_idxgisurface2_client_create(struct npt_device *dev, uint64_t host_id);
 

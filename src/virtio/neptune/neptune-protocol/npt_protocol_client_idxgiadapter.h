@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_IDXGIADAPTER_H
 
 #include "npt_protocol_guest_idxgiadapter.h"
+#include "npt_protocol_client_table.h"
 #include "npt_protocol_client_idxgiobject.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
@@ -28,6 +29,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family idxgiadapter: IDXGIAdapter, IDXGIAdapter1, IDXGIAdapter2, IDXGIAdapter3, IDXGIAdapter4
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_idxgiadapter_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgiadapter_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgiadapter_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_idxgiadapter;
 
 
 /* ================================================================== */
@@ -74,32 +93,12 @@ npt_idxgiadapter_default_GetDesc(void *self, DXGI_ADAPTER_DESC * pDesc);
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter_default_CheckInterfaceSupport(void *self, const GUID * InterfaceName, LARGE_INTEGER * pUMDVersion);
 
-/* Default IUnknown thunks for IDXGIAdapter.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiadapter_fill_default_vtbl(struct npt_idxgiadapter_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiadapter_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiadapter_client_vtbl npt_idxgiadapter_default_vtbl_storage;
-extern void
-npt_idxgiadapter_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIAdapter4's. */
+#define npt_idxgiadapter_default_vtbl_storage npt_idxgiadapter4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_idxgiadapter_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -146,32 +145,17 @@ struct npt_idxgiadapter1_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter1_default_GetDesc1(void *self, DXGI_ADAPTER_DESC1 * pDesc);
 
-/* Default IUnknown thunks for IDXGIAdapter1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiadapter1_default_QueryInterface npt_idxgiadapter_default_QueryInterface
+#define npt_idxgiadapter1_default_AddRef         npt_idxgiadapter_default_AddRef
+#define npt_idxgiadapter1_default_Release        npt_idxgiadapter_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiadapter1_fill_default_vtbl(struct npt_idxgiadapter1_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiadapter1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiadapter1_client_vtbl npt_idxgiadapter1_default_vtbl_storage;
-extern void
-npt_idxgiadapter1_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIAdapter4's. */
+#define npt_idxgiadapter1_default_vtbl_storage npt_idxgiadapter4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_idxgiadapter1_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -220,32 +204,17 @@ struct npt_idxgiadapter2_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter2_default_GetDesc2(void *self, DXGI_ADAPTER_DESC2 * pDesc);
 
-/* Default IUnknown thunks for IDXGIAdapter2.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter2_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter2_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter2_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiadapter2_default_QueryInterface npt_idxgiadapter_default_QueryInterface
+#define npt_idxgiadapter2_default_AddRef         npt_idxgiadapter_default_AddRef
+#define npt_idxgiadapter2_default_Release        npt_idxgiadapter_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiadapter2_fill_default_vtbl(struct npt_idxgiadapter2_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiadapter2_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiadapter2_client_vtbl npt_idxgiadapter2_default_vtbl_storage;
-extern void
-npt_idxgiadapter2_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIAdapter4's. */
+#define npt_idxgiadapter2_default_vtbl_storage npt_idxgiadapter4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 2, and returns it. */
 extern void *
 npt_idxgiadapter2_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -316,32 +285,17 @@ npt_idxgiadapter3_default_RegisterVideoMemoryBudgetChangeNotificationEvent(void 
 extern void NPT_STDMETHODCALLTYPE
 npt_idxgiadapter3_default_UnregisterVideoMemoryBudgetChangeNotification(void *self, DWORD dwCookie);
 
-/* Default IUnknown thunks for IDXGIAdapter3.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter3_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter3_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter3_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiadapter3_default_QueryInterface npt_idxgiadapter_default_QueryInterface
+#define npt_idxgiadapter3_default_AddRef         npt_idxgiadapter_default_AddRef
+#define npt_idxgiadapter3_default_Release        npt_idxgiadapter_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiadapter3_fill_default_vtbl(struct npt_idxgiadapter3_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiadapter3_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiadapter3_client_vtbl npt_idxgiadapter3_default_vtbl_storage;
-extern void
-npt_idxgiadapter3_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGIAdapter4's. */
+#define npt_idxgiadapter3_default_vtbl_storage npt_idxgiadapter4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 3, and returns it. */
 extern void *
 npt_idxgiadapter3_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -404,15 +358,10 @@ struct npt_idxgiadapter4_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter4_default_GetDesc3(void *self, DXGI_ADAPTER_DESC3 * pDesc);
 
-/* Default IUnknown thunks for IDXGIAdapter4.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiadapter4_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter4_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiadapter4_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiadapter4_default_QueryInterface npt_idxgiadapter_default_QueryInterface
+#define npt_idxgiadapter4_default_AddRef         npt_idxgiadapter_default_AddRef
+#define npt_idxgiadapter4_default_Release        npt_idxgiadapter_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -420,16 +369,18 @@ npt_idxgiadapter4_default_Release(void *self);
 extern void
 npt_idxgiadapter4_fill_default_vtbl(struct npt_idxgiadapter4_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiadapter4_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_idxgiadapter4_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_idxgiadapter4_client_vtbl npt_idxgiadapter4_default_vtbl_storage;
 extern void
 npt_idxgiadapter4_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 4, and returns it. */
 extern void *
 npt_idxgiadapter4_client_create(struct npt_device *dev, uint64_t host_id);
 

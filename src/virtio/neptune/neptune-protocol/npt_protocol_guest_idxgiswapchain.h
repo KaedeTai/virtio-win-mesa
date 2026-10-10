@@ -174,6 +174,7 @@ struct npt_command_IDXGISwapChain_GetBuffer {
      * this field and inserts {_guest_id_ppSurface -> *ppSurface} in the
      * context object table. */
     uint64_t _guest_id_ppSurface;
+    struct npt_wire_object_ref _ref_ppSurface;
     HRESULT ret;
 };
 
@@ -234,15 +235,21 @@ npt_sizeof_IDXGISwapChain_GetBuffer_reply(const UINT Buffer,const IID * riid,voi
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip Buffer (input only) */
 /* skip riid (input only) */
-/* skip ppSurface (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppSurface: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGISwapChain_GetBuffer_reply(struct npt_cs_decoder *dec,
                                           void ** ppSurface,
-                                          HRESULT *ret)
+                                          HRESULT *ret,
+                                          struct npt_wire_object_ref *_refs,
+                                          size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGISwapChain,
@@ -262,7 +269,11 @@ npt_decode_IDXGISwapChain_GetBuffer_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppSurface (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -295,30 +306,21 @@ npt_submit_IDXGISwapChain_GetBuffer(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGISwapChain_GetBuffer(struct npt_ring *ring,
-                                   npt_object_id object_id,
-                                   UINT Buffer,
-                                   const IID * riid,
-                                   void ** ppSurface)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGISwapChain_GetBuffer(ring, 0, object_id, Buffer, riid, ppSurface, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGISwapChain_GetBuffer(struct npt_ring *ring,
                                   npt_object_id object_id,
                                   UINT Buffer,
                                   const IID * riid,
-                                  void ** ppSurface)
+                                  void ** ppSurface,
+                                  struct npt_wire_object_ref *_refs,
+                                  size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGISwapChain_GetBuffer(ring, NPT_CMD_FLAG_REPLY, object_id, Buffer, riid, ppSurface, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGISwapChain_GetBuffer_reply(dec, ppSurface, &_ret);
+        npt_decode_IDXGISwapChain_GetBuffer_reply(dec, ppSurface, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -480,6 +482,7 @@ struct npt_command_IDXGISwapChain_GetFullscreenState {
      * this field and inserts {_guest_id_ppTarget -> *ppTarget} in the
      * context object table. */
     uint64_t _guest_id_ppTarget;
+    struct npt_wire_object_ref _ref_ppTarget;
     HRESULT ret;
 };
 
@@ -534,7 +537,7 @@ npt_sizeof_IDXGISwapChain_GetFullscreenState_reply(const BOOL * pFullscreen,IDXG
     size_t cmd_size = sizeof(struct npt_reply_header);
     cmd_size += npt_sizeof_simple_pointer((const void *)1);
     cmd_size += npt_sizeof_BOOL(&(const BOOL){0}, 1);
-/* skip ppTarget (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppTarget: registered id */
     return cmd_size;
 }
 
@@ -542,8 +545,14 @@ static inline void
 npt_decode_IDXGISwapChain_GetFullscreenState_reply(struct npt_cs_decoder *dec,
                                                    BOOL * pFullscreen,
                                                    IDXGIOutput ** ppTarget,
-                                                   HRESULT *ret)
+                                                   HRESULT *ret,
+                                                   struct npt_wire_object_ref *_refs,
+                                                   size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGISwapChain,
@@ -567,7 +576,11 @@ npt_decode_IDXGISwapChain_GetFullscreenState_reply(struct npt_cs_decoder *dec,
         if (pFullscreen)
             npt_decode_BOOL(dec, (BOOL *)pFullscreen);
     }
-/* skip ppTarget (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -599,28 +612,20 @@ npt_submit_IDXGISwapChain_GetFullscreenState(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGISwapChain_GetFullscreenState(struct npt_ring *ring,
-                                            npt_object_id object_id,
-                                            BOOL * pFullscreen,
-                                            IDXGIOutput ** ppTarget)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGISwapChain_GetFullscreenState(ring, 0, object_id, pFullscreen, ppTarget, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGISwapChain_GetFullscreenState(struct npt_ring *ring,
                                            npt_object_id object_id,
                                            BOOL * pFullscreen,
-                                           IDXGIOutput ** ppTarget)
+                                           IDXGIOutput ** ppTarget,
+                                           struct npt_wire_object_ref *_refs,
+                                           size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGISwapChain_GetFullscreenState(ring, NPT_CMD_FLAG_REPLY, object_id, pFullscreen, ppTarget, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGISwapChain_GetFullscreenState_reply(dec, pFullscreen, ppTarget, &_ret);
+        npt_decode_IDXGISwapChain_GetFullscreenState_reply(dec, pFullscreen, ppTarget, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -1080,6 +1085,7 @@ struct npt_command_IDXGISwapChain_GetContainingOutput {
      * this field and inserts {_guest_id_ppOutput -> *ppOutput} in the
      * context object table. */
     uint64_t _guest_id_ppOutput;
+    struct npt_wire_object_ref _ref_ppOutput;
     HRESULT ret;
 };
 
@@ -1129,15 +1135,21 @@ npt_sizeof_IDXGISwapChain_GetContainingOutput_reply(IDXGIOutput ** ppOutput)
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppOutput (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppOutput: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGISwapChain_GetContainingOutput_reply(struct npt_cs_decoder *dec,
                                                     IDXGIOutput ** ppOutput,
-                                                    HRESULT *ret)
+                                                    HRESULT *ret,
+                                                    struct npt_wire_object_ref *_refs,
+                                                    size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGISwapChain,
@@ -1157,7 +1169,11 @@ npt_decode_IDXGISwapChain_GetContainingOutput_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppOutput (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -1188,26 +1204,19 @@ npt_submit_IDXGISwapChain_GetContainingOutput(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGISwapChain_GetContainingOutput(struct npt_ring *ring,
-                                             npt_object_id object_id,
-                                             IDXGIOutput ** ppOutput)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGISwapChain_GetContainingOutput(ring, 0, object_id, ppOutput, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGISwapChain_GetContainingOutput(struct npt_ring *ring,
                                             npt_object_id object_id,
-                                            IDXGIOutput ** ppOutput)
+                                            IDXGIOutput ** ppOutput,
+                                            struct npt_wire_object_ref *_refs,
+                                            size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGISwapChain_GetContainingOutput(ring, NPT_CMD_FLAG_REPLY, object_id, ppOutput, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGISwapChain_GetContainingOutput_reply(dec, ppOutput, &_ret);
+        npt_decode_IDXGISwapChain_GetContainingOutput_reply(dec, ppOutput, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -1924,6 +1933,7 @@ struct npt_command_IDXGISwapChain1_GetCoreWindow {
      * this field and inserts {_guest_id_ppUnk -> *ppUnk} in the
      * context object table. */
     uint64_t _guest_id_ppUnk;
+    struct npt_wire_object_ref _ref_ppUnk;
     HRESULT ret;
 };
 
@@ -1980,15 +1990,21 @@ npt_sizeof_IDXGISwapChain1_GetCoreWindow_reply(const IID * refiid,void ** ppUnk)
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip refiid (input only) */
-/* skip ppUnk (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppUnk: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGISwapChain1_GetCoreWindow_reply(struct npt_cs_decoder *dec,
                                                void ** ppUnk,
-                                               HRESULT *ret)
+                                               HRESULT *ret,
+                                               struct npt_wire_object_ref *_refs,
+                                               size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGISwapChain1,
@@ -2008,7 +2024,11 @@ npt_decode_IDXGISwapChain1_GetCoreWindow_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppUnk (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -2040,28 +2060,20 @@ npt_submit_IDXGISwapChain1_GetCoreWindow(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGISwapChain1_GetCoreWindow(struct npt_ring *ring,
-                                        npt_object_id object_id,
-                                        const IID * refiid,
-                                        void ** ppUnk)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGISwapChain1_GetCoreWindow(ring, 0, object_id, refiid, ppUnk, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGISwapChain1_GetCoreWindow(struct npt_ring *ring,
                                        npt_object_id object_id,
                                        const IID * refiid,
-                                       void ** ppUnk)
+                                       void ** ppUnk,
+                                       struct npt_wire_object_ref *_refs,
+                                       size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGISwapChain1_GetCoreWindow(ring, NPT_CMD_FLAG_REPLY, object_id, refiid, ppUnk, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGISwapChain1_GetCoreWindow_reply(dec, ppUnk, &_ret);
+        npt_decode_IDXGISwapChain1_GetCoreWindow_reply(dec, ppUnk, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -2358,6 +2370,7 @@ struct npt_command_IDXGISwapChain1_GetRestrictToOutput {
      * this field and inserts {_guest_id_ppRestrictToOutput -> *ppRestrictToOutput} in the
      * context object table. */
     uint64_t _guest_id_ppRestrictToOutput;
+    struct npt_wire_object_ref _ref_ppRestrictToOutput;
     HRESULT ret;
 };
 
@@ -2407,15 +2420,21 @@ npt_sizeof_IDXGISwapChain1_GetRestrictToOutput_reply(IDXGIOutput ** ppRestrictTo
     const int max_mode = 1;
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
-/* skip ppRestrictToOutput (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppRestrictToOutput: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGISwapChain1_GetRestrictToOutput_reply(struct npt_cs_decoder *dec,
                                                      IDXGIOutput ** ppRestrictToOutput,
-                                                     HRESULT *ret)
+                                                     HRESULT *ret,
+                                                     struct npt_wire_object_ref *_refs,
+                                                     size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGISwapChain1,
@@ -2435,7 +2454,11 @@ npt_decode_IDXGISwapChain1_GetRestrictToOutput_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppRestrictToOutput (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -2466,26 +2489,19 @@ npt_submit_IDXGISwapChain1_GetRestrictToOutput(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGISwapChain1_GetRestrictToOutput(struct npt_ring *ring,
-                                              npt_object_id object_id,
-                                              IDXGIOutput ** ppRestrictToOutput)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGISwapChain1_GetRestrictToOutput(ring, 0, object_id, ppRestrictToOutput, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGISwapChain1_GetRestrictToOutput(struct npt_ring *ring,
                                              npt_object_id object_id,
-                                             IDXGIOutput ** ppRestrictToOutput)
+                                             IDXGIOutput ** ppRestrictToOutput,
+                                             struct npt_wire_object_ref *_refs,
+                                             size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGISwapChain1_GetRestrictToOutput(ring, NPT_CMD_FLAG_REPLY, object_id, ppRestrictToOutput, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGISwapChain1_GetRestrictToOutput_reply(dec, ppRestrictToOutput, &_ret);
+        npt_decode_IDXGISwapChain1_GetRestrictToOutput_reply(dec, ppRestrictToOutput, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

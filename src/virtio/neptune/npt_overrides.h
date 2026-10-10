@@ -17,7 +17,6 @@ void npt_overrides_d3d11_device_init(void);
 void npt_overrides_d3d11_context_init(void);
 void npt_overrides_d3d11_buffer_init(void);
 void npt_overrides_d3d11_texture_init(void);
-void npt_overrides_d3d11_view_init(void);
 void npt_overrides_d3d11_fence_init(void);
 void npt_overrides_d3d11_query_init(void);
 void npt_overrides_dxgi_output_init(void);

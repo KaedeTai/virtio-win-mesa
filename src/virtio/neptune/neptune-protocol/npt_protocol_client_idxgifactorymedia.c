@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgifactorymedia.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,41 @@
 
 
 /* ================================================================== */
-/* IDXGIFactoryMedia                                                       */
+/* Family idxgifactorymedia                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgifactorymedia_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgifactorymedia_tiers[] = {
     &NPT_IID_IDXGIFactoryMedia,
     NULL,
+};
+
+static const npt_object_type npt_com_family_idxgifactorymedia_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGIFACTORYMEDIA,
+};
+
+static const GUID *const npt_com_family_idxgifactorymedia_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgifactorymedia = {
+    .name = "idxgifactorymedia",
+    .index = NPT_IFACE_FAMILY_IDXGIFACTORYMEDIA,
+    .tier_iids = npt_com_family_idxgifactorymedia_tiers,
+    .tier_types = npt_com_family_idxgifactorymedia_tier_types,
+    .tier_count = 1,
+    .ancestor_iids = npt_com_family_idxgifactorymedia_ancestors,
+    .vtbl = (const void **)&npt_idxgifactorymedia_default_vtbl_storage,
+    .vtbl_install = npt_idxgifactorymedia_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactorymedia_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgifactorymedia_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -54,6 +70,11 @@ npt_idxgifactorymedia_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* IDXGIFactoryMedia (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactorymedia_default_CreateSwapChainForCompositionSurfaceHandle(void *self, IUnknown * pDevice, HANDLE hSurface, const DXGI_SWAP_CHAIN_DESC1 * pDesc, IDXGIOutput * pRestrictToOutput, IDXGISwapChain1 ** ppSwapChain)
@@ -125,7 +146,7 @@ npt_idxgifactorymedia_fill_default_vtbl(struct npt_idxgifactorymedia_client_vtbl
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgifactorymedia_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -146,6 +167,8 @@ npt_idxgifactorymedia_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgifactorymedia_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgifactorymedia;
+    p->tier = 0;
     return p;
 }
 

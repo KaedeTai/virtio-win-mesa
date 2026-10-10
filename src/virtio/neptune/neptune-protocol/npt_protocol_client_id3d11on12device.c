@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d11on12device.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,45 @@
 
 
 /* ================================================================== */
-/* ID3D11On12Device                                                       */
+/* Family id3d11on12device                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11on12device_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d11on12device_tiers[] = {
     &NPT_IID_ID3D11On12Device,
+    &NPT_IID_ID3D11On12Device1,
+    &NPT_IID_ID3D11On12Device2,
     NULL,
+};
+
+static const npt_object_type npt_com_family_id3d11on12device_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D11ON12DEVICE,
+    NPT_OBJECT_TYPE_ID3D11ON12DEVICE1,
+    NPT_OBJECT_TYPE_ID3D11ON12DEVICE2,
+};
+
+static const GUID *const npt_com_family_id3d11on12device_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d11on12device = {
+    .name = "id3d11on12device",
+    .index = NPT_IFACE_FAMILY_ID3D11ON12DEVICE,
+    .tier_iids = npt_com_family_id3d11on12device_tiers,
+    .tier_types = npt_com_family_id3d11on12device_tier_types,
+    .tier_count = 3,
+    .ancestor_iids = npt_com_family_id3d11on12device_ancestors,
+    .vtbl = (const void **)&npt_id3d11on12device2_default_vtbl_storage,
+    .vtbl_install = npt_id3d11on12device2_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11on12device_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11on12device_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -54,6 +74,11 @@ npt_id3d11on12device_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* ID3D11On12Device (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11on12device_default_CreateWrappedResource(void *self, IUnknown * pResource12, const D3D11_RESOURCE_FLAGS * pFlags11, D3D12_RESOURCE_STATES InState, D3D12_RESOURCE_STATES OutState, const IID * riid, void ** ppResource11)
@@ -97,30 +122,6 @@ npt_id3d11on12device_default_AcquireWrappedResources(void *self, ID3D11Resource 
 }
 
 
-void
-npt_id3d11on12device_fill_default_vtbl(struct npt_id3d11on12device_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11on12device_default_QueryInterface;
-    dst->AddRef         = npt_id3d11on12device_default_AddRef;
-    dst->Release        = npt_id3d11on12device_default_Release;
-    dst->CreateWrappedResource = npt_id3d11on12device_default_CreateWrappedResource;
-    dst->ReleaseWrappedResources = npt_id3d11on12device_default_ReleaseWrappedResources;
-    dst->AcquireWrappedResources = npt_id3d11on12device_default_AcquireWrappedResources;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11on12device_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11on12device_client_vtbl npt_id3d11on12device_default_vtbl_storage;
-
-void
-npt_id3d11on12device_install_default_vtbl(void)
-{
-    npt_id3d11on12device_fill_default_vtbl(&npt_id3d11on12device_default_vtbl_storage);
-}
-
 void *
 npt_id3d11on12device_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -128,53 +129,30 @@ npt_id3d11on12device_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11on12device_default_vtbl_storage,
+        (const void **)&npt_id3d11on12device2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11on12device;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11On12Device1                                                       */
+/* ID3D11On12Device1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11on12device1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11On12Device,
-    &NPT_IID_ID3D11On12Device1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11on12device1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11on12device1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11on12device1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11on12device1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11on12device1_default_GetD3D12Device(void *self, const IID * riid, void ** ppvDevice)
 {
+    if (ppvDevice) {
+        void *_memo = npt_com_memo_lookup(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11On12Device1, NPT_METHOD_ID3D11On12Device1_GetD3D12Device), riid);
+        if (_memo) {
+            *ppvDevice = (void *)_memo;
+            return (HRESULT)0 /* S_OK */;
+        }
+    }
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppvDevice = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -183,49 +161,24 @@ npt_id3d11on12device1_default_GetD3D12Device(void *self, const IID * riid, void 
     void **_orig_ppvDevice = ppvDevice;
     if (ppvDevice)
         ppvDevice = (void **)&_raw_ppvDevice;
-    npt_async_ID3D11On12Device1_GetD3D12Device(npt_com_self_ring(self),npt_com_self_id(self),riid,ppvDevice);
+    HRESULT _ret = npt_call_ID3D11On12Device1_GetD3D12Device(npt_com_self_ring(self),npt_com_self_id(self),riid,ppvDevice,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppvDevice) {
-        if (_raw_ppvDevice)
-            *_orig_ppvDevice = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppvDevice,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppvDevice = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppvDevice = NULL;
+        if (*_orig_ppvDevice)
+            npt_com_memo_store(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_ID3D11On12Device1, NPT_METHOD_ID3D11On12Device1_GetD3D12Device), riid,
+                               *_orig_ppvDevice);
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
-
-void
-npt_id3d11on12device1_fill_default_vtbl(struct npt_id3d11on12device1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d11on12device1_default_QueryInterface;
-    dst->AddRef         = npt_id3d11on12device1_default_AddRef;
-    dst->Release        = npt_id3d11on12device1_default_Release;
-    dst->CreateWrappedResource = npt_id3d11on12device_default_CreateWrappedResource;
-    dst->ReleaseWrappedResources = npt_id3d11on12device_default_ReleaseWrappedResources;
-    dst->AcquireWrappedResources = npt_id3d11on12device_default_AcquireWrappedResources;
-    dst->GetD3D12Device = npt_id3d11on12device1_default_GetD3D12Device;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d11on12device1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d11on12device1_client_vtbl npt_id3d11on12device1_default_vtbl_storage;
-
-void
-npt_id3d11on12device1_install_default_vtbl(void)
-{
-    npt_id3d11on12device1_fill_default_vtbl(&npt_id3d11on12device1_default_vtbl_storage);
-}
 
 void *
 npt_id3d11on12device1_client_create(struct npt_device *dev, uint64_t host_id)
@@ -234,54 +187,23 @@ npt_id3d11on12device1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d11on12device1_default_vtbl_storage,
+        (const void **)&npt_id3d11on12device2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11on12device;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D11On12Device2                                                       */
+/* ID3D11On12Device2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d11on12device2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D11On12Device,
-    &NPT_IID_ID3D11On12Device1,
-    &NPT_IID_ID3D11On12Device2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d11on12device2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d11on12device2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11on12device2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d11on12device2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11on12device2_default_UnwrapUnderlyingResource(void *self, ID3D11Resource * pResource11, ID3D12CommandQueue * pCommandQueue, const IID * riid, void ** ppvResource12)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppvResource12 = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -290,22 +212,19 @@ npt_id3d11on12device2_default_UnwrapUnderlyingResource(void *self, ID3D11Resourc
     void **_orig_ppvResource12 = ppvResource12;
     if (ppvResource12)
         ppvResource12 = (void **)&_raw_ppvResource12;
-    npt_async_ID3D11On12Device2_UnwrapUnderlyingResource(npt_com_self_ring(self),npt_com_self_id(self),pResource11,pCommandQueue,riid,ppvResource12);
+    HRESULT _ret = npt_call_ID3D11On12Device2_UnwrapUnderlyingResource(npt_com_self_ring(self),npt_com_self_id(self),pResource11,pCommandQueue,riid,ppvResource12,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppvResource12) {
-        if (_raw_ppvResource12)
-            *_orig_ppvResource12 = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppvResource12,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppvResource12 = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppvResource12 = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -323,9 +242,9 @@ npt_id3d11on12device2_default_ReturnUnderlyingResource(void *self, ID3D11Resourc
 void
 npt_id3d11on12device2_fill_default_vtbl(struct npt_id3d11on12device2_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d11on12device2_default_QueryInterface;
-    dst->AddRef         = npt_id3d11on12device2_default_AddRef;
-    dst->Release        = npt_id3d11on12device2_default_Release;
+    dst->QueryInterface = npt_id3d11on12device_default_QueryInterface;
+    dst->AddRef         = npt_id3d11on12device_default_AddRef;
+    dst->Release        = npt_id3d11on12device_default_Release;
     dst->CreateWrappedResource = npt_id3d11on12device_default_CreateWrappedResource;
     dst->ReleaseWrappedResources = npt_id3d11on12device_default_ReleaseWrappedResources;
     dst->AcquireWrappedResources = npt_id3d11on12device_default_AcquireWrappedResources;
@@ -335,7 +254,7 @@ npt_id3d11on12device2_fill_default_vtbl(struct npt_id3d11on12device2_client_vtbl
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d11on12device2_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -356,6 +275,8 @@ npt_id3d11on12device2_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_id3d11on12device2_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d11on12device;
+    p->tier = 2;
     return p;
 }
 

@@ -13,6 +13,7 @@
 #define NPT_PROTOCOL_COMMON_CS_HELPERS_H
 
 #include "npt_protocol_common_cs.h"
+#include "npt_protocol_defs.h"
 
 /* ------------------------------------------------------------------ */
 /* Primitive scalar encode/decode                                      */
@@ -322,6 +323,35 @@ npt_decode_counted_pointer_count(struct npt_cs_decoder *dec, uint64_t *count)
     *count = wire_count == NPT_COUNTED_POINTER_PRESENT_ZERO
         ? 0 : wire_count;
     return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Reply object reference (struct npt_wire_object_ref)                 */
+/* ------------------------------------------------------------------ */
+
+static inline size_t npt_sizeof_npt_wire_object_ref(void)
+{
+    return 2 * sizeof(uint64_t) + 2 * sizeof(uint32_t);
+}
+
+static inline void
+npt_encode_npt_wire_object_ref(struct npt_cs_encoder *enc,
+                               const struct npt_wire_object_ref *val)
+{
+    npt_encode_uint64_t(enc, &val->id);
+    npt_encode_uint64_t(enc, &val->primary_id);
+    npt_encode_uint32_t(enc, &val->type);
+    npt_encode_uint32_t(enc, &val->pad);
+}
+
+static inline void
+npt_decode_npt_wire_object_ref(struct npt_cs_decoder *dec,
+                               struct npt_wire_object_ref *val)
+{
+    npt_decode_uint64_t(dec, &val->id);
+    npt_decode_uint64_t(dec, &val->primary_id);
+    npt_decode_uint32_t(dec, &val->type);
+    npt_decode_uint32_t(dec, &val->pad);
 }
 
 /* ------------------------------------------------------------------ */

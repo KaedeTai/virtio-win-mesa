@@ -17,6 +17,7 @@
 #define NPT_PROTOCOL_CLIENT_IDXGISWAPCHAIN_H
 
 #include "npt_protocol_guest_idxgiswapchain.h"
+#include "npt_protocol_client_table.h"
 #include "npt_protocol_client_idxgidevicesubobject.h"
 
 /* Forward-declare struct npt_device so the client_create prototypes don't
@@ -28,6 +29,24 @@ struct npt_device;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+
+/* ================================================================== */
+/* Family idxgiswapchain: IDXGISwapChain, IDXGISwapChain1, IDXGISwapChain2, IDXGISwapChain3, IDXGISwapChain4
+/* ================================================================== */
+
+/* IUnknown thunks shared by every tier.  QueryInterface answers from
+ * the wrapper's family and confirmed tier (npt_com_query_interface_family);
+ * AddRef/Release route through the runtime helpers. */
+extern HRESULT NPT_STDMETHODCALLTYPE
+npt_idxgiswapchain_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgiswapchain_default_AddRef(void *self);
+extern ULONG NPT_STDMETHODCALLTYPE
+npt_idxgiswapchain_default_Release(void *self);
+
+/* The family's tiers (root first), the interfaces above its root, and
+ * its one vtable; the runtime reads it through npt_com_base.family. */
+extern const struct npt_com_family npt_com_family_idxgiswapchain;
 
 
 /* ================================================================== */
@@ -104,32 +123,12 @@ npt_idxgiswapchain_default_GetFrameStatistics(void *self, DXGI_FRAME_STATISTICS 
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain_default_GetLastPresentCount(void *self, UINT * pLastPresentCount);
 
-/* Default IUnknown thunks for IDXGISwapChain.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain_default_Release(void *self);
-
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiswapchain_fill_default_vtbl(struct npt_idxgiswapchain_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiswapchain_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiswapchain_client_vtbl npt_idxgiswapchain_default_vtbl_storage;
-extern void
-npt_idxgiswapchain_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGISwapChain4's. */
+#define npt_idxgiswapchain_default_vtbl_storage npt_idxgiswapchain4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 0, and returns it. */
 extern void *
 npt_idxgiswapchain_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -232,32 +231,17 @@ npt_idxgiswapchain1_default_SetRotation(void *self, DXGI_MODE_ROTATION Rotation)
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain1_default_GetRotation(void *self, DXGI_MODE_ROTATION * pRotation);
 
-/* Default IUnknown thunks for IDXGISwapChain1.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain1_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain1_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain1_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiswapchain1_default_QueryInterface npt_idxgiswapchain_default_QueryInterface
+#define npt_idxgiswapchain1_default_AddRef         npt_idxgiswapchain_default_AddRef
+#define npt_idxgiswapchain1_default_Release        npt_idxgiswapchain_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiswapchain1_fill_default_vtbl(struct npt_idxgiswapchain1_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiswapchain1_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiswapchain1_client_vtbl npt_idxgiswapchain1_default_vtbl_storage;
-extern void
-npt_idxgiswapchain1_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGISwapChain4's. */
+#define npt_idxgiswapchain1_default_vtbl_storage npt_idxgiswapchain4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 1, and returns it. */
 extern void *
 npt_idxgiswapchain1_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -366,32 +350,17 @@ npt_idxgiswapchain2_default_SetMatrixTransform(void *self, const DXGI_MATRIX_3X2
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain2_default_GetMatrixTransform(void *self, DXGI_MATRIX_3X2_F * pMatrix);
 
-/* Default IUnknown thunks for IDXGISwapChain2.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain2_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain2_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain2_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiswapchain2_default_QueryInterface npt_idxgiswapchain_default_QueryInterface
+#define npt_idxgiswapchain2_default_AddRef         npt_idxgiswapchain_default_AddRef
+#define npt_idxgiswapchain2_default_Release        npt_idxgiswapchain_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiswapchain2_fill_default_vtbl(struct npt_idxgiswapchain2_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiswapchain2_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiswapchain2_client_vtbl npt_idxgiswapchain2_default_vtbl_storage;
-extern void
-npt_idxgiswapchain2_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGISwapChain4's. */
+#define npt_idxgiswapchain2_default_vtbl_storage npt_idxgiswapchain4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 2, and returns it. */
 extern void *
 npt_idxgiswapchain2_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -502,32 +471,17 @@ npt_idxgiswapchain3_default_SetColorSpace1(void *self, DXGI_COLOR_SPACE_TYPE Col
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain3_default_ResizeBuffers1(void *self, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT * pCreationNodeMask, IUnknown ** ppPresentQueue);
 
-/* Default IUnknown thunks for IDXGISwapChain3.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain3_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain3_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain3_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiswapchain3_default_QueryInterface npt_idxgiswapchain_default_QueryInterface
+#define npt_idxgiswapchain3_default_AddRef         npt_idxgiswapchain_default_AddRef
+#define npt_idxgiswapchain3_default_Release        npt_idxgiswapchain_default_Release
 
-/* Populate `dst` with all default thunks (own + inherited via the
- * extern decls from the parent client header).  Hand-written code can
- * then patch individual slots before installing the vtable. */
-extern void
-npt_idxgiswapchain3_fill_default_vtbl(struct npt_idxgiswapchain3_client_vtbl *dst);
-
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiswapchain3_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
-extern struct npt_idxgiswapchain3_client_vtbl npt_idxgiswapchain3_default_vtbl_storage;
-extern void
-npt_idxgiswapchain3_install_default_vtbl(void);
+/* This tier's wrapper carries the family vtable, IDXGISwapChain4's. */
+#define npt_idxgiswapchain3_default_vtbl_storage npt_idxgiswapchain4_default_vtbl_storage
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 3, and returns it. */
 extern void *
 npt_idxgiswapchain3_client_create(struct npt_device *dev, uint64_t host_id);
 
@@ -634,15 +588,10 @@ struct npt_idxgiswapchain4_client_vtbl {
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain4_default_SetHDRMetaData(void *self, DXGI_HDR_METADATA_TYPE Type, UINT Size, void * pMetaData);
 
-/* Default IUnknown thunks for IDXGISwapChain4.  AddRef/Release route through
- * the runtime helpers; QueryInterface walks this interface's parent IID
- * chain, falling through to a host COM_QUERY_INTERFACE round-trip on miss. */
-extern HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain4_default_QueryInterface(void *self, REFIID riid, void **ppvObject);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain4_default_AddRef(void *self);
-extern ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain4_default_Release(void *self);
+/* The family's IUnknown thunks under this tier's name. */
+#define npt_idxgiswapchain4_default_QueryInterface npt_idxgiswapchain_default_QueryInterface
+#define npt_idxgiswapchain4_default_AddRef         npt_idxgiswapchain_default_AddRef
+#define npt_idxgiswapchain4_default_Release        npt_idxgiswapchain_default_Release
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can
@@ -650,16 +599,18 @@ npt_idxgiswapchain4_default_Release(void *self);
 extern void
 npt_idxgiswapchain4_fill_default_vtbl(struct npt_idxgiswapchain4_client_vtbl *dst);
 
-/* Per-interface default vtbl storage shared by all client instances of
- * this interface.  Populated once at runtime init by
- * npt_idxgiswapchain4_install_default_vtbl() (called from the global
- * npt_com_init_default_ctors populator). */
+/* The family's one vtable, installed on every tier's wrapper (a lower
+ * tier's struct is a prefix of this one).  Populated once at runtime
+ * init by npt_idxgiswapchain4_install_default_vtbl() (called from the
+ * global npt_com_init_default_ctors populator); an override patched
+ * into it reaches every tier. */
 extern struct npt_idxgiswapchain4_client_vtbl npt_idxgiswapchain4_default_vtbl_storage;
 extern void
 npt_idxgiswapchain4_install_default_vtbl(void);
 
 /* Default constructor for the wrapper cache.  Allocates a bare
- * `struct npt_com_base`, installs the default vtable, and returns it. */
+ * `struct npt_com_base` carrying the family vtable, family and tier
+ * 4, and returns it. */
 extern void *
 npt_idxgiswapchain4_client_create(struct npt_device *dev, uint64_t host_id);
 

@@ -2155,6 +2155,7 @@ struct npt_command_IDXGIOutput1_DuplicateOutput {
      * this field and inserts {_guest_id_ppOutputDuplication -> *ppOutputDuplication} in the
      * context object table. */
     uint64_t _guest_id_ppOutputDuplication;
+    struct npt_wire_object_ref _ref_ppOutputDuplication;
     HRESULT ret;
 };
 
@@ -2208,15 +2209,21 @@ npt_sizeof_IDXGIOutput1_DuplicateOutput_reply(const IUnknown * pDevice,IDXGIOutp
     (void)max_mode;  /* unused when the reply has no struct/union outputs */
     size_t cmd_size = sizeof(struct npt_reply_header);
 /* skip pDevice (input only) */
-/* skip ppOutputDuplication (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppOutputDuplication: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIOutput1_DuplicateOutput_reply(struct npt_cs_decoder *dec,
                                               IDXGIOutputDuplication ** ppOutputDuplication,
-                                              HRESULT *ret)
+                                              HRESULT *ret,
+                                              struct npt_wire_object_ref *_refs,
+                                              size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIOutput1,
@@ -2236,7 +2243,11 @@ npt_decode_IDXGIOutput1_DuplicateOutput_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppOutputDuplication (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -2268,28 +2279,20 @@ npt_submit_IDXGIOutput1_DuplicateOutput(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIOutput1_DuplicateOutput(struct npt_ring *ring,
-                                       npt_object_id object_id,
-                                       IUnknown * pDevice,
-                                       IDXGIOutputDuplication ** ppOutputDuplication)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIOutput1_DuplicateOutput(ring, 0, object_id, pDevice, ppOutputDuplication, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIOutput1_DuplicateOutput(struct npt_ring *ring,
                                       npt_object_id object_id,
                                       IUnknown * pDevice,
-                                      IDXGIOutputDuplication ** ppOutputDuplication)
+                                      IDXGIOutputDuplication ** ppOutputDuplication,
+                                      struct npt_wire_object_ref *_refs,
+                                      size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIOutput1_DuplicateOutput(ring, NPT_CMD_FLAG_REPLY, object_id, pDevice, ppOutputDuplication, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIOutput1_DuplicateOutput_reply(dec, ppOutputDuplication, &_ret);
+        npt_decode_IDXGIOutput1_DuplicateOutput_reply(dec, ppOutputDuplication, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {
@@ -2756,6 +2759,7 @@ struct npt_command_IDXGIOutput5_DuplicateOutput1 {
      * this field and inserts {_guest_id_ppOutputDuplication -> *ppOutputDuplication} in the
      * context object table. */
     uint64_t _guest_id_ppOutputDuplication;
+    struct npt_wire_object_ref _ref_ppOutputDuplication;
     HRESULT ret;
 };
 
@@ -2828,15 +2832,21 @@ npt_sizeof_IDXGIOutput5_DuplicateOutput1_reply(const IUnknown * pDevice,const UI
 /* skip Flags (input only) */
 /* skip SupportedFormatsCount (input only) */
 /* skip pSupportedFormats (input only) */
-/* skip ppOutputDuplication (guest-allocated id, registered host-side; not in reply) */
+cmd_size += npt_sizeof_npt_wire_object_ref();  /* ppOutputDuplication: registered id */
     return cmd_size;
 }
 
 static inline void
 npt_decode_IDXGIOutput5_DuplicateOutput1_reply(struct npt_cs_decoder *dec,
                                                IDXGIOutputDuplication ** ppOutputDuplication,
-                                               HRESULT *ret)
+                                               HRESULT *ret,
+                                               struct npt_wire_object_ref *_refs,
+                                               size_t _ref_cap)
 {
+    /* Registered ids of the returned objects, in parameter order: one
+     * per single output, the guest's capacity per array; `_ref_cap`
+     * bounds what the host may send. */
+    size_t _ref_i = 0;
     struct npt_reply_header _reply;
     npt_cs_decoder_read(dec, sizeof(_reply), &_reply, sizeof(_reply));
     if (unlikely(_reply.cmd_type != NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIOutput5,
@@ -2856,7 +2866,11 @@ npt_decode_IDXGIOutput5_DuplicateOutput1_reply(struct npt_cs_decoder *dec,
         return;
     }
     if (ret) *ret = (HRESULT)_reply.cmd_return;
-/* skip ppOutputDuplication (guest-allocated id, wrapper built on client thunk; not in reply) */
+if (_ref_i >= _ref_cap) {
+    npt_cs_decoder_set_fatal(dec);
+    return;
+}
+npt_decode_npt_wire_object_ref(dec, &_refs[_ref_i++]);
 }
 
 static inline void
@@ -2891,19 +2905,6 @@ npt_submit_IDXGIOutput5_DuplicateOutput1(struct npt_ring *ring,
     }
 }
 
-static inline void
-npt_async_IDXGIOutput5_DuplicateOutput1(struct npt_ring *ring,
-                                        npt_object_id object_id,
-                                        IUnknown * pDevice,
-                                        UINT Flags,
-                                        UINT SupportedFormatsCount,
-                                        const DXGI_FORMAT * pSupportedFormats,
-                                        IDXGIOutputDuplication ** ppOutputDuplication)
-{
-    struct npt_ring_submit_command submit;
-    npt_submit_IDXGIOutput5_DuplicateOutput1(ring, 0, object_id, pDevice, Flags, SupportedFormatsCount, pSupportedFormats, ppOutputDuplication, &submit);
-}
-
 static inline HRESULT
 npt_call_IDXGIOutput5_DuplicateOutput1(struct npt_ring *ring,
                                        npt_object_id object_id,
@@ -2911,14 +2912,16 @@ npt_call_IDXGIOutput5_DuplicateOutput1(struct npt_ring *ring,
                                        UINT Flags,
                                        UINT SupportedFormatsCount,
                                        const DXGI_FORMAT * pSupportedFormats,
-                                       IDXGIOutputDuplication ** ppOutputDuplication)
+                                       IDXGIOutputDuplication ** ppOutputDuplication,
+                                       struct npt_wire_object_ref *_refs,
+                                       size_t _ref_cap)
 {
     struct npt_ring_submit_command submit;
     npt_submit_IDXGIOutput5_DuplicateOutput1(ring, NPT_CMD_FLAG_REPLY, object_id, pDevice, Flags, SupportedFormatsCount, pSupportedFormats, ppOutputDuplication, &submit);
     struct npt_cs_decoder *dec = npt_ring_get_command_reply(ring, &submit);
     if (dec) {
         HRESULT _ret;
-        npt_decode_IDXGIOutput5_DuplicateOutput1_reply(dec, ppOutputDuplication, &_ret);
+        npt_decode_IDXGIOutput5_DuplicateOutput1_reply(dec, ppOutputDuplication, &_ret, _refs, _ref_cap);
         npt_ring_free_command_reply(ring, &submit);
         return _ret;
     } else {

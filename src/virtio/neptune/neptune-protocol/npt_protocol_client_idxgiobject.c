@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgiobject.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,41 @@
 
 
 /* ================================================================== */
-/* IDXGIObject                                                       */
+/* Family idxgiobject                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiobject_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgiobject_tiers[] = {
     &NPT_IID_IDXGIObject,
     NULL,
+};
+
+static const npt_object_type npt_com_family_idxgiobject_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGIOBJECT,
+};
+
+static const GUID *const npt_com_family_idxgiobject_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgiobject = {
+    .name = "idxgiobject",
+    .index = NPT_IFACE_FAMILY_IDXGIOBJECT,
+    .tier_iids = npt_com_family_idxgiobject_tiers,
+    .tier_types = npt_com_family_idxgiobject_tier_types,
+    .tier_count = 1,
+    .ancestor_iids = npt_com_family_idxgiobject_ancestors,
+    .vtbl = (const void **)&npt_idxgiobject_default_vtbl_storage,
+    .vtbl_install = npt_idxgiobject_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiobject_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiobject_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -54,6 +70,11 @@ npt_idxgiobject_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* IDXGIObject (tier 0)                                  */
+/* ================================================================== */
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiobject_default_SetPrivateData(void *self, const GUID * Name, UINT DataSize, const void * pData)
@@ -87,6 +108,15 @@ npt_idxgiobject_default_GetPrivateData(void *self, const GUID * Name, UINT * pDa
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiobject_default_GetParent(void *self, const IID * riid, void ** ppParent)
 {
+    if (ppParent) {
+        void *_memo = npt_com_memo_lookup(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIObject, NPT_METHOD_IDXGIObject_GetParent), riid);
+        if (_memo) {
+            *ppParent = (void *)_memo;
+            return (HRESULT)0 /* S_OK */;
+        }
+    }
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppParent = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -95,22 +125,22 @@ npt_idxgiobject_default_GetParent(void *self, const IID * riid, void ** ppParent
     void **_orig_ppParent = ppParent;
     if (ppParent)
         ppParent = (void **)&_raw_ppParent;
-    npt_async_IDXGIObject_GetParent(npt_com_self_ring(self),npt_com_self_id(self),riid,ppParent);
+    HRESULT _ret = npt_call_IDXGIObject_GetParent(npt_com_self_ring(self),npt_com_self_id(self),riid,ppParent,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppParent) {
-        if (_raw_ppParent)
-            *_orig_ppParent = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppParent,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppParent = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppParent = NULL;
+        if (*_orig_ppParent)
+            npt_com_memo_store(self, NPT_CMD_TYPE(255, NPT_IFACE_ID_IDXGIObject, NPT_METHOD_IDXGIObject_GetParent), riid,
+                               *_orig_ppParent);
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 
@@ -127,7 +157,7 @@ npt_idxgiobject_fill_default_vtbl(struct npt_idxgiobject_client_vtbl *dst)
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgiobject_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -148,6 +178,8 @@ npt_idxgiobject_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgiobject_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiobject;
+    p->tier = 0;
     return p;
 }
 

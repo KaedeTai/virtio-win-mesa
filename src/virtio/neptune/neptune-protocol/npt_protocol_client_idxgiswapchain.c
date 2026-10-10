@@ -12,6 +12,9 @@
 #include "npt_protocol_client_idxgiswapchain.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,30 +22,51 @@
 
 
 /* ================================================================== */
-/* IDXGISwapChain                                                       */
+/* Family idxgiswapchain                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiswapchain_parent_iids[] = {
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_idxgiswapchain_tiers[] = {
+    &NPT_IID_IDXGISwapChain,
+    &NPT_IID_IDXGISwapChain1,
+    &NPT_IID_IDXGISwapChain2,
+    &NPT_IID_IDXGISwapChain3,
+    &NPT_IID_IDXGISwapChain4,
+    NULL,
+};
+
+static const npt_object_type npt_com_family_idxgiswapchain_tier_types[] = {
+    NPT_OBJECT_TYPE_IDXGISWAPCHAIN,
+    NPT_OBJECT_TYPE_IDXGISWAPCHAIN1,
+    NPT_OBJECT_TYPE_IDXGISWAPCHAIN2,
+    NPT_OBJECT_TYPE_IDXGISWAPCHAIN3,
+    NPT_OBJECT_TYPE_IDXGISWAPCHAIN4,
+};
+
+static const GUID *const npt_com_family_idxgiswapchain_ancestors[] = {
     &NPT_IID_IUnknown,
     &NPT_IID_IDXGIObject,
     &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISwapChain,
     NULL,
+};
+
+const struct npt_com_family npt_com_family_idxgiswapchain = {
+    .name = "idxgiswapchain",
+    .index = NPT_IFACE_FAMILY_IDXGISWAPCHAIN,
+    .tier_iids = npt_com_family_idxgiswapchain_tiers,
+    .tier_types = npt_com_family_idxgiswapchain_tier_types,
+    .tier_count = 5,
+    .ancestor_iids = npt_com_family_idxgiswapchain_ancestors,
+    .vtbl = (const void **)&npt_idxgiswapchain4_default_vtbl_storage,
+    .vtbl_install = npt_idxgiswapchain4_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiswapchain_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -56,6 +80,11 @@ npt_idxgiswapchain_default_Release(void *self)
 {
     return npt_com_default_release(self);
 }
+
+
+/* ================================================================== */
+/* IDXGISwapChain (tier 0)                                  */
+/* ================================================================== */
 
 /* skip_default: IDXGISwapChain::Present -- override required.
  * The default body aborts loudly so a missing override is a runtime
@@ -73,6 +102,8 @@ npt_idxgiswapchain_default_Present(void *self, UINT SyncInterval, UINT Flags)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain_default_GetBuffer(void *self, UINT Buffer, const IID * riid, void ** ppSurface)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppSurface = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -81,22 +112,19 @@ npt_idxgiswapchain_default_GetBuffer(void *self, UINT Buffer, const IID * riid, 
     void **_orig_ppSurface = ppSurface;
     if (ppSurface)
         ppSurface = (void **)&_raw_ppSurface;
-    npt_async_IDXGISwapChain_GetBuffer(npt_com_self_ring(self),npt_com_self_id(self),Buffer,riid,ppSurface);
+    HRESULT _ret = npt_call_IDXGISwapChain_GetBuffer(npt_com_self_ring(self),npt_com_self_id(self),Buffer,riid,ppSurface,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppSurface) {
-        if (_raw_ppSurface)
-            *_orig_ppSurface = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                riid,
-                (uint64_t)(uintptr_t)_raw_ppSurface,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppSurface = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], riid);
         else
             *_orig_ppSurface = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -113,6 +141,8 @@ npt_idxgiswapchain_default_SetFullscreenState(void *self, BOOL Fullscreen, IDXGI
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain_default_GetFullscreenState(void *self, BOOL * pFullscreen, IDXGIOutput ** ppTarget)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIOutput *_raw_ppTarget = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -121,22 +151,18 @@ npt_idxgiswapchain_default_GetFullscreenState(void *self, BOOL * pFullscreen, ID
     IDXGIOutput **_orig_ppTarget = ppTarget;
     if (ppTarget)
         ppTarget = (IDXGIOutput **)&_raw_ppTarget;
-    HRESULT _ret = npt_call_IDXGISwapChain_GetFullscreenState(npt_com_self_ring(self),npt_com_self_id(self),pFullscreen,ppTarget);
+    HRESULT _ret = npt_call_IDXGISwapChain_GetFullscreenState(npt_com_self_ring(self),npt_com_self_id(self),pFullscreen,ppTarget,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppTarget) {
-        /* Sync HRESULT: discard the stashed id on failure -- the host
-         * won't have registered it, so any wrapper we build would be
-         * bogus.  Under the deferred-fatal model an unregistered id
-         * surfaces at first use, but returning the right HRESULT here
-         * lets well-behaved callers short-circuit without an allocation. */
-        if (NPT_SUCCEEDED((HRESULT)_ret) && _raw_ppTarget)
-            *_orig_ppTarget = (IDXGIOutput *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIOutput,
-                (uint64_t)(uintptr_t)_raw_ppTarget,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppTarget = (IDXGIOutput *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIOutput);
         else
             *_orig_ppTarget = NULL;
     }
+    _ref_i++;
     return _ret;
 }
 
@@ -172,6 +198,8 @@ npt_idxgiswapchain_default_ResizeTarget(void *self, const DXGI_MODE_DESC * pNewT
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain_default_GetContainingOutput(void *self, IDXGIOutput ** ppOutput)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIOutput *_raw_ppOutput = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -180,22 +208,19 @@ npt_idxgiswapchain_default_GetContainingOutput(void *self, IDXGIOutput ** ppOutp
     IDXGIOutput **_orig_ppOutput = ppOutput;
     if (ppOutput)
         ppOutput = (IDXGIOutput **)&_raw_ppOutput;
-    npt_async_IDXGISwapChain_GetContainingOutput(npt_com_self_ring(self),npt_com_self_id(self),ppOutput);
+    HRESULT _ret = npt_call_IDXGISwapChain_GetContainingOutput(npt_com_self_ring(self),npt_com_self_id(self),ppOutput,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppOutput) {
-        if (_raw_ppOutput)
-            *_orig_ppOutput = (IDXGIOutput *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIOutput,
-                (uint64_t)(uintptr_t)_raw_ppOutput,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppOutput = (IDXGIOutput *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIOutput);
         else
             *_orig_ppOutput = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -213,42 +238,6 @@ npt_idxgiswapchain_default_GetLastPresentCount(void *self, UINT * pLastPresentCo
 }
 
 
-void
-npt_idxgiswapchain_fill_default_vtbl(struct npt_idxgiswapchain_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiswapchain_default_QueryInterface;
-    dst->AddRef         = npt_idxgiswapchain_default_AddRef;
-    dst->Release        = npt_idxgiswapchain_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->GetDevice = npt_idxgidevicesubobject_default_GetDevice;
-    dst->Present = npt_idxgiswapchain_default_Present;
-    dst->GetBuffer = npt_idxgiswapchain_default_GetBuffer;
-    dst->SetFullscreenState = npt_idxgiswapchain_default_SetFullscreenState;
-    dst->GetFullscreenState = npt_idxgiswapchain_default_GetFullscreenState;
-    dst->GetDesc = npt_idxgiswapchain_default_GetDesc;
-    dst->ResizeBuffers = npt_idxgiswapchain_default_ResizeBuffers;
-    dst->ResizeTarget = npt_idxgiswapchain_default_ResizeTarget;
-    dst->GetContainingOutput = npt_idxgiswapchain_default_GetContainingOutput;
-    dst->GetFrameStatistics = npt_idxgiswapchain_default_GetFrameStatistics;
-    dst->GetLastPresentCount = npt_idxgiswapchain_default_GetLastPresentCount;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiswapchain_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiswapchain_client_vtbl npt_idxgiswapchain_default_vtbl_storage;
-
-void
-npt_idxgiswapchain_install_default_vtbl(void)
-{
-    npt_idxgiswapchain_fill_default_vtbl(&npt_idxgiswapchain_default_vtbl_storage);
-}
-
 void *
 npt_idxgiswapchain_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -256,51 +245,17 @@ npt_idxgiswapchain_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiswapchain_default_vtbl_storage,
+        (const void **)&npt_idxgiswapchain4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiswapchain;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGISwapChain1                                                       */
+/* IDXGISwapChain1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiswapchain1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISwapChain,
-    &NPT_IID_IDXGISwapChain1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiswapchain1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain1_default_GetDesc1(void *self, DXGI_SWAP_CHAIN_DESC1 * pDesc)
@@ -326,6 +281,8 @@ npt_idxgiswapchain1_default_GetHwnd(void *self, HWND * pHwnd)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain1_default_GetCoreWindow(void *self, const IID * refiid, void ** ppUnk)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     void *_raw_ppUnk = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -334,22 +291,19 @@ npt_idxgiswapchain1_default_GetCoreWindow(void *self, const IID * refiid, void *
     void **_orig_ppUnk = ppUnk;
     if (ppUnk)
         ppUnk = (void **)&_raw_ppUnk;
-    npt_async_IDXGISwapChain1_GetCoreWindow(npt_com_self_ring(self),npt_com_self_id(self),refiid,ppUnk);
+    HRESULT _ret = npt_call_IDXGISwapChain1_GetCoreWindow(npt_com_self_ring(self),npt_com_self_id(self),refiid,ppUnk,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppUnk) {
-        if (_raw_ppUnk)
-            *_orig_ppUnk = (void *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                refiid,
-                (uint64_t)(uintptr_t)_raw_ppUnk,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppUnk = (void *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], refiid);
         else
             *_orig_ppUnk = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -373,6 +327,8 @@ npt_idxgiswapchain1_default_IsTemporaryMonoSupported(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain1_default_GetRestrictToOutput(void *self, IDXGIOutput ** ppRestrictToOutput)
 {
+    struct npt_wire_object_ref _refs[1];
+    memset(_refs, 0, sizeof(_refs));
     IDXGIOutput *_raw_ppRestrictToOutput = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -381,22 +337,19 @@ npt_idxgiswapchain1_default_GetRestrictToOutput(void *self, IDXGIOutput ** ppRes
     IDXGIOutput **_orig_ppRestrictToOutput = ppRestrictToOutput;
     if (ppRestrictToOutput)
         ppRestrictToOutput = (IDXGIOutput **)&_raw_ppRestrictToOutput;
-    npt_async_IDXGISwapChain1_GetRestrictToOutput(npt_com_self_ring(self),npt_com_self_id(self),ppRestrictToOutput);
+    HRESULT _ret = npt_call_IDXGISwapChain1_GetRestrictToOutput(npt_com_self_ring(self),npt_com_self_id(self),ppRestrictToOutput,_refs,1);
+    /* The reply's refs come in parameter order: one per single output,
+     * then each array's capacity, interleaved as the parameters are. */
+    size_t _ref_i = 0;
     if (_orig_ppRestrictToOutput) {
-        if (_raw_ppRestrictToOutput)
-            *_orig_ppRestrictToOutput = (IDXGIOutput *)npt_com_get_or_wrap(
-                npt_com_self_device(self),
-                &NPT_IID_IDXGIOutput,
-                (uint64_t)(uintptr_t)_raw_ppRestrictToOutput,
-                (struct npt_com_base *)self);
+        if (NPT_SUCCEEDED((HRESULT)_ret) && _refs[_ref_i].id)
+            *_orig_ppRestrictToOutput = (IDXGIOutput *)npt_com_wrap_canonical(
+                npt_com_self_device(self), &_refs[_ref_i], &NPT_IID_IDXGIOutput);
         else
             *_orig_ppRestrictToOutput = NULL;
     }
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    _ref_i++;
+    return _ret;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -436,53 +389,6 @@ npt_idxgiswapchain1_default_GetRotation(void *self, DXGI_MODE_ROTATION * pRotati
 }
 
 
-void
-npt_idxgiswapchain1_fill_default_vtbl(struct npt_idxgiswapchain1_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiswapchain1_default_QueryInterface;
-    dst->AddRef         = npt_idxgiswapchain1_default_AddRef;
-    dst->Release        = npt_idxgiswapchain1_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->GetDevice = npt_idxgidevicesubobject_default_GetDevice;
-    dst->Present = npt_idxgiswapchain_default_Present;
-    dst->GetBuffer = npt_idxgiswapchain_default_GetBuffer;
-    dst->SetFullscreenState = npt_idxgiswapchain_default_SetFullscreenState;
-    dst->GetFullscreenState = npt_idxgiswapchain_default_GetFullscreenState;
-    dst->GetDesc = npt_idxgiswapchain_default_GetDesc;
-    dst->ResizeBuffers = npt_idxgiswapchain_default_ResizeBuffers;
-    dst->ResizeTarget = npt_idxgiswapchain_default_ResizeTarget;
-    dst->GetContainingOutput = npt_idxgiswapchain_default_GetContainingOutput;
-    dst->GetFrameStatistics = npt_idxgiswapchain_default_GetFrameStatistics;
-    dst->GetLastPresentCount = npt_idxgiswapchain_default_GetLastPresentCount;
-    dst->GetDesc1 = npt_idxgiswapchain1_default_GetDesc1;
-    dst->GetFullscreenDesc = npt_idxgiswapchain1_default_GetFullscreenDesc;
-    dst->GetHwnd = npt_idxgiswapchain1_default_GetHwnd;
-    dst->GetCoreWindow = npt_idxgiswapchain1_default_GetCoreWindow;
-    dst->Present1 = npt_idxgiswapchain1_default_Present1;
-    dst->IsTemporaryMonoSupported = npt_idxgiswapchain1_default_IsTemporaryMonoSupported;
-    dst->GetRestrictToOutput = npt_idxgiswapchain1_default_GetRestrictToOutput;
-    dst->SetBackgroundColor = npt_idxgiswapchain1_default_SetBackgroundColor;
-    dst->GetBackgroundColor = npt_idxgiswapchain1_default_GetBackgroundColor;
-    dst->SetRotation = npt_idxgiswapchain1_default_SetRotation;
-    dst->GetRotation = npt_idxgiswapchain1_default_GetRotation;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiswapchain1_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiswapchain1_client_vtbl npt_idxgiswapchain1_default_vtbl_storage;
-
-void
-npt_idxgiswapchain1_install_default_vtbl(void)
-{
-    npt_idxgiswapchain1_fill_default_vtbl(&npt_idxgiswapchain1_default_vtbl_storage);
-}
-
 void *
 npt_idxgiswapchain1_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -490,52 +396,17 @@ npt_idxgiswapchain1_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiswapchain1_default_vtbl_storage,
+        (const void **)&npt_idxgiswapchain4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiswapchain;
+    p->tier = 1;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGISwapChain2                                                       */
+/* IDXGISwapChain2 (tier 2)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiswapchain2_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISwapChain,
-    &NPT_IID_IDXGISwapChain1,
-    &NPT_IID_IDXGISwapChain2,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain2_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiswapchain2_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain2_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain2_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain2_default_SetSourceSize(void *self, UINT Width, UINT Height)
@@ -599,60 +470,6 @@ npt_idxgiswapchain2_default_GetMatrixTransform(void *self, DXGI_MATRIX_3X2_F * p
 }
 
 
-void
-npt_idxgiswapchain2_fill_default_vtbl(struct npt_idxgiswapchain2_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiswapchain2_default_QueryInterface;
-    dst->AddRef         = npt_idxgiswapchain2_default_AddRef;
-    dst->Release        = npt_idxgiswapchain2_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->GetDevice = npt_idxgidevicesubobject_default_GetDevice;
-    dst->Present = npt_idxgiswapchain_default_Present;
-    dst->GetBuffer = npt_idxgiswapchain_default_GetBuffer;
-    dst->SetFullscreenState = npt_idxgiswapchain_default_SetFullscreenState;
-    dst->GetFullscreenState = npt_idxgiswapchain_default_GetFullscreenState;
-    dst->GetDesc = npt_idxgiswapchain_default_GetDesc;
-    dst->ResizeBuffers = npt_idxgiswapchain_default_ResizeBuffers;
-    dst->ResizeTarget = npt_idxgiswapchain_default_ResizeTarget;
-    dst->GetContainingOutput = npt_idxgiswapchain_default_GetContainingOutput;
-    dst->GetFrameStatistics = npt_idxgiswapchain_default_GetFrameStatistics;
-    dst->GetLastPresentCount = npt_idxgiswapchain_default_GetLastPresentCount;
-    dst->GetDesc1 = npt_idxgiswapchain1_default_GetDesc1;
-    dst->GetFullscreenDesc = npt_idxgiswapchain1_default_GetFullscreenDesc;
-    dst->GetHwnd = npt_idxgiswapchain1_default_GetHwnd;
-    dst->GetCoreWindow = npt_idxgiswapchain1_default_GetCoreWindow;
-    dst->Present1 = npt_idxgiswapchain1_default_Present1;
-    dst->IsTemporaryMonoSupported = npt_idxgiswapchain1_default_IsTemporaryMonoSupported;
-    dst->GetRestrictToOutput = npt_idxgiswapchain1_default_GetRestrictToOutput;
-    dst->SetBackgroundColor = npt_idxgiswapchain1_default_SetBackgroundColor;
-    dst->GetBackgroundColor = npt_idxgiswapchain1_default_GetBackgroundColor;
-    dst->SetRotation = npt_idxgiswapchain1_default_SetRotation;
-    dst->GetRotation = npt_idxgiswapchain1_default_GetRotation;
-    dst->SetSourceSize = npt_idxgiswapchain2_default_SetSourceSize;
-    dst->GetSourceSize = npt_idxgiswapchain2_default_GetSourceSize;
-    dst->SetMaximumFrameLatency = npt_idxgiswapchain2_default_SetMaximumFrameLatency;
-    dst->GetMaximumFrameLatency = npt_idxgiswapchain2_default_GetMaximumFrameLatency;
-    dst->GetFrameLatencyWaitableObject = npt_idxgiswapchain2_default_GetFrameLatencyWaitableObject;
-    dst->SetMatrixTransform = npt_idxgiswapchain2_default_SetMatrixTransform;
-    dst->GetMatrixTransform = npt_idxgiswapchain2_default_GetMatrixTransform;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiswapchain2_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiswapchain2_client_vtbl npt_idxgiswapchain2_default_vtbl_storage;
-
-void
-npt_idxgiswapchain2_install_default_vtbl(void)
-{
-    npt_idxgiswapchain2_fill_default_vtbl(&npt_idxgiswapchain2_default_vtbl_storage);
-}
-
 void *
 npt_idxgiswapchain2_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -660,53 +477,17 @@ npt_idxgiswapchain2_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiswapchain2_default_vtbl_storage,
+        (const void **)&npt_idxgiswapchain4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiswapchain;
+    p->tier = 2;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGISwapChain3                                                       */
+/* IDXGISwapChain3 (tier 3)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiswapchain3_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISwapChain,
-    &NPT_IID_IDXGISwapChain1,
-    &NPT_IID_IDXGISwapChain2,
-    &NPT_IID_IDXGISwapChain3,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain3_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiswapchain3_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain3_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain3_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 UINT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain3_default_GetCurrentBackBufferIndex(void *self)
@@ -745,64 +526,6 @@ npt_idxgiswapchain3_default_ResizeBuffers1(void *self, UINT BufferCount, UINT Wi
 }
 
 
-void
-npt_idxgiswapchain3_fill_default_vtbl(struct npt_idxgiswapchain3_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_idxgiswapchain3_default_QueryInterface;
-    dst->AddRef         = npt_idxgiswapchain3_default_AddRef;
-    dst->Release        = npt_idxgiswapchain3_default_Release;
-    dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
-    dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
-    dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
-    dst->GetParent = npt_idxgiobject_default_GetParent;
-    dst->GetDevice = npt_idxgidevicesubobject_default_GetDevice;
-    dst->Present = npt_idxgiswapchain_default_Present;
-    dst->GetBuffer = npt_idxgiswapchain_default_GetBuffer;
-    dst->SetFullscreenState = npt_idxgiswapchain_default_SetFullscreenState;
-    dst->GetFullscreenState = npt_idxgiswapchain_default_GetFullscreenState;
-    dst->GetDesc = npt_idxgiswapchain_default_GetDesc;
-    dst->ResizeBuffers = npt_idxgiswapchain_default_ResizeBuffers;
-    dst->ResizeTarget = npt_idxgiswapchain_default_ResizeTarget;
-    dst->GetContainingOutput = npt_idxgiswapchain_default_GetContainingOutput;
-    dst->GetFrameStatistics = npt_idxgiswapchain_default_GetFrameStatistics;
-    dst->GetLastPresentCount = npt_idxgiswapchain_default_GetLastPresentCount;
-    dst->GetDesc1 = npt_idxgiswapchain1_default_GetDesc1;
-    dst->GetFullscreenDesc = npt_idxgiswapchain1_default_GetFullscreenDesc;
-    dst->GetHwnd = npt_idxgiswapchain1_default_GetHwnd;
-    dst->GetCoreWindow = npt_idxgiswapchain1_default_GetCoreWindow;
-    dst->Present1 = npt_idxgiswapchain1_default_Present1;
-    dst->IsTemporaryMonoSupported = npt_idxgiswapchain1_default_IsTemporaryMonoSupported;
-    dst->GetRestrictToOutput = npt_idxgiswapchain1_default_GetRestrictToOutput;
-    dst->SetBackgroundColor = npt_idxgiswapchain1_default_SetBackgroundColor;
-    dst->GetBackgroundColor = npt_idxgiswapchain1_default_GetBackgroundColor;
-    dst->SetRotation = npt_idxgiswapchain1_default_SetRotation;
-    dst->GetRotation = npt_idxgiswapchain1_default_GetRotation;
-    dst->SetSourceSize = npt_idxgiswapchain2_default_SetSourceSize;
-    dst->GetSourceSize = npt_idxgiswapchain2_default_GetSourceSize;
-    dst->SetMaximumFrameLatency = npt_idxgiswapchain2_default_SetMaximumFrameLatency;
-    dst->GetMaximumFrameLatency = npt_idxgiswapchain2_default_GetMaximumFrameLatency;
-    dst->GetFrameLatencyWaitableObject = npt_idxgiswapchain2_default_GetFrameLatencyWaitableObject;
-    dst->SetMatrixTransform = npt_idxgiswapchain2_default_SetMatrixTransform;
-    dst->GetMatrixTransform = npt_idxgiswapchain2_default_GetMatrixTransform;
-    dst->GetCurrentBackBufferIndex = npt_idxgiswapchain3_default_GetCurrentBackBufferIndex;
-    dst->CheckColorSpaceSupport = npt_idxgiswapchain3_default_CheckColorSpaceSupport;
-    dst->SetColorSpace1 = npt_idxgiswapchain3_default_SetColorSpace1;
-    dst->ResizeBuffers1 = npt_idxgiswapchain3_default_ResizeBuffers1;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_idxgiswapchain3_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_idxgiswapchain3_client_vtbl npt_idxgiswapchain3_default_vtbl_storage;
-
-void
-npt_idxgiswapchain3_install_default_vtbl(void)
-{
-    npt_idxgiswapchain3_fill_default_vtbl(&npt_idxgiswapchain3_default_vtbl_storage);
-}
-
 void *
 npt_idxgiswapchain3_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -810,54 +533,17 @@ npt_idxgiswapchain3_client_create(struct npt_device *dev, uint64_t host_id)
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_idxgiswapchain3_default_vtbl_storage,
+        (const void **)&npt_idxgiswapchain4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiswapchain;
+    p->tier = 3;
     return p;
 }
 
 
 /* ================================================================== */
-/* IDXGISwapChain4                                                       */
+/* IDXGISwapChain4 (tier 4)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_idxgiswapchain4_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_IDXGIObject,
-    &NPT_IID_IDXGIDeviceSubObject,
-    &NPT_IID_IDXGISwapChain,
-    &NPT_IID_IDXGISwapChain1,
-    &NPT_IID_IDXGISwapChain2,
-    &NPT_IID_IDXGISwapChain3,
-    &NPT_IID_IDXGISwapChain4,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain4_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_idxgiswapchain4_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain4_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_idxgiswapchain4_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiswapchain4_default_SetHDRMetaData(void *self, DXGI_HDR_METADATA_TYPE Type, UINT Size, void * pMetaData)
@@ -874,9 +560,9 @@ npt_idxgiswapchain4_default_SetHDRMetaData(void *self, DXGI_HDR_METADATA_TYPE Ty
 void
 npt_idxgiswapchain4_fill_default_vtbl(struct npt_idxgiswapchain4_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_idxgiswapchain4_default_QueryInterface;
-    dst->AddRef         = npt_idxgiswapchain4_default_AddRef;
-    dst->Release        = npt_idxgiswapchain4_default_Release;
+    dst->QueryInterface = npt_idxgiswapchain_default_QueryInterface;
+    dst->AddRef         = npt_idxgiswapchain_default_AddRef;
+    dst->Release        = npt_idxgiswapchain_default_Release;
     dst->SetPrivateData = npt_idxgiobject_default_SetPrivateData;
     dst->SetPrivateDataInterface = npt_idxgiobject_default_SetPrivateDataInterface;
     dst->GetPrivateData = npt_idxgiobject_default_GetPrivateData;
@@ -918,7 +604,7 @@ npt_idxgiswapchain4_fill_default_vtbl(struct npt_idxgiswapchain4_client_vtbl *ds
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_idxgiswapchain4_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -939,6 +625,8 @@ npt_idxgiswapchain4_client_create(struct npt_device *dev, uint64_t host_id)
     npt_com_base_init(p,
         (const void **)&npt_idxgiswapchain4_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_idxgiswapchain;
+    p->tier = 4;
     return p;
 }
 

@@ -473,4 +473,10 @@ npt_ring_stage_flush_all(struct npt_ring *ring);
 void
 npt_ring_send_com_release(struct npt_device *dev, uint64_t host_id);
 
+/* COM_RELEASE for a registration no command names: the surplus one a
+ * canonical reply adds to an id whose wrapper the guest already holds.
+ * Carries no ring positions, so the host runs it on arrival. */
+void
+npt_ring_send_com_release_immediate(struct npt_device *dev, uint64_t host_id);
+
 #endif /* NPT_RING_H */

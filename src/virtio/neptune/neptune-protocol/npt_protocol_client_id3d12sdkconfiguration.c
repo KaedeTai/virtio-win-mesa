@@ -12,6 +12,9 @@
 #include "npt_protocol_client_id3d12sdkconfiguration.h"
 #include "npt_com.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,28 +22,43 @@
 
 
 /* ================================================================== */
-/* ID3D12SDKConfiguration                                                       */
+/* Family id3d12sdkconfiguration                                                */
 /* ================================================================== */
 
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12sdkconfiguration_parent_iids[] = {
-    &NPT_IID_IUnknown,
+/* The tiers, root first; an interface this family answers QueryInterface
+ * for is one of these up to the wrapper's confirmed tier, or one of the
+ * ancestors above the root. */
+static const GUID *const npt_com_family_id3d12sdkconfiguration_tiers[] = {
     &NPT_IID_ID3D12SDKConfiguration,
+    &NPT_IID_ID3D12SDKConfiguration1,
     NULL,
+};
+
+static const npt_object_type npt_com_family_id3d12sdkconfiguration_tier_types[] = {
+    NPT_OBJECT_TYPE_ID3D12SDKCONFIGURATION,
+    NPT_OBJECT_TYPE_ID3D12SDKCONFIGURATION1,
+};
+
+static const GUID *const npt_com_family_id3d12sdkconfiguration_ancestors[] = {
+    &NPT_IID_IUnknown,
+    NULL,
+};
+
+const struct npt_com_family npt_com_family_id3d12sdkconfiguration = {
+    .name = "id3d12sdkconfiguration",
+    .index = NPT_IFACE_FAMILY_ID3D12SDKCONFIGURATION,
+    .tier_iids = npt_com_family_id3d12sdkconfiguration_tiers,
+    .tier_types = npt_com_family_id3d12sdkconfiguration_tier_types,
+    .tier_count = 2,
+    .ancestor_iids = npt_com_family_id3d12sdkconfiguration_ancestors,
+    .vtbl = (const void **)&npt_id3d12sdkconfiguration1_default_vtbl_storage,
+    .vtbl_install = npt_id3d12sdkconfiguration1_install_default_vtbl,
 };
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12sdkconfiguration_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
 {
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12sdkconfiguration_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
+    return npt_com_query_interface_family(self, riid, ppvObject);
 }
 
 ULONG NPT_STDMETHODCALLTYPE
@@ -55,6 +73,11 @@ npt_id3d12sdkconfiguration_default_Release(void *self)
     return npt_com_default_release(self);
 }
 
+
+/* ================================================================== */
+/* ID3D12SDKConfiguration (tier 0)                                  */
+/* ================================================================== */
+
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12sdkconfiguration_default_SetSDKVersion(void *self, UINT SDKVersion, const CHAR * SDKPath)
 {
@@ -67,28 +90,6 @@ npt_id3d12sdkconfiguration_default_SetSDKVersion(void *self, UINT SDKVersion, co
 }
 
 
-void
-npt_id3d12sdkconfiguration_fill_default_vtbl(struct npt_id3d12sdkconfiguration_client_vtbl *dst)
-{
-    dst->QueryInterface = npt_id3d12sdkconfiguration_default_QueryInterface;
-    dst->AddRef         = npt_id3d12sdkconfiguration_default_AddRef;
-    dst->Release        = npt_id3d12sdkconfiguration_default_Release;
-    dst->SetSDKVersion = npt_id3d12sdkconfiguration_default_SetSDKVersion;
-}
-
-/*
- * Per-interface default vtbl storage.  Populated by
- * npt_id3d12sdkconfiguration_install_default_vtbl(), which is called once at
- * runtime init time from the global client_table init function.
- */
-struct npt_id3d12sdkconfiguration_client_vtbl npt_id3d12sdkconfiguration_default_vtbl_storage;
-
-void
-npt_id3d12sdkconfiguration_install_default_vtbl(void)
-{
-    npt_id3d12sdkconfiguration_fill_default_vtbl(&npt_id3d12sdkconfiguration_default_vtbl_storage);
-}
-
 void *
 npt_id3d12sdkconfiguration_client_create(struct npt_device *dev, uint64_t host_id)
 {
@@ -96,49 +97,17 @@ npt_id3d12sdkconfiguration_client_create(struct npt_device *dev, uint64_t host_i
     if (!p)
         return NULL;
     npt_com_base_init(p,
-        (const void **)&npt_id3d12sdkconfiguration_default_vtbl_storage,
+        (const void **)&npt_id3d12sdkconfiguration1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12sdkconfiguration;
+    p->tier = 0;
     return p;
 }
 
 
 /* ================================================================== */
-/* ID3D12SDKConfiguration1                                                       */
+/* ID3D12SDKConfiguration1 (tier 1)                                  */
 /* ================================================================== */
-
-/* Parent IID chain for QueryInterface fast-path.  NULL-terminated list of
- * IID pointers; QI returns self for any IID in this list. */
-static const GUID *const npt_id3d12sdkconfiguration1_parent_iids[] = {
-    &NPT_IID_IUnknown,
-    &NPT_IID_ID3D12SDKConfiguration,
-    &NPT_IID_ID3D12SDKConfiguration1,
-    NULL,
-};
-
-HRESULT NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration1_default_QueryInterface(void *self, REFIID riid, void **ppvObject)
-{
-    HRESULT hr = npt_com_default_query_interface_chain(
-        self, riid, ppvObject, npt_id3d12sdkconfiguration1_parent_iids);
-    if (hr == NPT_S_OK)
-        return hr;
-    /* Derived/sibling IIDs are resolved against the host object, one
-     * wire round trip per (object, IID) lifetime: the runtime memoizes
-     * the verdict and the wrapper on `self` (npt_com.c). */
-    return npt_com_query_interface_host(self, riid, ppvObject);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration1_default_AddRef(void *self)
-{
-    return npt_com_default_addref(self);
-}
-
-ULONG NPT_STDMETHODCALLTYPE
-npt_id3d12sdkconfiguration1_default_Release(void *self)
-{
-    return npt_com_default_release(self);
-}
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12sdkconfiguration1_default_CreateDeviceFactory(void *self, UINT SDKVersion, const CHAR * SDKPath, const IID * riid, void ** ppvFactory)
@@ -179,16 +148,16 @@ npt_id3d12sdkconfiguration1_default_FreeUnusedSDKs(void *self)
 void
 npt_id3d12sdkconfiguration1_fill_default_vtbl(struct npt_id3d12sdkconfiguration1_client_vtbl *dst)
 {
-    dst->QueryInterface = npt_id3d12sdkconfiguration1_default_QueryInterface;
-    dst->AddRef         = npt_id3d12sdkconfiguration1_default_AddRef;
-    dst->Release        = npt_id3d12sdkconfiguration1_default_Release;
+    dst->QueryInterface = npt_id3d12sdkconfiguration_default_QueryInterface;
+    dst->AddRef         = npt_id3d12sdkconfiguration_default_AddRef;
+    dst->Release        = npt_id3d12sdkconfiguration_default_Release;
     dst->SetSDKVersion = npt_id3d12sdkconfiguration_default_SetSDKVersion;
     dst->CreateDeviceFactory = npt_id3d12sdkconfiguration1_default_CreateDeviceFactory;
     dst->FreeUnusedSDKs = npt_id3d12sdkconfiguration1_default_FreeUnusedSDKs;
 }
 
 /*
- * Per-interface default vtbl storage.  Populated by
+ * The family's vtable.  Populated by
  * npt_id3d12sdkconfiguration1_install_default_vtbl(), which is called once at
  * runtime init time from the global client_table init function.
  */
@@ -209,6 +178,8 @@ npt_id3d12sdkconfiguration1_client_create(struct npt_device *dev, uint64_t host_
     npt_com_base_init(p,
         (const void **)&npt_id3d12sdkconfiguration1_default_vtbl_storage,
         dev, host_id);
+    p->family = &npt_com_family_id3d12sdkconfiguration;
+    p->tier = 1;
     return p;
 }
 
