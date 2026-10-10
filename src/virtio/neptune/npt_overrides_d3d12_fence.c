@@ -33,30 +33,6 @@
 #include "neptune-protocol/npt_protocol_defs.h"
 #include "neptune-protocol/npt_protocol_guest_id3d12fence.h"
 
-#define NPT_REGISTER_OVERRIDE_D3D12_FENCE1(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12fence1, m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_FENCE(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12fence, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_FENCE1(m, f)
-
-/* CreateFence cascade over every device tier. */
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE_ALL(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device1, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device2, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device3, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device4, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device5, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device6, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device7, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device8, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device9, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device10, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device11, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device12, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device13, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device14, m, f)
-
 static const GUID *const fence12_tiers[] = {
    &NPT_IID_ID3D12Fence, &NPT_IID_ID3D12Fence1, NULL,
 };
@@ -350,12 +326,12 @@ npt_d3d12_ecl_gate_arm(void *fence_wrapper, UINT64 value, UINT64 *kmd_token_out)
 void
 npt_overrides_d3d12_fence_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D12_FENCE(SetEventOnCompletion,
+   NPT_REGISTER_OVERRIDE(id3d12fence, SetEventOnCompletion,
                                      fence12_SetEventOnCompletion_override);
-   NPT_REGISTER_OVERRIDE_D3D12_FENCE(GetCompletedValue,
+   NPT_REGISTER_OVERRIDE(id3d12fence, GetCompletedValue,
                                      fence12_GetCompletedValue_override);
-   NPT_REGISTER_OVERRIDE_D3D12_FENCE(Signal, fence12_Signal_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE_ALL(CreateFence,
+   NPT_REGISTER_OVERRIDE(id3d12fence, Signal, fence12_Signal_override);
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateFence,
                                           dev12_CreateFence_override);
    npt_com_register_family(fence12_tiers,
                            sizeof(struct npt_d3d12_fence_aux),

@@ -2,10 +2,10 @@
  * Copyright 2026 Turing Software LLC
  * SPDX-License-Identifier: MIT
  *
- * IDXGIFactory{,1..7} overrides.  Each tier carries its own vtbl;
- * the methods below mirror the host D3D library's behaviour
- * (S_OK / hWnd=NULL pass-through, UNSUPPORTED for software adapter,
- * NOTIMPL for stereo / occlusion / hardware-content-protection).
+ * IDXGIFactory{,1..7} overrides.  The methods below mirror the host D3D
+ * library's behaviour (S_OK / hWnd=NULL pass-through, UNSUPPORTED for
+ * software adapter, NOTIMPL for stereo / occlusion /
+ * hardware-content-protection).
  */
 
 #include "npt_com.h"
@@ -255,30 +255,6 @@ fac2_CreateSwapChainForComposition_override(void *self, IUnknown *pDevice,
    return NPT_DXGI_ERROR_INVALID_CALL;
 }
 
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY7(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory7, m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY6(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory6, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY7(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY5(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory5, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY6(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY4(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory4, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY5(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY3(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory3, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY4(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory2, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY3(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY1(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory1, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_FACTORY(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgifactory, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY1(m, f)
-
 static const GUID *const factory_tiers[] = {
    &NPT_IID_IDXGIFactory,  &NPT_IID_IDXGIFactory1, &NPT_IID_IDXGIFactory2,
    &NPT_IID_IDXGIFactory3, &NPT_IID_IDXGIFactory4, &NPT_IID_IDXGIFactory5,
@@ -288,40 +264,40 @@ static const GUID *const factory_tiers[] = {
 void
 npt_overrides_dxgi_factory_init(void)
 {
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY (MakeWindowAssociation,
-                                       fac_MakeWindowAssociation_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY (GetWindowAssociation,
-                                       fac_GetWindowAssociation_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY (CreateSoftwareAdapter,
-                                       fac_CreateSoftwareAdapter_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(RegisterStereoStatusWindow,
-                                       fac2_RegisterStereoStatusWindow_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(RegisterStereoStatusEvent,
-                                       fac2_RegisterStereoStatusEvent_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(UnregisterStereoStatus,
-                                       fac2_UnregisterStereoStatus_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(RegisterOcclusionStatusWindow,
-                                       fac2_RegisterOcclusionStatusWindow_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(RegisterOcclusionStatusEvent,
-                                       fac2_RegisterOcclusionStatusEvent_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(UnregisterOcclusionStatus,
-                                       fac2_UnregisterOcclusionStatus_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(GetSharedResourceAdapterLuid,
-                                       fac2_GetSharedResourceAdapterLuid_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY4(EnumWarpAdapter,
-                                       fac4_EnumWarpAdapter_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY7(RegisterAdaptersChangedEvent,
-                                       fac7_RegisterAdaptersChangedEvent_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY7(UnregisterAdaptersChangedEvent,
-                                       fac7_UnregisterAdaptersChangedEvent_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY (CreateSwapChain,
-                                       fac_CreateSwapChain_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(CreateSwapChainForHwnd,
-                                       fac2_CreateSwapChainForHwnd_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(CreateSwapChainForCoreWindow,
-                                       fac2_CreateSwapChainForCoreWindow_override);
-   NPT_REGISTER_OVERRIDE_DXGI_FACTORY2(CreateSwapChainForComposition,
-                                       fac2_CreateSwapChainForComposition_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, MakeWindowAssociation,
+                                      fac_MakeWindowAssociation_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, GetWindowAssociation,
+                                      fac_GetWindowAssociation_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, CreateSoftwareAdapter,
+                                      fac_CreateSoftwareAdapter_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, RegisterStereoStatusWindow,
+                                      fac2_RegisterStereoStatusWindow_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, RegisterStereoStatusEvent,
+                                      fac2_RegisterStereoStatusEvent_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, UnregisterStereoStatus,
+                                      fac2_UnregisterStereoStatus_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, RegisterOcclusionStatusWindow,
+                                      fac2_RegisterOcclusionStatusWindow_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, RegisterOcclusionStatusEvent,
+                                      fac2_RegisterOcclusionStatusEvent_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, UnregisterOcclusionStatus,
+                                      fac2_UnregisterOcclusionStatus_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, GetSharedResourceAdapterLuid,
+                                      fac2_GetSharedResourceAdapterLuid_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, EnumWarpAdapter,
+                                      fac4_EnumWarpAdapter_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, RegisterAdaptersChangedEvent,
+                                      fac7_RegisterAdaptersChangedEvent_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, UnregisterAdaptersChangedEvent,
+                                      fac7_UnregisterAdaptersChangedEvent_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, CreateSwapChain,
+                                      fac_CreateSwapChain_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, CreateSwapChainForHwnd,
+                                      fac2_CreateSwapChainForHwnd_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, CreateSwapChainForCoreWindow,
+                                      fac2_CreateSwapChainForCoreWindow_override);
+   NPT_REGISTER_OVERRIDE(idxgifactory, CreateSwapChainForComposition,
+                                      fac2_CreateSwapChainForComposition_override);
 
    npt_com_register_family(factory_tiers, 0, NULL);
 }

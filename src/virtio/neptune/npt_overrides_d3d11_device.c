@@ -25,24 +25,6 @@
 /* Sentinel cookie matching the host library's stub. */
 #define NPT_DEVICE_REMOVED_COOKIE 0xdeadbeef
 
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE5(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device5, m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device4, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE5(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device3, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE2(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device2, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE1(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device1, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE2(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE1(m, f)
-
 static const GUID *const device_tiers[] = {
    &NPT_IID_ID3D11Device,  &NPT_IID_ID3D11Device1, &NPT_IID_ID3D11Device2,
    &NPT_IID_ID3D11Device3, &NPT_IID_ID3D11Device4, &NPT_IID_ID3D11Device5,
@@ -522,29 +504,29 @@ dev3_CreateDeferredContext3_override(void *self, UINT ContextFlags,
 void
 npt_overrides_d3d11_device_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE (CreateDeferredContext,
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateDeferredContext,
                                        dev_CreateDeferredContext_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE1(CreateDeferredContext1,
+   NPT_REGISTER_OVERRIDE(id3d11device1, CreateDeferredContext1,
                                        dev1_CreateDeferredContext1_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE2(CreateDeferredContext2,
+   NPT_REGISTER_OVERRIDE(id3d11device2, CreateDeferredContext2,
                                        dev2_CreateDeferredContext2_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(CreateDeferredContext3,
+   NPT_REGISTER_OVERRIDE(id3d11device3, CreateDeferredContext3,
                                        dev3_CreateDeferredContext3_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE (CreateBuffer,
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateBuffer,
                                        dev_CreateBuffer_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE (CreateTexture1D,
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateTexture1D,
                                        dev_CreateTexture1D_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE (CreateTexture2D,
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateTexture2D,
                                        dev_CreateTexture2D_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE (CreateTexture3D,
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateTexture3D,
                                        dev_CreateTexture3D_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(CreateTexture2D1,
+   NPT_REGISTER_OVERRIDE(id3d11device3, CreateTexture2D1,
                                        dev3_CreateTexture2D1_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(CreateTexture3D1,
+   NPT_REGISTER_OVERRIDE(id3d11device3, CreateTexture3D1,
                                        dev3_CreateTexture3D1_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(RegisterDeviceRemovedEvent,
+   NPT_REGISTER_OVERRIDE(id3d11device4, RegisterDeviceRemovedEvent,
                                        dev4_RegisterDeviceRemovedEvent_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(UnregisterDeviceRemoved,
+   NPT_REGISTER_OVERRIDE(id3d11device4, UnregisterDeviceRemoved,
                                        dev4_UnregisterDeviceRemoved_override);
 
    npt_com_register_family(device_tiers, 0, NULL);

@@ -27,12 +27,6 @@
 #include "neptune-protocol/npt_protocol_defs.h"
 #include "neptune-protocol/npt_protocol_guest_id3d11fence.h"
 
-#define NPT_REGISTER_OVERRIDE_D3D11_FENCE(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11fence, m, f)
-
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE5(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device5, m, f)
-
 static const GUID *const fence_tiers[] = { &NPT_IID_ID3D11Fence, NULL };
 
 /* Slot is a single atomic completed_value -- no type-specific fields. */
@@ -250,11 +244,11 @@ dev5_CreateFence_override(void *self, UINT64 InitialValue,
 void
 npt_overrides_d3d11_fence_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D11_FENCE(SetEventOnCompletion,
+   NPT_REGISTER_OVERRIDE(id3d11fence, SetEventOnCompletion,
                                      fence_SetEventOnCompletion_override);
-   NPT_REGISTER_OVERRIDE_D3D11_FENCE(GetCompletedValue,
+   NPT_REGISTER_OVERRIDE(id3d11fence, GetCompletedValue,
                                      fence_GetCompletedValue_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE5(CreateFence,
+   NPT_REGISTER_OVERRIDE(id3d11device5, CreateFence,
                                        dev5_CreateFence_override);
    npt_com_register_family(fence_tiers,
                            sizeof(struct npt_d3d11_fence_aux),

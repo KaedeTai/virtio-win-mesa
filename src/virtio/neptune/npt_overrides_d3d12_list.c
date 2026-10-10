@@ -52,37 +52,6 @@
 #include "neptune-protocol/npt_protocol_defs.h"
 #include "neptune-protocol/npt_protocol_guest_id3d12graphicscommandlist.h"
 
-#define NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist1, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist2, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist3, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist4, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist5, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist6, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist7, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist8, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist9, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist10, m, f)
-
-/* CreateCommandList cascade over every device tier. */
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE_ALL(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device1, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device2, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device3, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device4, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device5, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device6, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device7, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device8, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device9, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device10, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device11, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device12, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device13, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12device14, m, f)
-
 static const GUID *const alloc12_tiers[] = {
    &NPT_IID_ID3D12CommandAllocator, NULL,
 };
@@ -530,15 +499,6 @@ list12_Close_override(void *self)
  * list's ring after the ring that last wrote each descriptor's heap
  * (npt_d3d12_desc_order_read). */
 
-#define NPT_REGISTER_OVERRIDE_D3D12_LIST4_UP(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist4, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist5, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist6, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist7, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist8, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist9, m, f); \
-   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist10, m, f)
-
 static void NPT_STDMETHODCALLTYPE
 list12_OMSetRenderTargets_override(
    void *self, UINT NumRenderTargetDescriptors,
@@ -628,27 +588,27 @@ list12_BeginRenderPass_override(
 void
 npt_overrides_d3d12_list_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(OMSetRenderTargets,
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, OMSetRenderTargets,
                                         list12_OMSetRenderTargets_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(ClearRenderTargetView,
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, ClearRenderTargetView,
                                         list12_ClearRenderTargetView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(ClearDepthStencilView,
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, ClearDepthStencilView,
                                         list12_ClearDepthStencilView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, 
       ClearUnorderedAccessViewUint,
       list12_ClearUnorderedAccessViewUint_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, 
       ClearUnorderedAccessViewFloat,
       list12_ClearUnorderedAccessViewFloat_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST4_UP(BeginRenderPass,
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist4, BeginRenderPass,
                                         list12_BeginRenderPass_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(Close, list12_Close_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(Reset, list12_Reset_override);
-   NPT_REGISTER_OVERRIDE_D3D12_LIST_ALL(ExecuteBundle,
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, Close, list12_Close_override);
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, Reset, list12_Reset_override);
+   NPT_REGISTER_OVERRIDE(id3d12graphicscommandlist, ExecuteBundle,
                                         list12_ExecuteBundle_override);
    NPT_REGISTER_OVERRIDE(id3d12commandallocator, Reset,
                          alloc12_Reset_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE_ALL(CreateCommandList,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateCommandList,
                                           dev12_CreateCommandList_override);
    npt_com_register_family(list12_tiers,
                            sizeof(struct npt_d3d12_list_aux),

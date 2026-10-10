@@ -36,51 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE14(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device14, m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE13(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device13, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE14(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE12(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device12, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE13(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE11(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device11, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE12(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE10(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device10, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE11(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE9(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device9, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE10(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE8(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device8, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE9(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE7(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device7, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE8(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE6(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device6, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE7(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE5(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device5, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE6(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE4(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device4, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE5(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE3(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device3, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE4(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE2(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device2, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE3(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE1(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device1, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE2(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_DEVICE(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12device, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE1(m, f)
-
 /* ------------------------------------------------------------------ */
 /* immutable-getter caches                                             */
 /* ------------------------------------------------------------------ */
@@ -1119,51 +1074,51 @@ dev12_CreateCommandQueue_override(void *self,
 void
 npt_overrides_d3d12_device_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CheckFeatureSupport,
+   NPT_REGISTER_OVERRIDE(id3d12device, CheckFeatureSupport,
                                       dev12_CheckFeatureSupport_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateCommandQueue,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateCommandQueue,
                                       dev12_CreateCommandQueue_override);
 
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateCommittedResource,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateCommittedResource,
                                       dev12_CreateCommittedResource_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateHeap,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateHeap,
                                       dev12_CreateHeap_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreatePlacedResource,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreatePlacedResource,
                                       dev12_CreatePlacedResource_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE4(
+   NPT_REGISTER_OVERRIDE(id3d12device4, 
       CreateCommittedResource1, dev12_CreateCommittedResource1_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE4(CreateHeap1,
+   NPT_REGISTER_OVERRIDE(id3d12device4, CreateHeap1,
                                        dev12_CreateHeap1_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE8(
+   NPT_REGISTER_OVERRIDE(id3d12device8, 
       CreateCommittedResource2, dev12_CreateCommittedResource2_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE8(
+   NPT_REGISTER_OVERRIDE(id3d12device8, 
       CreatePlacedResource1, dev12_CreatePlacedResource1_override);
 
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(
+   NPT_REGISTER_OVERRIDE(id3d12device, 
       GetDescriptorHandleIncrementSize,
       dev12_GetDescriptorHandleIncrementSize_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateDescriptorHeap,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateDescriptorHeap,
                                       dev12_CreateDescriptorHeap_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateShaderResourceView,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateShaderResourceView,
                                       id3d12device_CreateShaderResourceView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateUnorderedAccessView,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateUnorderedAccessView,
                                       id3d12device_CreateUnorderedAccessView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateRenderTargetView,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateRenderTargetView,
                                       id3d12device_CreateRenderTargetView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateDepthStencilView,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateDepthStencilView,
                                       id3d12device_CreateDepthStencilView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateSampler,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateSampler,
                                       id3d12device_CreateSampler_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CreateConstantBufferView,
+   NPT_REGISTER_OVERRIDE(id3d12device, CreateConstantBufferView,
                                       dev12_CreateConstantBufferView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CopyDescriptors,
+   NPT_REGISTER_OVERRIDE(id3d12device, CopyDescriptors,
                                       dev12_CopyDescriptors_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE(CopyDescriptorsSimple,
+   NPT_REGISTER_OVERRIDE(id3d12device, CopyDescriptorsSimple,
                                       dev12_CopyDescriptorsSimple_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE8(
+   NPT_REGISTER_OVERRIDE(id3d12device8, 
       CreateSamplerFeedbackUnorderedAccessView,
       id3d12device8_CreateSamplerFeedbackUnorderedAccessView_override);
-   NPT_REGISTER_OVERRIDE_D3D12_DEVICE11(CreateSampler2,
+   NPT_REGISTER_OVERRIDE(id3d12device11, CreateSampler2,
                                         id3d12device11_CreateSampler2_override);
    NPT_REGISTER_OVERRIDE(id3d12descriptorheap,
                          GetCPUDescriptorHandleForHeapStart,

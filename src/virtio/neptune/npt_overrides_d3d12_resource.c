@@ -40,15 +40,6 @@
 #include "neptune-protocol/npt_protocol_guest_id3d12resource.h"
 #include "neptune-protocol/npt_protocol_defs.h"
 
-#define NPT_REGISTER_OVERRIDE_D3D12_RESOURCE2(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12resource2, m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_RESOURCE1(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12resource1, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE2(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d12resource, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE1(m, f)
-
 static const GUID *const resource12_tiers[] = {
    &NPT_IID_ID3D12Resource, &NPT_IID_ID3D12Resource1,
    &NPT_IID_ID3D12Resource2, NULL,
@@ -766,16 +757,16 @@ res12_ReadFromSubresource_override(void *self, void *pDstData,
 void
 npt_overrides_d3d12_resource_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(Map, res12_Map_override);
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(Unmap, res12_Unmap_override);
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(GetDesc, res12_GetDesc_override);
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(GetGPUVirtualAddress,
+   NPT_REGISTER_OVERRIDE(id3d12resource, Map, res12_Map_override);
+   NPT_REGISTER_OVERRIDE(id3d12resource, Unmap, res12_Unmap_override);
+   NPT_REGISTER_OVERRIDE(id3d12resource, GetDesc, res12_GetDesc_override);
+   NPT_REGISTER_OVERRIDE(id3d12resource, GetGPUVirtualAddress,
                                         res12_GetGPUVirtualAddress_override);
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(GetHeapProperties,
+   NPT_REGISTER_OVERRIDE(id3d12resource, GetHeapProperties,
                                         res12_GetHeapProperties_override);
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(WriteToSubresource,
+   NPT_REGISTER_OVERRIDE(id3d12resource, WriteToSubresource,
                                         res12_WriteToSubresource_override);
-   NPT_REGISTER_OVERRIDE_D3D12_RESOURCE(ReadFromSubresource,
+   NPT_REGISTER_OVERRIDE(id3d12resource, ReadFromSubresource,
                                         res12_ReadFromSubresource_override);
    npt_com_register_family(resource12_tiers,
                            sizeof(struct npt_d3d12_resource_aux),

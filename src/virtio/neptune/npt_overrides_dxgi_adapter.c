@@ -158,21 +158,6 @@ adp3_UnregisterHardwareContentProtectionTeardownStatus_override(
    (void)self; (void)dwCookie;
 }
 
-#define NPT_REGISTER_OVERRIDE_DXGI_ADAPTER4(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgiadapter4, m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_ADAPTER3(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgiadapter3, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER4(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_ADAPTER2(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgiadapter2, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER3(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_ADAPTER1(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgiadapter1, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER2(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_ADAPTER(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgiadapter, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER1(m, f)
-
 static const GUID *const adapter_tiers[] = {
    &NPT_IID_IDXGIAdapter,  &NPT_IID_IDXGIAdapter1, &NPT_IID_IDXGIAdapter2,
    &NPT_IID_IDXGIAdapter3, &NPT_IID_IDXGIAdapter4, NULL,
@@ -181,13 +166,13 @@ static const GUID *const adapter_tiers[] = {
 void
 npt_overrides_dxgi_adapter_init(void)
 {
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER(
+   NPT_REGISTER_OVERRIDE(idxgiadapter, 
       EnumOutputs, adp_EnumOutputs_override);
 
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER3(
+   NPT_REGISTER_OVERRIDE(idxgiadapter3, 
       RegisterHardwareContentProtectionTeardownStatusEvent,
       adp3_RegisterHardwareContentProtectionTeardownStatusEvent_override);
-   NPT_REGISTER_OVERRIDE_DXGI_ADAPTER3(
+   NPT_REGISTER_OVERRIDE(idxgiadapter3, 
       UnregisterHardwareContentProtectionTeardownStatus,
       adp3_UnregisterHardwareContentProtectionTeardownStatus_override);
 

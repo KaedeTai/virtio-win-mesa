@@ -322,31 +322,13 @@ static const GUID *const query_tiers[] = {
    NULL,
 };
 
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE5(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device5, m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device4, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE5(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device3, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE4(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE2(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device2, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE1(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device1, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE2(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11device, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE1(m, f)
-
 void
 npt_overrides_d3d11_query_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE(CreateQuery,    dev_CreateQuery_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE(CreatePredicate, dev_CreatePredicate_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE(CreateCounter,  dev_CreateCounter_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE3(CreateQuery1,  dev3_CreateQuery1_override);
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateQuery,    dev_CreateQuery_override);
+   NPT_REGISTER_OVERRIDE(id3d11device, CreatePredicate, dev_CreatePredicate_override);
+   NPT_REGISTER_OVERRIDE(id3d11device, CreateCounter,  dev_CreateCounter_override);
+   NPT_REGISTER_OVERRIDE(id3d11device3, CreateQuery1,  dev3_CreateQuery1_override);
 
    npt_com_register_family(query_tiers,
                            sizeof(struct npt_d3d11_query_aux),

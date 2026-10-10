@@ -35,27 +35,6 @@
 
 #define NPT_GAMMA_CP_COUNT 1024u
 
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT6(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput6, m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT5(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput5, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT6(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT4(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput4, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT5(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT3(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput3, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT4(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT2(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput2, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT3(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT1(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput1, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT2(m, f)
-#define NPT_REGISTER_OVERRIDE_DXGI_OUTPUT(m, f) \
-   NPT_REGISTER_OVERRIDE(idxgioutput, m, f); \
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT1(m, f)
-
 static const GUID *const output_tiers[] = {
    &NPT_IID_IDXGIOutput,  &NPT_IID_IDXGIOutput1, &NPT_IID_IDXGIOutput2,
    &NPT_IID_IDXGIOutput3, &NPT_IID_IDXGIOutput4, &NPT_IID_IDXGIOutput5,
@@ -846,59 +825,59 @@ out6_CheckHardwareCompositionSupport_override(void *self, UINT *pFlags)
 void
 npt_overrides_dxgi_output_init(void)
 {
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (QueryInterface,
+   NPT_REGISTER_OVERRIDE(idxgioutput, QueryInterface,
                                       out_QueryInterface_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetParent,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetParent,
                                       out_GetParent_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (SetPrivateData,
+   NPT_REGISTER_OVERRIDE(idxgioutput, SetPrivateData,
                                       out_SetPrivateData_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (SetPrivateDataInterface,
+   NPT_REGISTER_OVERRIDE(idxgioutput, SetPrivateDataInterface,
                                       out_SetPrivateDataInterface_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetPrivateData,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetPrivateData,
                                       out_GetPrivateData_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetDesc,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetDesc,
                                       out_GetDesc_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetDisplayModeList,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetDisplayModeList,
                                       out_GetDisplayModeList_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (FindClosestMatchingMode,
+   NPT_REGISTER_OVERRIDE(idxgioutput, FindClosestMatchingMode,
                                       out_FindClosestMatchingMode_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (WaitForVBlank,
+   NPT_REGISTER_OVERRIDE(idxgioutput, WaitForVBlank,
                                       out_WaitForVBlank_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (TakeOwnership,
+   NPT_REGISTER_OVERRIDE(idxgioutput, TakeOwnership,
                                       out_TakeOwnership_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (ReleaseOwnership,
+   NPT_REGISTER_OVERRIDE(idxgioutput, ReleaseOwnership,
                                       out_ReleaseOwnership_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetGammaControlCapabilities,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetGammaControlCapabilities,
                                       out_GetGammaControlCapabilities_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (SetGammaControl,
+   NPT_REGISTER_OVERRIDE(idxgioutput, SetGammaControl,
                                       out_SetGammaControl_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetGammaControl,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetGammaControl,
                                       out_GetGammaControl_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (SetDisplaySurface,
+   NPT_REGISTER_OVERRIDE(idxgioutput, SetDisplaySurface,
                                       out_SetDisplaySurface_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetDisplaySurfaceData,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetDisplaySurfaceData,
                                       out_GetDisplaySurfaceData_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT (GetFrameStatistics,
+   NPT_REGISTER_OVERRIDE(idxgioutput, GetFrameStatistics,
                                       out_GetFrameStatistics_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT1(GetDisplayModeList1,
+   NPT_REGISTER_OVERRIDE(idxgioutput1, GetDisplayModeList1,
                                       out1_GetDisplayModeList1_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT1(FindClosestMatchingMode1,
+   NPT_REGISTER_OVERRIDE(idxgioutput1, FindClosestMatchingMode1,
                                       out1_FindClosestMatchingMode1_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT1(GetDisplaySurfaceData1,
+   NPT_REGISTER_OVERRIDE(idxgioutput1, GetDisplaySurfaceData1,
                                       out1_GetDisplaySurfaceData1_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT1(DuplicateOutput,
+   NPT_REGISTER_OVERRIDE(idxgioutput1, DuplicateOutput,
                                       out1_DuplicateOutput_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT2(SupportsOverlays,
+   NPT_REGISTER_OVERRIDE(idxgioutput2, SupportsOverlays,
                                       out2_SupportsOverlays_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT3(CheckOverlaySupport,
+   NPT_REGISTER_OVERRIDE(idxgioutput3, CheckOverlaySupport,
                                       out3_CheckOverlaySupport_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT4(CheckOverlayColorSpaceSupport,
+   NPT_REGISTER_OVERRIDE(idxgioutput4, CheckOverlayColorSpaceSupport,
                                       out4_CheckOverlayColorSpaceSupport_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT5(DuplicateOutput1,
+   NPT_REGISTER_OVERRIDE(idxgioutput5, DuplicateOutput1,
                                       out5_DuplicateOutput1_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT6(GetDesc1,
+   NPT_REGISTER_OVERRIDE(idxgioutput6, GetDesc1,
                                       out6_GetDesc1_override);
-   NPT_REGISTER_OVERRIDE_DXGI_OUTPUT6(CheckHardwareCompositionSupport,
+   NPT_REGISTER_OVERRIDE(idxgioutput6, CheckHardwareCompositionSupport,
                                       out6_CheckHardwareCompositionSupport_override);
 
    npt_com_register_family(output_tiers,

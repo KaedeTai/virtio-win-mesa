@@ -18,21 +18,6 @@
 #include "neptune-protocol/npt_protocol_client_id3d11devicecontext.h"
 #include "neptune-protocol/npt_protocol_guest_id3d11devicecontext.h"
 
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT4(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11devicecontext4, m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT3(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11devicecontext3, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT4(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT2(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11devicecontext2, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT3(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT1(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11devicecontext1, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT2(m, f)
-#define NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT(m, f) \
-   NPT_REGISTER_OVERRIDE(id3d11devicecontext, m, f); \
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT1(m, f)
-
 static const GUID *const context_tiers[] = {
    &NPT_IID_ID3D11DeviceContext,  &NPT_IID_ID3D11DeviceContext1,
    &NPT_IID_ID3D11DeviceContext2, &NPT_IID_ID3D11DeviceContext3,
@@ -94,7 +79,6 @@ npt_d3d11_map_to_access_flags(D3D11_MAP map_type)
       return NPT_MAP_ACCESS_WRITE;
    }
 }
-
 
 /*
  * The immediate context's DISCARD on a buffer with host-shared storage
@@ -721,14 +705,14 @@ ctx_UpdateSubresource1_override(void *self, ID3D11Resource *pDstResource,
 void
 npt_overrides_d3d11_context_init(void)
 {
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT(Map,   ctx_Map_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT(Unmap, ctx_Unmap_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT (UpdateSubresource,
+   NPT_REGISTER_OVERRIDE(id3d11devicecontext, Map,   ctx_Map_override);
+   NPT_REGISTER_OVERRIDE(id3d11devicecontext, Unmap, ctx_Unmap_override);
+   NPT_REGISTER_OVERRIDE(id3d11devicecontext, UpdateSubresource,
                                                ctx_UpdateSubresource_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT1(UpdateSubresource1,
+   NPT_REGISTER_OVERRIDE(id3d11devicecontext1, UpdateSubresource1,
                                                ctx_UpdateSubresource1_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT(End,     ctx_End_override);
-   NPT_REGISTER_OVERRIDE_D3D11_DEVICE_CONTEXT(GetData, ctx_GetData_override);
+   NPT_REGISTER_OVERRIDE(id3d11devicecontext, End,     ctx_End_override);
+   NPT_REGISTER_OVERRIDE(id3d11devicecontext, GetData, ctx_GetData_override);
 
    npt_com_register_family(context_tiers,
                            sizeof(struct npt_d3d11_context_aux),
