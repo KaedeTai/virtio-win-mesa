@@ -117,6 +117,28 @@ t12GetGPUDescriptorHandleForHeapStart(D3D12DDI_HDEVICE hDevice,
     return out;
 }
 
+/* The DDI view args carry the RESOURCE dimension only, so whether a view
+ * is an *ARRAY view is decided from the resource, as in the D3D11 UMD
+ * (tritonView.c): every view of an array resource is an array view, so a
+ * shader sees the same view type for slice 0 as for any other slice.  A
+ * null view has no resource and falls back to the view's own range. */
+static BOOL
+t12ArrayView(PTRITON12_RESOURCE r, UINT viewArraySize, UINT firstSlice)
+{
+    if (r && r->pResource)
+        return r->Desc.DepthOrArraySize > 1;
+    return viewArraySize > 1 || firstSlice;
+}
+
+/* A cube resource is a cube array when it holds more than one cube. */
+static BOOL
+t12CubeArrayView(PTRITON12_RESOURCE r, UINT numCubes, UINT firstFace)
+{
+    if (r && r->pResource)
+        return r->Desc.DepthOrArraySize > 6;
+    return numCubes > 1 || firstFace;
+}
+
 /* ---------- view creates (RTV first; the rest as probes demand) ---------- */
 
 static VOID APIENTRY
@@ -146,7 +168,7 @@ t12CreateRenderTargetView(D3D12DDI_HDEVICE hDevice,
         vd.Buffer.NumElements  = pArgs->Buffer.NumElements;
         break;
     case D3D12DDI_RD_TEXTURE1D:
-        if (pArgs->Tex1D.ArraySize > 1 || pArgs->Tex1D.FirstArraySlice) {
+        if (t12ArrayView(r, pArgs->Tex1D.ArraySize, pArgs->Tex1D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
             vd.Texture1DArray.MipSlice = pArgs->Tex1D.MipSlice;
             vd.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
@@ -162,17 +184,24 @@ t12CreateRenderTargetView(D3D12DDI_HDEVICE hDevice,
         vd.Texture3D.FirstWSlice = pArgs->Tex3D.FirstW;
         vd.Texture3D.WSize = pArgs->Tex3D.WSize;
         break;
+    case D3D12DDI_RD_TEXTURECUBE:
+        /* No cube RTV dimension: the faces are array slices. */
+        vd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+        vd.Texture2DArray.MipSlice = pArgs->TexCube.MipSlice;
+        vd.Texture2DArray.FirstArraySlice = pArgs->TexCube.FirstArraySlice;
+        vd.Texture2DArray.ArraySize = pArgs->TexCube.ArraySize;
+        break;
     case D3D12DDI_RD_TEXTURE2D:
     default:
         if (msaa) {
-            if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+            if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
                 vd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
                 vd.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
                 vd.Texture2DMSArray.ArraySize = pArgs->Tex2D.ArraySize;
             } else {
                 vd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
             }
-        } else if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+        } else if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
             vd.Texture2DArray.MipSlice = pArgs->Tex2D.MipSlice;
             vd.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
@@ -222,7 +251,7 @@ t12CreateShaderResourceView(D3D12DDI_HDEVICE hDevice,
         vd.Buffer.Flags = (D3D12_BUFFER_SRV_FLAGS)pArgs->Buffer.Flags;
         break;
     case D3D12DDI_RD_TEXTURE1D:
-        if (pArgs->Tex1D.ArraySize > 1 || pArgs->Tex1D.FirstArraySlice) {
+        if (t12ArrayView(r, pArgs->Tex1D.ArraySize, pArgs->Tex1D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
             vd.Texture1DArray.MostDetailedMip = pArgs->Tex1D.MostDetailedMip;
             vd.Texture1DArray.MipLevels = pArgs->Tex1D.MipLevels;
@@ -243,7 +272,7 @@ t12CreateShaderResourceView(D3D12DDI_HDEVICE hDevice,
         vd.Texture3D.ResourceMinLODClamp = pArgs->Tex3D.ResourceMinLODClamp;
         break;
     case D3D12DDI_RD_TEXTURECUBE:
-        if (pArgs->TexCube.NumCubes > 1 || pArgs->TexCube.First2DArrayFace) {
+        if (t12CubeArrayView(r, pArgs->TexCube.NumCubes, pArgs->TexCube.First2DArrayFace)) {
             vd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
             vd.TextureCubeArray.MostDetailedMip = pArgs->TexCube.MostDetailedMip;
             vd.TextureCubeArray.MipLevels = pArgs->TexCube.MipLevels;
@@ -260,14 +289,14 @@ t12CreateShaderResourceView(D3D12DDI_HDEVICE hDevice,
     case D3D12DDI_RD_TEXTURE2D:
     default:
         if (msaa) {
-            if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+            if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
                 vd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
                 vd.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
                 vd.Texture2DMSArray.ArraySize = pArgs->Tex2D.ArraySize;
             } else {
                 vd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
             }
-        } else if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+        } else if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
             vd.Texture2DArray.MostDetailedMip = pArgs->Tex2D.MostDetailedMip;
             vd.Texture2DArray.MipLevels = pArgs->Tex2D.MipLevels;
@@ -361,7 +390,7 @@ t12CreateUnorderedAccessView(D3D12DDI_HDEVICE hDevice,
         break;
     }
     case D3D12DDI_RD_TEXTURE1D:
-        if (pArgs->Tex1D.ArraySize > 1 || pArgs->Tex1D.FirstArraySlice) {
+        if (t12ArrayView(r, pArgs->Tex1D.ArraySize, pArgs->Tex1D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
             vd.Texture1DArray.MipSlice = pArgs->Tex1D.MipSlice;
             vd.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
@@ -379,7 +408,7 @@ t12CreateUnorderedAccessView(D3D12DDI_HDEVICE hDevice,
         break;
     case D3D12DDI_RD_TEXTURE2D:
     default:
-        if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+        if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
             vd.Texture2DArray.MipSlice = pArgs->Tex2D.MipSlice;
             vd.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
@@ -416,7 +445,7 @@ t12CreateDepthStencilView(D3D12DDI_HDEVICE hDevice,
     const BOOL msaa = r && r->Desc.SampleDesc.Count > 1;
     switch (pArgs->ResourceDimension) {
     case D3D12DDI_RD_TEXTURE1D:
-        if (pArgs->Tex1D.ArraySize > 1 || pArgs->Tex1D.FirstArraySlice) {
+        if (t12ArrayView(r, pArgs->Tex1D.ArraySize, pArgs->Tex1D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
             vd.Texture1DArray.MipSlice = pArgs->Tex1D.MipSlice;
             vd.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
@@ -426,18 +455,24 @@ t12CreateDepthStencilView(D3D12DDI_HDEVICE hDevice,
             vd.Texture1D.MipSlice = pArgs->Tex1D.MipSlice;
         }
         break;
-    case D3D12DDI_RD_TEXTURE2D:
     case D3D12DDI_RD_TEXTURECUBE:
+        /* No cube DSV dimension: the faces are array slices. */
+        vd.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+        vd.Texture2DArray.MipSlice = pArgs->TexCube.MipSlice;
+        vd.Texture2DArray.FirstArraySlice = pArgs->TexCube.FirstArraySlice;
+        vd.Texture2DArray.ArraySize = pArgs->TexCube.ArraySize;
+        break;
+    case D3D12DDI_RD_TEXTURE2D:
     default:
         if (msaa) {
-            if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+            if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
                 vd.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
                 vd.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
                 vd.Texture2DMSArray.ArraySize = pArgs->Tex2D.ArraySize;
             } else {
                 vd.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
             }
-        } else if (pArgs->Tex2D.ArraySize > 1 || pArgs->Tex2D.FirstArraySlice) {
+        } else if (t12ArrayView(r, pArgs->Tex2D.ArraySize, pArgs->Tex2D.FirstArraySlice)) {
             vd.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
             vd.Texture2DArray.MipSlice = pArgs->Tex2D.MipSlice;
             vd.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
