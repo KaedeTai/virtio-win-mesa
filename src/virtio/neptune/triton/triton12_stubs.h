@@ -71,10 +71,6 @@ static VOID APIENTRY
 t12stub_Blt(D3D12DDI_HCOMMANDLIST p0, CONST D3D12DDIARG_BLT* p1)
 { T12_STUB_HIT("pfnBlt"); }
 
-static VOID APIENTRY
-t12stub_AtomicCopyBufferRegion(D3D12DDI_HCOMMANDLIST p0, D3D12DDIARG_BUFFER_PLACEMENT Dst, D3D12DDIARG_BUFFER_PLACEMENT Src, UINT64 SrcBytes)
-{ T12_STUB_HIT("pfnAtomicCopyBufferRegion"); }
-
 static HRESULT APIENTRY
 t12stub_DxgiPresent(DXGI_DDI_ARG_PRESENT* p0)
 { HRESULT r; T12_STUB_HIT("dxgi.pfnPresent"); memset(&r, 0, sizeof(r)); return r; }
@@ -199,14 +195,12 @@ static inline void
 t12StubFill_D3D12DDI_COMMAND_LIST_FUNCS_3D_0022(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *t, SIZE_T size)
 {
     if (offsetof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022, pfnBlt) < size && !t->pfnBlt) t->pfnBlt = t12stub_Blt;
-    if (offsetof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022, pfnAtomicCopyBufferRegion) < size && !t->pfnAtomicCopyBufferRegion) t->pfnAtomicCopyBufferRegion = t12stub_AtomicCopyBufferRegion;
 }
 
 static inline void
 t12StubFill_D3D12DDI_COMMAND_LIST_FUNCS_3D_0074(D3D12DDI_COMMAND_LIST_FUNCS_3D_0074 *t, SIZE_T size)
 {
     if (offsetof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0074, pfnBlt) < size && !t->pfnBlt) t->pfnBlt = t12stub_Blt;
-    if (offsetof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0074, pfnAtomicCopyBufferRegion) < size && !t->pfnAtomicCopyBufferRegion) t->pfnAtomicCopyBufferRegion = t12stub_AtomicCopyBufferRegion;
 }
 
 static inline void

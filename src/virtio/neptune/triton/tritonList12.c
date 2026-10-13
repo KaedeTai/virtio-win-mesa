@@ -459,6 +459,39 @@ t12CopyBufferRegion(D3D12DDI_HCOMMANDLIST hList,
         src->pResource, Src.BaseAddress.UMD.Offset, SrcBytes);
 }
 
+/* ID3D12GraphicsCommandList1::AtomicCopyBufferUINT{,64} arrive here, with
+ * their dependent resources lowered to ATOMIC_COPY ranged barriers ahead
+ * of the call.  The host list records those in order with this copy, so
+ * the copy is forwarded without a dependency list. */
+static VOID APIENTRY
+t12AtomicCopyBufferRegion(D3D12DDI_HCOMMANDLIST hList,
+                          D3D12DDIARG_BUFFER_PLACEMENT Dst,
+                          D3D12DDIARG_BUFFER_PLACEMENT Src, UINT64 SrcBytes)
+{
+    PTRITON12_LIST l = (PTRITON12_LIST)hList.pDrvPrivate;
+    PTRITON12_RESOURCE dst =
+        (PTRITON12_RESOURCE)Dst.BaseAddress.UMD.hResource.pDrvPrivate;
+    PTRITON12_RESOURCE src =
+        (PTRITON12_RESOURCE)Src.BaseAddress.UMD.hResource.pDrvPrivate;
+    if (!l || !l->pList || !dst || !dst->pResource || !src || !src->pResource)
+        return;
+    ID3D12GraphicsCommandList1 *l1 = t12ListIface(l, T12_LIST1);
+    if (!l1 || (SrcBytes != 4 && SrcBytes != 8)) {
+        ID3D12GraphicsCommandList_CopyBufferRegion(
+            l->pList, dst->pResource, Dst.BaseAddress.UMD.Offset,
+            src->pResource, Src.BaseAddress.UMD.Offset, SrcBytes);
+        return;
+    }
+    if (SrcBytes == 8)
+        ID3D12GraphicsCommandList1_AtomicCopyBufferUINT64(
+            l1, dst->pResource, Dst.BaseAddress.UMD.Offset,
+            src->pResource, Src.BaseAddress.UMD.Offset, 0, NULL, NULL);
+    else
+        ID3D12GraphicsCommandList1_AtomicCopyBufferUINT(
+            l1, dst->pResource, Dst.BaseAddress.UMD.Offset,
+            src->pResource, Src.BaseAddress.UMD.Offset, 0, NULL, NULL);
+}
+
 static VOID APIENTRY
 t12ResourceBarrier(D3D12DDI_HCOMMANDLIST hList, UINT Count,
                    const D3D12DDIARG_RESOURCE_BARRIER_0022 *pBarriers)
@@ -528,8 +561,9 @@ t12ResourceBarrier(D3D12DDI_HCOMMANDLIST hList, UINT Count,
                     (r && r->pResource) ? r->pResource : NULL;
                 n++;
             }
-            /* Non-aliasing ranged barriers (atomic-copy ranges) have no
-             * API equivalent; submission order covers them. */
+            /* Non-aliasing ranged barriers (atomic-copy dependencies, see
+             * t12AtomicCopyBufferRegion) have no API equivalent;
+             * submission order covers them. */
             break;
         }
         default:
@@ -1783,6 +1817,7 @@ triton12InstallListFuncs(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *t)
     t->pfnCloseCommandList  = t12CloseCommandList;
     t->pfnResetCommandList  = t12ResetCommandList;
     t->pfnCopyBufferRegion  = t12CopyBufferRegion;
+    t->pfnAtomicCopyBufferRegion = t12AtomicCopyBufferRegion;
     t->pfnResourceBarrier   = t12ResourceBarrier;
     t->pfnSetPipelineState  = t12SetPipelineState;
     t->pfnSetGraphicsRootSignature = t12SetGraphicsRootSignature;
