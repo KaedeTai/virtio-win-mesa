@@ -796,17 +796,46 @@ dev12_committed_shmem_candidate(const D3D12_HEAP_PROPERTIES *props,
           dev12_riid_is_resource(riid);
 }
 
+/* How a committed create describes its resource, which picks the placed
+ * create that stands in for it: each comes from the device tier that
+ * introduced the committed form, so the matching placed thunk is live
+ * host-side. */
+struct dev12_placed_args {
+   const D3D12_RESOURCE_DESC *desc;      /* CreatePlacedResource */
+   const D3D12_RESOURCE_DESC1 *desc1;    /* CreatePlacedResource1 */
+   /* With desc1: CreatePlacedResource2, enhanced-barrier layout. */
+   bool layout;
+   D3D12_RESOURCE_STATES initial_state;
+   D3D12_BARRIER_LAYOUT initial_layout;
+   UINT32 num_castable;
+   const DXGI_FORMAT *castable;
+};
+
+static HRESULT
+dev12_create_placed(void *self, ID3D12Heap *heap,
+                    const struct dev12_placed_args *a,
+                    const D3D12_CLEAR_VALUE *clear, const IID *riid,
+                    void **ppv)
+{
+   if (a->desc1 && a->layout)
+      return npt_id3d12device10_default_CreatePlacedResource2(
+         self, heap, 0, a->desc1, a->initial_layout, clear, a->num_castable,
+         a->castable, riid, ppv);
+   if (a->desc1)
+      return npt_id3d12device8_default_CreatePlacedResource1(
+         self, heap, 0, a->desc1, a->initial_state, clear, riid, ppv);
+   return npt_id3d12device_default_CreatePlacedResource(
+      self, heap, 0, a->desc, a->initial_state, clear, riid, ppv);
+}
+
 /* Committed CPU-visible buffer -> hidden shmem heap + placed resource
- * at offset 0.  `desc` is D3D12_RESOURCE_DESC or (is_desc1)
- * D3D12_RESOURCE_DESC1; is_desc1 callers are >= ID3D12Device8 so the
- * CreatePlacedResource1 thunk is live host-side. */
+ * at offset 0. */
 static HRESULT
 dev12_committed_shmem_create(void *self,
                              const D3D12_HEAP_PROPERTIES *props,
                              D3D12_HEAP_FLAGS heap_flags,
-                             const void *desc, bool is_desc1,
+                             const struct dev12_placed_args *placed,
                              uint64_t width,
-                             D3D12_RESOURCE_STATES initial_state,
                              const D3D12_CLEAR_VALUE *clear,
                              const IID *riid, void **ppv)
 {
@@ -824,16 +853,8 @@ dev12_committed_shmem_create(void *self,
    if (!heap)
       return NPT_E_FAIL;
 
-   HRESULT hr;
-   if (is_desc1) {
-      hr = npt_id3d12device8_default_CreatePlacedResource1(
-         self, (ID3D12Heap *)heap, 0, (const D3D12_RESOURCE_DESC1 *)desc,
-         initial_state, clear, riid, ppv);
-   } else {
-      hr = npt_id3d12device_default_CreatePlacedResource(
-         self, (ID3D12Heap *)heap, 0, (const D3D12_RESOURCE_DESC *)desc,
-         initial_state, clear, riid, ppv);
-   }
+   HRESULT hr = dev12_create_placed(self, (ID3D12Heap *)heap, placed, clear,
+                                    riid, ppv);
 
    if (NPT_FAILED(hr) || !*ppv) {
       npt_log("committed_shmem: CreatePlacedResource failed 0x%08x",
@@ -870,10 +891,12 @@ dev12_CreateCommittedResource_override(
        dev12_committed_shmem_candidate(pHeapProperties, HeapFlags,
                                        pDesc->Dimension, pDesc->Width,
                                        riidResource, ppvResource)) {
+      const struct dev12_placed_args placed = {
+         .desc = pDesc, .initial_state = InitialResourceState,
+      };
       HRESULT hr = dev12_committed_shmem_create(
-         self, pHeapProperties, HeapFlags, pDesc, /*is_desc1=*/false,
-         pDesc->Width, InitialResourceState, pOptimizedClearValue,
-         riidResource, ppvResource);
+         self, pHeapProperties, HeapFlags, &placed, pDesc->Width,
+         pOptimizedClearValue, riidResource, ppvResource);
       if (NPT_SUCCEEDED(hr))
          return hr;
       npt_log("CreateCommittedResource: shmem heap path failed 0x%08x; "
@@ -897,10 +920,12 @@ dev12_CreateCommittedResource1_override(
        dev12_committed_shmem_candidate(pHeapProperties, HeapFlags,
                                        pDesc->Dimension, pDesc->Width,
                                        riidResource, ppvResource)) {
+      const struct dev12_placed_args placed = {
+         .desc = pDesc, .initial_state = InitialResourceState,
+      };
       HRESULT hr = dev12_committed_shmem_create(
-         self, pHeapProperties, HeapFlags, pDesc, /*is_desc1=*/false,
-         pDesc->Width, InitialResourceState, pOptimizedClearValue,
-         riidResource, ppvResource);
+         self, pHeapProperties, HeapFlags, &placed, pDesc->Width,
+         pOptimizedClearValue, riidResource, ppvResource);
       if (NPT_SUCCEEDED(hr))
          return hr;
       npt_log("CreateCommittedResource1: shmem heap path failed 0x%08x; "
@@ -924,10 +949,12 @@ dev12_CreateCommittedResource2_override(
        dev12_committed_shmem_candidate(pHeapProperties, HeapFlags,
                                        pDesc->Dimension, pDesc->Width,
                                        riidResource, ppvResource)) {
+      const struct dev12_placed_args placed = {
+         .desc1 = pDesc, .initial_state = InitialResourceState,
+      };
       HRESULT hr = dev12_committed_shmem_create(
-         self, pHeapProperties, HeapFlags, pDesc, /*is_desc1=*/true,
-         pDesc->Width, InitialResourceState, pOptimizedClearValue,
-         riidResource, ppvResource);
+         self, pHeapProperties, HeapFlags, &placed, pDesc->Width,
+         pOptimizedClearValue, riidResource, ppvResource);
       if (NPT_SUCCEEDED(hr))
          return hr;
       npt_log("CreateCommittedResource2: shmem heap path failed 0x%08x; "
@@ -936,6 +963,38 @@ dev12_CreateCommittedResource2_override(
    return npt_id3d12device8_default_CreateCommittedResource2(
       self, pHeapProperties, HeapFlags, pDesc, InitialResourceState,
       pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
+}
+
+static HRESULT NPT_STDMETHODCALLTYPE
+dev12_CreateCommittedResource3_override(
+   void *self, const D3D12_HEAP_PROPERTIES *pHeapProperties,
+   D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1 *pDesc,
+   D3D12_BARRIER_LAYOUT InitialLayout,
+   const D3D12_CLEAR_VALUE *pOptimizedClearValue,
+   ID3D12ProtectedResourceSession *pProtectedSession,
+   UINT32 NumCastableFormats, const DXGI_FORMAT *pCastableFormats,
+   const IID *riidResource, void **ppvResource)
+{
+   if (pDesc && !pProtectedSession &&
+       dev12_committed_shmem_candidate(pHeapProperties, HeapFlags,
+                                       pDesc->Dimension, pDesc->Width,
+                                       riidResource, ppvResource)) {
+      const struct dev12_placed_args placed = {
+         .desc1 = pDesc, .layout = true, .initial_layout = InitialLayout,
+         .num_castable = NumCastableFormats, .castable = pCastableFormats,
+      };
+      HRESULT hr = dev12_committed_shmem_create(
+         self, pHeapProperties, HeapFlags, &placed, pDesc->Width,
+         pOptimizedClearValue, riidResource, ppvResource);
+      if (NPT_SUCCEEDED(hr))
+         return hr;
+      npt_log("CreateCommittedResource3: shmem heap path failed 0x%08x; "
+              "using sync-map fallback", (unsigned)hr);
+   }
+   return npt_id3d12device10_default_CreateCommittedResource3(
+      self, pHeapProperties, HeapFlags, pDesc, InitialLayout,
+      pOptimizedClearValue, pProtectedSession, NumCastableFormats,
+      pCastableFormats, riidResource, ppvResource);
 }
 
 /* Buffer-capable CPU heap without WRITE_WATCH, asked for by a heap
@@ -1059,12 +1118,44 @@ dev12_CreatePlacedResource1_override(
 }
 
 static HRESULT NPT_STDMETHODCALLTYPE
+dev12_CreatePlacedResource2_override(
+   void *self, ID3D12Heap *pHeap, UINT64 HeapOffset,
+   const D3D12_RESOURCE_DESC1 *pDesc, D3D12_BARRIER_LAYOUT InitialLayout,
+   const D3D12_CLEAR_VALUE *pOptimizedClearValue, UINT32 NumCastableFormats,
+   const DXGI_FORMAT *pCastableFormats, const IID *riid, void **ppvResource)
+{
+   HRESULT hr = npt_id3d12device10_default_CreatePlacedResource2(
+      self, pHeap, HeapOffset, pDesc, InitialLayout, pOptimizedClearValue,
+      NumCastableFormats, pCastableFormats, riid, ppvResource);
+   dev12_record_placed_on_shmem_heap(
+      pHeap, HeapOffset,
+      (pDesc && pDesc->Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+         ? pDesc->Width : 0,
+      hr, ppvResource);
+   return hr;
+}
+
+static HRESULT NPT_STDMETHODCALLTYPE
 dev12_CreateCommandQueue_override(void *self,
                                   const D3D12_COMMAND_QUEUE_DESC *pDesc,
                                   const IID *riid, void **ppCommandQueue)
 {
    HRESULT hr = npt_id3d12device_default_CreateCommandQueue(
       self, pDesc, riid, ppCommandQueue);
+   if (NPT_SUCCEEDED(hr) && pDesc && ppCommandQueue && *ppCommandQueue)
+      npt_com_pin_queue_ring(*ppCommandQueue,
+                             pDesc->Type == D3D12_COMMAND_LIST_TYPE_DIRECT);
+   return hr;
+}
+
+static HRESULT NPT_STDMETHODCALLTYPE
+dev12_CreateCommandQueue1_override(void *self,
+                                   const D3D12_COMMAND_QUEUE_DESC *pDesc,
+                                   const IID *CreatorID, const IID *riid,
+                                   void **ppCommandQueue)
+{
+   HRESULT hr = npt_id3d12device9_default_CreateCommandQueue1(
+      self, pDesc, CreatorID, riid, ppCommandQueue);
    if (NPT_SUCCEEDED(hr) && pDesc && ppCommandQueue && *ppCommandQueue)
       npt_com_pin_queue_ring(*ppCommandQueue,
                              pDesc->Type == D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -1093,6 +1184,12 @@ npt_overrides_d3d12_device_init(void)
       CreateCommittedResource2, dev12_CreateCommittedResource2_override);
    NPT_REGISTER_OVERRIDE(id3d12device8, 
       CreatePlacedResource1, dev12_CreatePlacedResource1_override);
+   NPT_REGISTER_OVERRIDE(id3d12device9, CreateCommandQueue1,
+                                       dev12_CreateCommandQueue1_override);
+   NPT_REGISTER_OVERRIDE(id3d12device10, CreateCommittedResource3,
+                         dev12_CreateCommittedResource3_override);
+   NPT_REGISTER_OVERRIDE(id3d12device10, CreatePlacedResource2,
+                         dev12_CreatePlacedResource2_override);
 
    NPT_REGISTER_OVERRIDE(id3d12device, 
       GetDescriptorHandleIncrementSize,
