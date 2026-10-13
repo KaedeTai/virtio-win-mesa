@@ -9,8 +9,9 @@
  *    container machinery) and store it;
  *  - state creates store the DDI desc verbatim;
  *  - root-signature create converts the deserialized DDI 1.1 struct to
- *    the API 1.0 desc and reuses the wire serialize path
- *    (npt_D3D12SerializeRootSignature) before inner CreateRootSignature;
+ *    the API 1.1 desc and reuses the wire serialize path
+ *    (npt_D3D12SerializeVersionedRootSignature) before inner
+ *    CreateRootSignature;
  *  - PSO create assembles the API graphics/compute desc from the stored
  *    pieces and forwards to the inner device.
  */
@@ -24,10 +25,6 @@
 #include "npt_workaround.h"
 
 /* npt_entry_d3d12.c (aliased to the public export by d3d12.def). */
-HRESULT __stdcall
-npt_D3D12SerializeRootSignature(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature,
-                                D3D_ROOT_SIGNATURE_VERSION Version,
-                                ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob);
 HRESULT __stdcall
 npt_D3D12SerializeVersionedRootSignature(
     const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *pRootSignature,
@@ -357,128 +354,32 @@ t12CalcPrivateRootSignatureSize(D3D12DDI_HDEVICE hDevice,
                                 const D3D12DDIARG_CREATE_ROOT_SIGNATURE_0013 *pArgs)
 { (void)hDevice; (void)pArgs; return sizeof(TRITON12_ROOTSIG); }
 
-/* VERSION_1_1 create path: full-fidelity conversion of the DDI 1.1 desc
- * (the DDI structs mirror the API *1 structs field-for-field, including
- * range/descriptor flags) through the versioned wire serializer.  Used
- * for root signatures carrying the *_HEAP_DIRECTLY_INDEXED flags (SM 6.6
- * dynamic resources), which VERSION_1 serialization rejects. */
+/* Serialize vdesc over the wire and create the host root signature from
+ * the blob, so the blob the host sees is always one it produced itself. */
 static HRESULT
-t12CreateRootSignature11(PTRITON12_DEVICE p,
-                         const D3D12DDI_ROOT_SIGNATURE_0013 *src,
-                         TRITON12_ROOTSIG *rs)
+t12SerializeAndCreateRootSignature(PTRITON12_DEVICE p, UINT nodeMask,
+                                   const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *vdesc,
+                                   TRITON12_ROOTSIG *rs)
 {
-    D3D12_VERSIONED_ROOT_SIGNATURE_DESC vdesc;
-    memset(&vdesc, 0, sizeof(vdesc));
-    vdesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-    vdesc.Desc_1_1.NumParameters = src->NumParameters;
-    vdesc.Desc_1_1.NumStaticSamplers = src->NumStaticSamplers;
-    /* Classic 1.0 set + the two HEAP_DIRECTLY_INDEXED bits. */
-    vdesc.Desc_1_1.Flags = (D3D12_ROOT_SIGNATURE_FLAGS)(src->Flags & 0xC7F);
-
-    D3D12_ROOT_PARAMETER1 *params = NULL;
-    D3D12_DESCRIPTOR_RANGE1 *ranges = NULL;
-    D3D12_STATIC_SAMPLER_DESC *samplers = NULL;
-    HRESULT hr = E_OUTOFMEMORY;
-
-    UINT totalRanges = 0;
-    for (UINT i = 0; i < src->NumParameters; i++)
-        if (src->pRootParameters[i].ParameterType ==
-            (D3D12DDI_ROOT_PARAMETER_TYPE)D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-            totalRanges += src->pRootParameters[i].DescriptorTable.NumDescriptorRanges;
-
-    if (src->NumParameters) {
-        params = (D3D12_ROOT_PARAMETER1 *)calloc(src->NumParameters,
-                                                 sizeof(*params));
-        if (!params) goto out;
-    }
-    if (totalRanges) {
-        ranges = (D3D12_DESCRIPTOR_RANGE1 *)calloc(totalRanges,
-                                                   sizeof(*ranges));
-        if (!ranges) goto out;
-    }
-    if (src->NumStaticSamplers) {
-        samplers = (D3D12_STATIC_SAMPLER_DESC *)calloc(src->NumStaticSamplers,
-                                                       sizeof(*samplers));
-        if (!samplers) goto out;
-    }
-
-    {
-        UINT ri = 0;
-        for (UINT i = 0; i < src->NumParameters; i++) {
-            const D3D12DDI_ROOT_PARAMETER_0013 *sp = &src->pRootParameters[i];
-            D3D12_ROOT_PARAMETER1 *dp = &params[i];
-            dp->ParameterType = (D3D12_ROOT_PARAMETER_TYPE)sp->ParameterType;
-            dp->ShaderVisibility =
-                (D3D12_SHADER_VISIBILITY)sp->ShaderVisibility;
-            switch (dp->ParameterType) {
-            case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE: {
-                UINT n = sp->DescriptorTable.NumDescriptorRanges;
-                dp->DescriptorTable.NumDescriptorRanges = n;
-                dp->DescriptorTable.pDescriptorRanges = &ranges[ri];
-                for (UINT j = 0; j < n; j++) {
-                    const D3D12DDI_DESCRIPTOR_RANGE_0013 *sr =
-                        &sp->DescriptorTable.pDescriptorRanges[j];
-                    D3D12_DESCRIPTOR_RANGE1 *dr = &ranges[ri + j];
-                    dr->RangeType =
-                        (D3D12_DESCRIPTOR_RANGE_TYPE)sr->RangeType;
-                    dr->NumDescriptors = sr->NumDescriptors;
-                    dr->BaseShaderRegister = sr->BaseShaderRegister;
-                    dr->RegisterSpace = sr->RegisterSpace;
-                    dr->Flags = (D3D12_DESCRIPTOR_RANGE_FLAGS)sr->Flags;
-                    dr->OffsetInDescriptorsFromTableStart =
-                        sr->OffsetInDescriptorsFromTableStart;
-                }
-                ri += n;
-                break;
-            }
-            case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
-                dp->Constants.ShaderRegister = sp->Constants.ShaderRegister;
-                dp->Constants.RegisterSpace = sp->Constants.RegisterSpace;
-                dp->Constants.Num32BitValues = sp->Constants.Num32BitValues;
-                break;
-            default: /* CBV / SRV / UAV root descriptors */
-                dp->Descriptor.ShaderRegister =
-                    sp->Descriptor.ShaderRegister;
-                dp->Descriptor.RegisterSpace = sp->Descriptor.RegisterSpace;
-                dp->Descriptor.Flags =
-                    (D3D12_ROOT_DESCRIPTOR_FLAGS)sp->Descriptor.Flags;
-                break;
-            }
-        }
-        for (UINT i = 0; i < src->NumStaticSamplers; i++)
-            memcpy(&samplers[i], &src->pStaticSamplers[i],
-                   sizeof(samplers[i]));
-        vdesc.Desc_1_1.pParameters = params;
-        vdesc.Desc_1_1.pStaticSamplers = samplers;
-    }
-
-    {
-        ID3DBlob *blob = NULL, *err = NULL;
-        hr = npt_D3D12SerializeVersionedRootSignature(&vdesc, &blob, &err);
-        if (FAILED(hr))
-            TR_LOG("12.CreateRootSignature11: serialize failed 0x%08lx (%s)",
-                   (unsigned long)hr,
-                   err ? (const char *)ID3D10Blob_GetBufferPointer(err) : "?");
-        if (SUCCEEDED(hr) && blob) {
-            hr = ID3D12Device_CreateRootSignature(
-                p->pDev, 0, ID3D10Blob_GetBufferPointer(blob),
-                ID3D10Blob_GetBufferSize(blob), &IID_ID3D12RootSignature,
-                (void **)&rs->pRS);
-        }
-        if (blob) ID3D10Blob_Release(blob);
-        if (err)  ID3D10Blob_Release(err);
-    }
-    TR_LOG_HR(hr, "12.CreateRootSignature11: params=%u samplers=%u flags=0x%x -> "
-           "0x%08lx", src->NumParameters, src->NumStaticSamplers,
-           (unsigned)src->Flags, (unsigned long)hr);
-
-out:
-    free(params);
-    free(ranges);
-    free(samplers);
+    ID3DBlob *blob = NULL, *err = NULL;
+    HRESULT hr = npt_D3D12SerializeVersionedRootSignature(vdesc, &blob, &err);
+    if (FAILED(hr))
+        TR_LOG("12.CreateRootSignature: version %d serialize failed 0x%08lx (%s)",
+               (int)vdesc->Version, (unsigned long)hr,
+               err ? (const char *)ID3D10Blob_GetBufferPointer(err) : "?");
+    if (SUCCEEDED(hr) && blob)
+        hr = ID3D12Device_CreateRootSignature(
+            p->pDev, nodeMask, ID3D10Blob_GetBufferPointer(blob),
+            ID3D10Blob_GetBufferSize(blob), &IID_ID3D12RootSignature,
+            (void **)&rs->pRS);
+    if (blob) ID3D10Blob_Release(blob);
+    if (err)  ID3D10Blob_Release(err);
     return hr;
 }
 
+/* The DDI hands the deserialized root signature in its 1.1 form, whose
+ * structs mirror the API *1 structs field for field (range and descriptor
+ * flags included), so it goes to the host as 1.1. */
 static HRESULT APIENTRY
 t12CreateRootSignature(D3D12DDI_HDEVICE hDevice,
                        const D3D12DDIARG_CREATE_ROOT_SIGNATURE_0013 *pArgs,
@@ -491,39 +392,8 @@ t12CreateRootSignature(D3D12DDI_HDEVICE hDevice,
     memset(rs, 0, sizeof(*rs));
 
     const D3D12DDI_ROOT_SIGNATURE_0013 *src = pArgs->pRootSignature_1_1;
-
-    /* SM 6.6 dynamic resources: a root signature the app indexes through
-     * ResourceDescriptorHeap[] carries the 0x400/0x800
-     * *_HEAP_DIRECTLY_INDEXED flags, which only VERSION_1_1
-     * serialization accepts.  Route those through the versioned
-     * serializer with full 1.1 fidelity (range/descriptor flags kept).
-     * On failure fall through to the proven 1.0 down-convert, which
-     * masks the bits off -- the pre-6.6 behavior (the runtime's INTERNAL
-     * empty root signature also carries them and historically worked
-     * masked). */
-    if (src->Flags & 0xC00) {
-        HRESULT hr11 = t12CreateRootSignature11(p, src, rs);
-        if (SUCCEEDED(hr11))
-            return hr11;
-        TR_LOG("12.CreateRootSignature: 1_1 path failed 0x%08lx, "
-               "falling back to masked 1_0", (unsigned long)hr11);
-    }
-
-    /* Convert the deserialized DDI 1.1 root signature to the API 1.0
-     * desc (drop 1.1 optimization flags), serialize over the wire,
-     * then hand the result to the inner CreateRootSignature, so the
-     * blob the host sees is always one it produced itself. */
-    D3D12_ROOT_SIGNATURE_DESC desc;
-    memset(&desc, 0, sizeof(desc));
-    desc.NumParameters = src->NumParameters;
-    desc.NumStaticSamplers = src->NumStaticSamplers;
-    /* VERSION_1 serialization rejects flag bits it doesn't know
-     * (E_INVALIDARG), so keep only the classic 1.0 set:
-     * ALLOW_IA | DENY_VS/HS/DS/GS/PS | ALLOW_SO. */
-    desc.Flags = (D3D12_ROOT_SIGNATURE_FLAGS)(src->Flags & 0x7F);
-
-    D3D12_ROOT_PARAMETER *params = NULL;
-    D3D12_DESCRIPTOR_RANGE *ranges = NULL;
+    D3D12_ROOT_PARAMETER1 *params = NULL;
+    D3D12_DESCRIPTOR_RANGE1 *ranges = NULL;
     D3D12_STATIC_SAMPLER_DESC *samplers = NULL;
     HRESULT hr = E_OUTOFMEMORY;
 
@@ -533,24 +403,23 @@ t12CreateRootSignature(D3D12DDI_HDEVICE hDevice,
             (D3D12DDI_ROOT_PARAMETER_TYPE)D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
             totalRanges += src->pRootParameters[i].DescriptorTable.NumDescriptorRanges;
 
-    if (src->NumParameters) {
-        params = (D3D12_ROOT_PARAMETER *)calloc(src->NumParameters, sizeof(*params));
-        if (!params) goto out;
-    }
-    if (totalRanges) {
-        ranges = (D3D12_DESCRIPTOR_RANGE *)calloc(totalRanges, sizeof(*ranges));
-        if (!ranges) goto out;
-    }
-    if (src->NumStaticSamplers) {
-        samplers = (D3D12_STATIC_SAMPLER_DESC *)calloc(src->NumStaticSamplers,
-                                                       sizeof(*samplers));
-        if (!samplers) goto out;
-    }
+    if (src->NumParameters &&
+        !(params = (D3D12_ROOT_PARAMETER1 *)calloc(src->NumParameters,
+                                                   sizeof(*params))))
+        goto out;
+    if (totalRanges &&
+        !(ranges = (D3D12_DESCRIPTOR_RANGE1 *)calloc(totalRanges,
+                                                     sizeof(*ranges))))
+        goto out;
+    if (src->NumStaticSamplers &&
+        !(samplers = (D3D12_STATIC_SAMPLER_DESC *)calloc(src->NumStaticSamplers,
+                                                         sizeof(*samplers))))
+        goto out;
 
     UINT ri = 0;
     for (UINT i = 0; i < src->NumParameters; i++) {
         const D3D12DDI_ROOT_PARAMETER_0013 *sp = &src->pRootParameters[i];
-        D3D12_ROOT_PARAMETER *dp = &params[i];
+        D3D12_ROOT_PARAMETER1 *dp = &params[i];
         dp->ParameterType = (D3D12_ROOT_PARAMETER_TYPE)sp->ParameterType;
         dp->ShaderVisibility = (D3D12_SHADER_VISIBILITY)sp->ShaderVisibility;
         switch (dp->ParameterType) {
@@ -561,11 +430,12 @@ t12CreateRootSignature(D3D12DDI_HDEVICE hDevice,
             for (UINT j = 0; j < n; j++) {
                 const D3D12DDI_DESCRIPTOR_RANGE_0013 *sr =
                     &sp->DescriptorTable.pDescriptorRanges[j];
-                D3D12_DESCRIPTOR_RANGE *dr = &ranges[ri + j];
+                D3D12_DESCRIPTOR_RANGE1 *dr = &ranges[ri + j];
                 dr->RangeType = (D3D12_DESCRIPTOR_RANGE_TYPE)sr->RangeType;
                 dr->NumDescriptors = sr->NumDescriptors;
                 dr->BaseShaderRegister = sr->BaseShaderRegister;
                 dr->RegisterSpace = sr->RegisterSpace;
+                dr->Flags = (D3D12_DESCRIPTOR_RANGE_FLAGS)sr->Flags;
                 dr->OffsetInDescriptorsFromTableStart =
                     sr->OffsetInDescriptorsFromTableStart;
             }
@@ -574,45 +444,36 @@ t12CreateRootSignature(D3D12DDI_HDEVICE hDevice,
         }
         case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
             dp->Constants.ShaderRegister = sp->Constants.ShaderRegister;
-            dp->Constants.RegisterSpace  = sp->Constants.RegisterSpace;
+            dp->Constants.RegisterSpace = sp->Constants.RegisterSpace;
             dp->Constants.Num32BitValues = sp->Constants.Num32BitValues;
             break;
         default: /* CBV / SRV / UAV root descriptors */
             dp->Descriptor.ShaderRegister = sp->Descriptor.ShaderRegister;
-            dp->Descriptor.RegisterSpace  = sp->Descriptor.RegisterSpace;
+            dp->Descriptor.RegisterSpace = sp->Descriptor.RegisterSpace;
+            dp->Descriptor.Flags =
+                (D3D12_ROOT_DESCRIPTOR_FLAGS)sp->Descriptor.Flags;
             break;
         }
     }
-    for (UINT i = 0; i < src->NumStaticSamplers; i++) {
-        /* D3D12DDI_STATIC_SAMPLER matches the API layout field-for-field. */
+    /* D3D12DDI_STATIC_SAMPLER matches the API layout field for field. */
+    for (UINT i = 0; i < src->NumStaticSamplers; i++)
         memcpy(&samplers[i], &src->pStaticSamplers[i], sizeof(samplers[i]));
-    }
-    desc.pParameters = params;
-    desc.pStaticSamplers = samplers;
 
-    {
-        ID3DBlob *blob = NULL, *err = NULL;
-        hr = npt_D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1,
-                                             &blob, &err);
-        if (FAILED(hr))
-            TR_LOG("12.CreateRootSignature: serialize failed 0x%08lx (%s)",
-                   (unsigned long)hr,
-                   err ? (const char *)ID3D10Blob_GetBufferPointer(err) : "?");
-        if (SUCCEEDED(hr) && blob) {
-            hr = ID3D12Device_CreateRootSignature(
-                p->pDev, pArgs->NodeMask ? pArgs->NodeMask : 0,
-                ID3D10Blob_GetBufferPointer(blob),
-                ID3D10Blob_GetBufferSize(blob),
-                &IID_ID3D12RootSignature, (void **)&rs->pRS);
-        }
-        if (blob) ID3D10Blob_Release(blob);
-        if (err)  ID3D10Blob_Release(err);
-    }
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC vdesc;
+    memset(&vdesc, 0, sizeof(vdesc));
+    vdesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    vdesc.Desc_1_1.NumParameters = src->NumParameters;
+    vdesc.Desc_1_1.pParameters = params;
+    vdesc.Desc_1_1.NumStaticSamplers = src->NumStaticSamplers;
+    vdesc.Desc_1_1.pStaticSamplers = samplers;
+    /* The classic 1.0 set plus the two *_HEAP_DIRECTLY_INDEXED bits. */
+    vdesc.Desc_1_1.Flags = (D3D12_ROOT_SIGNATURE_FLAGS)(src->Flags & 0xC7F);
+    hr = t12SerializeAndCreateRootSignature(p, pArgs->NodeMask, &vdesc, rs);
+
+out:
     TR_LOG_HR(hr, "12.CreateRootSignature: params=%u samplers=%u flags=0x%x -> 0x%08lx",
            src->NumParameters, src->NumStaticSamplers, (unsigned)src->Flags,
            (unsigned long)hr);
-
-out:
     free(params);
     free(ranges);
     free(samplers);
