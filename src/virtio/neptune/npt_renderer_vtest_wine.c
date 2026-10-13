@@ -84,6 +84,12 @@ struct npt_vtest {
    struct npt_vtest_protocol proto;
    CRITICAL_SECTION sock_cs;
    int sock_fd;
+   /* Swapchain image blobs, unreferenced when the WSI is torn down.  The
+    * WSI holds only one swapchain's images at a time.  Guarded by
+    * sock_cs. */
+   uint32_t host_blob_ids[NPT_WSI_MAX_IMAGES];
+   uint32_t host_blob_count;
+   void (*wine_wsi_destroy)(struct npt_renderer *renderer);
 };
 
 static struct npt_renderer_shmem *
@@ -156,9 +162,16 @@ npt_vtest_create_host_blob(struct npt_renderer *r,
       size,
       blob_id,
       &fd);
+   if (fd < 0) {
+      if (res_id)
+         npt_vtest_vcmd_resource_unref(&v->proto, res_id);
+   } else if (v->host_blob_count < NPT_WSI_MAX_IMAGES) {
+      v->host_blob_ids[v->host_blob_count++] = res_id;
+   } else {
+      npt_log("create_host_blob: res %u not tracked; it lives until the "
+              "connection closes", res_id);
+   }
    LeaveCriticalSection(&v->sock_cs);
-
-   (void)res_id;
 
    if (fd < 0)
       npt_log("create_host_blob: failed for blob_id=%llu", (unsigned long long)blob_id);
@@ -208,6 +221,18 @@ npt_vtest_submit_present_fence(struct npt_renderer *r, uint32_t ring_idx)
    LeaveCriticalSection(&v->sock_cs);
 
    return fd;
+}
+
+static void
+npt_vtest_wsi_destroy(struct npt_renderer *r)
+{
+   struct npt_vtest *v = (struct npt_vtest *)r;
+   v->wine_wsi_destroy(r);
+   EnterCriticalSection(&v->sock_cs);
+   for (uint32_t i = 0; i < v->host_blob_count; i++)
+      npt_vtest_vcmd_resource_unref(&v->proto, v->host_blob_ids[i]);
+   v->host_blob_count = 0;
+   LeaveCriticalSection(&v->sock_cs);
 }
 
 static void
@@ -295,11 +320,15 @@ npt_renderer_create_vtest(void)
 
    v->base.ops.destroy = npt_vtest_destroy;
    v->base.ops.submit_cmd = npt_vtest_submit_cmd;
-   /* The TCP recv already blocks end-to-end. */
+   /* SUBMIT_CMD2 has no reply, so this does not wait; the server handles
+    * one connection's commands in order, which is what callers of the
+    * sync submit rely on here. */
    v->base.ops.submit_cmd_sync = npt_vtest_submit_cmd;
    v->base.ops.create_host_blob = npt_vtest_create_host_blob;
    v->base.ops.submit_present_fence = npt_vtest_submit_present_fence;
    npt_wine_install_wsi_ops(&v->base.ops);
+   v->wine_wsi_destroy = v->base.ops.wsi_destroy;
+   v->base.ops.wsi_destroy = npt_vtest_wsi_destroy;
    v->base.shmem_ops.create = npt_vtest_shmem_create;
    v->base.shmem_ops.destroy = npt_vtest_shmem_destroy;
 
