@@ -35,6 +35,11 @@ void *tritonReconcileVsInputSig(const void *pDxbc, SIZE_T cbDxbc,
                                 const unsigned char compReg[32],
                                 SIZE_T *pcbOut);
 
+/* The DXBC input-signature component type (2 = sint, 1 = uint, 0 = leave as
+ * built) a VS register needs for a vertex element of the given DXGI format,
+ * the per-register input to tritonReconcileVsInputSig. */
+unsigned char tritonDxbcFormatCompType(UINT dxgiFormat);
+
 typedef struct TritonDxbcSig {
     UINT Stream;
     UINT Register;

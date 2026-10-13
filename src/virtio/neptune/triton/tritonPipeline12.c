@@ -21,6 +21,7 @@
 #include <stdio.h> /* snprintf (DXIL input-layout placeholder names) */
 
 #include "tritonDxbc.h"
+#include "npt_workaround.h"
 
 /* npt_entry_d3d12.c (aliased to the public export by d3d12.def). */
 HRESULT __stdcall
@@ -927,16 +928,39 @@ t12CreatePipelineStateImpl(D3D12DDI_HDEVICE hDevice,
             return E_INVALIDARG;
         return t12CreateStreamPipelineState(p, &gd, &as, &ms, depthBounds, pso);
     }
-    if (depthBounds)
-        return t12CreateStreamPipelineState(p, &gd, NULL, NULL, TRUE, pso);
 
-    hr = ID3D12Device_CreateGraphicsPipelineState(
-        p->pDev, &gd, &IID_ID3D12PipelineState, (void **)&pso->pPSO);
-    TR_LOG_HR(hr, "12.CreatePipelineState(graphics): rts=%u rtv0=%d dsv=%d samples=%u "
-           "forced=%u -> 0x%08lx",
-           pArgs->NumRenderTargets, (int)gd.RTVFormats[0], (int)gd.DSVFormat,
-           gd.SampleDesc.Count, gd.RasterizerState.ForcedSampleCount,
-           (unsigned long)hr);
+    /* The host-backend vertex-fetch workaround the D3D11 input-layout path
+     * applies: type the VS's integer inputs from the bound vertex formats. */
+    void *pReconVs = NULL;
+    if (el && vsForIsgn && vsForIsgn->pDxbc && !vsForIsgn->IsDxil &&
+        (npt_host_workaround_flags() & NPT_WA_TYPE_VS_INPUT_FROM_VERTEX_FORMAT)) {
+        unsigned char compReg[32] = { 0 };
+        for (UINT i = 0; i < el->NumElements; i++)
+            if (el->Elements[i].InputRegister < 32)
+                compReg[el->Elements[i].InputRegister] =
+                    tritonDxbcFormatCompType((UINT)el->Elements[i].Format);
+        SIZE_T cbRecon = 0;
+        pReconVs = tritonReconcileVsInputSig(vsForIsgn->pDxbc, vsForIsgn->cbDxbc,
+                                             compReg, &cbRecon);
+        if (pReconVs) {
+            gd.VS.pShaderBytecode = pReconVs;
+            gd.VS.BytecodeLength  = cbRecon;
+        }
+    }
+
+    if (depthBounds) {
+        hr = t12CreateStreamPipelineState(p, &gd, NULL, NULL, TRUE, pso);
+    } else {
+        hr = ID3D12Device_CreateGraphicsPipelineState(
+            p->pDev, &gd, &IID_ID3D12PipelineState, (void **)&pso->pPSO);
+        TR_LOG_HR(hr, "12.CreatePipelineState(graphics): rts=%u rtv0=%d dsv=%d "
+               "samples=%u forced=%u -> 0x%08lx",
+               pArgs->NumRenderTargets, (int)gd.RTVFormats[0], (int)gd.DSVFormat,
+               gd.SampleDesc.Count, gd.RasterizerState.ForcedSampleCount,
+               (unsigned long)hr);
+    }
+    if (pReconVs)
+        HeapFree(GetProcessHeap(), 0, pReconVs);
     return hr;
 }
 

@@ -586,30 +586,6 @@ static void tritonBindSoOnlyGS(PTRITON_DEVICE pD)
     ID3D11DeviceContext1_GSSetShader(pD->pCtx1, gs->pSoOnlyGS, NULL, 0);
 }
 
-/* Map a DXGI vertex format to the DXBC input-signature component type its
- * shader register must declare for D3DMetal's shader-side fetch to read it
- * correctly: 2=sint, 1=uint, 0=leave as built (float / unorm / snorm all read
- * as float). Format numbers are the DXGI_FORMAT enum values. */
-static unsigned char tritonDxgiFormatComp(UINT fmt)
-{
-    switch (fmt) {
-    /* signed integer: R32G32B32A32/B32/G32_SINT, R16G16B16A16_SINT,
-     * R32G32_SINT, R8G8B8A8_SINT, R16G16_SINT, R32_SINT, R8G8_SINT,
-     * R16_SINT, R8_SINT */
-    case 4: case 8: case 14: case 18: case 32: case 38:
-    case 43: case 52: case 59: case 64:
-        return 2;
-    /* unsigned integer: R32G32B32A32/B32/G32_UINT, R16G16B16A16_UINT,
-     * R32G32_UINT, R10G10B10A2_UINT, R8G8B8A8_UINT, R16G16_UINT,
-     * R32_UINT, R8G8_UINT, R16_UINT, R8_UINT */
-    case 3: case 7: case 12: case 17: case 25: case 30:
-    case 36: case 42: case 50: case 57: case 62:
-        return 1;
-    default:
-        return 0;
-    }
-}
-
 /* ---------- Lazy CreateInputLayout ----------
  *
  * The DDI's input element descriptors carry InputRegister (the shader
@@ -743,7 +719,7 @@ BOOL tritonResolveInputLayout(PTRITON_DEVICE pD)
     for (UINT i = 0; i < e->NumElements; ++i) {
         UINT reg = e->pElements[i].InputRegister;
         if (reg >= 32) continue;
-        compReg[reg] = tritonDxgiFormatComp((UINT)e->pElements[i].Format);
+        compReg[reg] = tritonDxbcFormatCompType((UINT)e->pElements[i].Format);
     }
     SIZE_T cbRecon = 0;
     void *pRecon = NULL;
