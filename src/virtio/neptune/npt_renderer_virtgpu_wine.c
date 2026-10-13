@@ -54,10 +54,11 @@ struct npt_virtgpu_wine_shmem {
    uint32_t gem_handle;
 };
 
+/* No lock: the virtio-gpu DRM ioctls are thread-safe, and submits from
+ * different threads have no order to preserve between them. */
 struct npt_virtgpu_wine {
    struct npt_renderer base;
 
-   CRITICAL_SECTION cs;
    int drm_fd;
 };
 
@@ -209,11 +210,9 @@ npt_vgw_submit_cmd(struct npt_renderer *r, const void *data, size_t size)
 {
    struct npt_virtgpu_wine *gpu = (struct npt_virtgpu_wine *)r;
 
-   EnterCriticalSection(&gpu->cs);
    int ret = unixlib_virtgpu_execbuffer(gpu->drm_fd,
                                         VIRTGPU_EXECBUF_RING_IDX,
                                         (uint32_t)size, data, 0, NULL);
-   LeaveCriticalSection(&gpu->cs);
 
    if (ret) {
       npt_log("virtgpu submit_cmd failed");
@@ -237,9 +236,7 @@ npt_vgw_submit_cmd_sync(struct npt_renderer *r, const void *data, size_t size)
       .wait_for_fence = 1,
    };
 
-   EnterCriticalSection(&gpu->cs);
    npt_wine_unix_call(npt_unix_virtgpu_execbuffer, &p);
-   LeaveCriticalSection(&gpu->cs);
 
    if (p.result) {
       npt_log("virtgpu submit_cmd_sync failed");
@@ -287,12 +284,10 @@ npt_vgw_submit_present_fence(struct npt_renderer *r, uint32_t ring_idx)
    struct npt_virtgpu_wine *gpu = (struct npt_virtgpu_wine *)r;
 
    int fence_fd = -1;
-   EnterCriticalSection(&gpu->cs);
    int ret = unixlib_virtgpu_execbuffer(
       gpu->drm_fd,
       VIRTGPU_EXECBUF_RING_IDX | VIRTGPU_EXECBUF_FENCE_FD_OUT,
       0, NULL, ring_idx, &fence_fd);
-   LeaveCriticalSection(&gpu->cs);
 
    if (ret) {
       npt_log("virtgpu submit_present_fence failed: ring_idx=%u", ring_idx);
@@ -309,7 +304,6 @@ npt_vgw_destroy(struct npt_renderer *r)
    if (gpu->drm_fd >= 0)
       npt_wine_unixlib_close(gpu->drm_fd);
 
-   DeleteCriticalSection(&gpu->cs);
    free(gpu);
 }
 
@@ -369,7 +363,6 @@ npt_renderer_create_virtgpu(void)
    }
 
    gpu->drm_fd = drm_fd;
-   InitializeCriticalSection(&gpu->cs);
 
    gpu->base.info.wire_format_version = capset.wire_format_version;
    gpu->base.info.caps_flags = capset.caps_flags;
