@@ -211,11 +211,6 @@ void   APIENTRY tritonResourceCopyRegion_11_1(D3D10DDI_HDEVICE, D3D10DDI_HRESOUR
 void   APIENTRY tritonResourceResolveSubresource(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE, UINT, D3D10DDI_HRESOURCE, UINT, DXGI_FORMAT);
 void   APIENTRY tritonResourceReadAfterWriteHazard(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE);
 void   APIENTRY tritonShaderResourceViewReadAfterWriteHazard(D3D10DDI_HDEVICE, D3D10DDI_HSHADERRESOURCEVIEW, D3D10DDI_HRESOURCE);
-void   APIENTRY tritonDefaultCbUpdateSubresourceUP(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE, UINT,
-                                                   const D3D10_DDI_BOX *, const VOID *, UINT, UINT);
-void   APIENTRY tritonDefaultCbUpdateSubresourceUP_11_1(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE,
-                                                        UINT, const D3D10_DDI_BOX *,
-                                                        const VOID *, UINT, UINT, UINT);
 
 #define TR_DECL_CB_SETTER_10(stage) \
     void APIENTRY tritonCs_ ## stage ## _Set10(D3D10DDI_HDEVICE, UINT, UINT, const D3D10DDI_HRESOURCE *)
@@ -307,12 +302,14 @@ static void APIENTRY tritonStubVoid(D3D10DDI_HDEVICE hDevice)
 
 #define TR_STUB_V    ((void *)tritonStubVoid)
 
+static void APIENTRY tritonDestroyDevice(D3D10DDI_HDEVICE hDevice);
+
 /* ---------- D3D11_0 device-funcs table ---------- */
 
 static void tritonFillD3D11DeviceFuncs(D3D11DDI_DEVICEFUNCS *p)
 {
     /* High-frequency */
-    p->pfnDefaultConstantBufferUpdateSubresourceUP  = tritonDefaultCbUpdateSubresourceUP;
+    p->pfnDefaultConstantBufferUpdateSubresourceUP  = tritonResourceUpdateSubresourceUP;
     p->pfnVsSetConstantBuffers                      = tritonCs_VS_Set10;
     p->pfnPsSetShaderResources                      = tritonPsSetShaderResources;
     p->pfnPsSetShader                               = tritonPsSetShader;
@@ -421,7 +418,7 @@ static void tritonFillD3D11DeviceFuncs(D3D11DDI_DEVICEFUNCS *p)
     p->pfnCheckCounterInfo                          = tritonCheckCounterInfo;
     p->pfnCheckCounter                              = tritonCheckCounter;
 
-    p->pfnDestroyDevice                             = (PFND3D10DDI_DESTROYDEVICE)TR_STUB_V;
+    p->pfnDestroyDevice                             = tritonDestroyDevice;
     p->pfnSetTextFilterSize                         = (PFND3D10DDI_SETTEXTFILTERSIZE)TR_STUB_V;
 
     /* 10.1 entries */
@@ -491,7 +488,7 @@ static void tritonFillD3D11_1DeviceFuncs(D3D11_1DDI_DEVICEFUNCS *p)
      * fillers via cast, then override the 11.1-specific slots. */
     tritonFillD3D11DeviceFuncs((D3D11DDI_DEVICEFUNCS *)(p));
 
-    p->pfnDefaultConstantBufferUpdateSubresourceUP  = tritonDefaultCbUpdateSubresourceUP_11_1;
+    p->pfnDefaultConstantBufferUpdateSubresourceUP  = tritonResourceUpdateSubresourceUP_11_1;
     p->pfnVsSetConstantBuffers                      = tritonCs_VS_Set11_1;
     p->pfnPsSetConstantBuffers                      = tritonCs_PS_Set11_1;
     p->pfnGsSetConstantBuffers                      = tritonCs_GS_Set11_1;
@@ -774,23 +771,18 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     switch (pArgs->Interface) {
     case D3D11_0_DDI_INTERFACE_VERSION:
         tritonFillD3D11DeviceFuncs(pArgs->p11DeviceFuncs);
-        pArgs->p11DeviceFuncs->pfnDestroyDevice = tritonDestroyDevice;
         break;
     case D3D11_1_DDI_INTERFACE_VERSION:
         tritonFillD3D11_1DeviceFuncs(pArgs->p11_1DeviceFuncs);
-        pArgs->p11_1DeviceFuncs->pfnDestroyDevice = tritonDestroyDevice;
         break;
     case D3DWDDM1_3_DDI_INTERFACE_VERSION:
         tritonFillWDDM1_3DeviceFuncs(pArgs->pWDDM1_3DeviceFuncs);
-        pArgs->pWDDM1_3DeviceFuncs->pfnDestroyDevice = tritonDestroyDevice;
         break;
     case D3DWDDM2_0_DDI_INTERFACE_VERSION:
         tritonFillWDDM2_0DeviceFuncs(pArgs->pWDDM2_0DeviceFuncs);
-        pArgs->pWDDM2_0DeviceFuncs->pfnDestroyDevice = tritonDestroyDevice;
         break;
     case D3DWDDM2_1_DDI_INTERFACE_VERSION:
         tritonFillWDDM2_1DeviceFuncs(pArgs->pWDDM2_1DeviceFuncs);
-        pArgs->pWDDM2_1DeviceFuncs->pfnDestroyDevice = tritonDestroyDevice;
         break;
     case D3DWDDM2_2_DDI_INTERFACE_VERSION:
     case D3DWDDM2_3_DDI_INTERFACE_VERSION:
@@ -798,7 +790,6 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
          * D3D10DDIARG_CREATEDEVICE union goes straight from
          * pWDDM2_2DeviceFuncs to pWDDM2_6DeviceFuncs. */
         tritonFillWDDM2_2DeviceFuncs(pArgs->pWDDM2_2DeviceFuncs);
-        pArgs->pWDDM2_2DeviceFuncs->pfnDestroyDevice = tritonDestroyDevice;
         break;
     default:
         TR_LOG("CreateDevice: unsupported interface 0x%08x", pArgs->Interface);
@@ -811,16 +802,6 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     p->KTCallbacks  = *pArgs->pKTCallbacks;
     tritonKmInit(&p->Km, pAdapter->hRTAdapter.handle, pArgs->hRTDevice.handle,
                  &p->KTCallbacks);
-    p->pDev1          = NULL;
-    p->pDev3          = NULL;
-    p->pCtx1          = NULL;
-    p->pCtx3          = NULL;
-    p->FeatureLevel   = D3D_FEATURE_LEVEL_11_0;
-    p->pCurrentVS     = NULL;
-    p->pCurrentLayout = NULL;
-    p->pCurrentGS     = NULL;
-    p->pCurrentDS     = NULL;
-    p->nextShaderCookie = 0;
     p->hRTCoreLayer   = pArgs->hRTCoreLayer;
     /* The CREATEDEVICE callbacks are a union: every member aliases the
      * same pointer. Every D3D*DDI_CORELAYER_DEVICECALLBACKS version shares
@@ -828,18 +809,6 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
      * the same offsets in each, so reading through the 11.0-typed member is
      * correct for every tier tritonCreateDevice accepts. */
     p->pUMCallbacks   = pArgs->p11UMCallbacks;
-    p->hKMContext     = NULL;
-    p->pfnPresentCb   = NULL;
-    /* Present-fence state (see triton.h): spelled out as the documented
-     * starting state, though the memset above already covers it. */
-    p->pCtx4                = NULL;
-    p->pPresentFence        = NULL;
-    p->presentFenceValue    = 0;
-    p->presentFenceReady    = FALSE;
-    p->presentFenceDisabled = FALSE;
-    memset(p->presentEventPool, 0, sizeof(p->presentEventPool));
-    p->presentEventPoolCount = 0;
-    p->presentLockInit      = FALSE;
 
     /* The runtime encodes the requested pipeline level in pArgs->Flags
      * (per D3D11DDICAPS_3DPIPELINESUPPORT). Accept the full 10.0..11.1
@@ -865,6 +834,7 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     ID3D11Device        *raw_dev = NULL;
     ID3D11DeviceContext *raw_ctx = NULL;
     HRESULT hr = S_OK;
+    D3D_FEATURE_LEVEL hostLevel = requested;
     /* The caps snapshot (GetCaps) already stood up a device at the
      * host's highest level; adopt it when it covers the requested level
      * rather than create a second host device.  A later CreateDevice on
@@ -875,7 +845,7 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
         if (raw_dev) {
             raw_ctx = (ID3D11DeviceContext *)InterlockedExchangePointer(
                 (PVOID volatile *)&pAdapter->pCapsCtx, NULL);
-            p->FeatureLevel = requested;
+            hostLevel = pAdapter->CapsFeatureLevel;
             TR_LOG("CreateDevice: adopting the caps-snapshot device (%p, host fl 0x%x)",
                    (void *)raw_dev, (unsigned)pAdapter->CapsFeatureLevel);
         }
@@ -884,7 +854,7 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
         hr = npt_d3d11_create_device_internal(
             NULL /* pAdapter */, D3D_DRIVER_TYPE_HARDWARE, NULL,
             0 /* Flags */, &requested, 1, D3D11_SDK_VERSION,
-            &raw_dev, &p->FeatureLevel, &raw_ctx);
+            &raw_dev, &hostLevel, &raw_ctx);
     if (FAILED(hr) || !raw_dev || !raw_ctx) {
         TR_LOG("CreateDevice: npt_d3d11_create_device_internal failed 0x%08lx", hr);
         if (raw_dev) ID3D11Device_Release(raw_dev);
@@ -907,7 +877,8 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
         ID3D11Device1_Release(p->pDev1); p->pDev1 = NULL;
         return FAILED(hr) ? hr : E_NOINTERFACE;
     }
-    TR_LOG("CreateDevice: got Neptune device, feature level 0x%x", p->FeatureLevel);
+    TR_LOG("CreateDevice: got Neptune device, requested level 0x%x, host level 0x%x",
+           (unsigned)requested, (unsigned)hostLevel);
 
     /* QI for the 11.3 interfaces the WDDM 2.0 handlers forward to. NULL
      * is non-fatal: those handlers fall back to the 11.1 forms. */

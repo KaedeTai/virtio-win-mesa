@@ -199,7 +199,58 @@ tritonSetDepthStencilState(D3D10DDI_HDEVICE hDevice,
         pD->pCtx1, s ? s->pState : NULL, StencilRef);
 }
 
-/* ---------- Rasterizer (D3D11_1 layout) ---------- */
+/* ---------- Rasterizer ----------
+ * All three DDI desc generations (10.0 in the 11.0 table, 11.1, WDDM 2.0)
+ * are widened to the WDDM 2.0 desc and created through one path:
+ * ID3D11Device3::CreateRasterizerState2 when the host exposes it, else
+ * CreateRasterizerState1 with conservative rasterization dropped.
+ * ID3D11RasterizerState2 derives from RasterizerState1, so either result is
+ * stored as the base pointer. */
+
+_Static_assert(offsetof(D3D11_RASTERIZER_DESC2, ConservativeRaster) ==
+               sizeof(D3D11_RASTERIZER_DESC1),
+               "D3D11_RASTERIZER_DESC1 is not a prefix of DESC2");
+
+static void
+tritonCreateRasterizerCommon(PTRITON_DEVICE pD, PTRITON_RASTERIZERSTATE s,
+                             const D3DWDDM2_0DDI_RASTERIZER_DESC *a)
+{
+    if (!pD || !s) return;
+    s->pState = NULL;
+
+    D3D11_RASTERIZER_DESC2 d = {};
+    d.FillMode              = (D3D11_FILL_MODE)a->FillMode;
+    d.CullMode              = (D3D11_CULL_MODE)a->CullMode;
+    d.FrontCounterClockwise = a->FrontCounterClockwise;
+    d.DepthBias             = a->DepthBias;
+    d.DepthBiasClamp        = a->DepthBiasClamp;
+    d.SlopeScaledDepthBias  = a->SlopeScaledDepthBias;
+    d.DepthClipEnable       = a->DepthClipEnable;
+    d.ScissorEnable         = a->ScissorEnable;
+    d.MultisampleEnable     = a->MultisampleEnable;
+    d.AntialiasedLineEnable = a->AntialiasedLineEnable;
+    d.ForcedSampleCount     = a->ForcedSampleCount;
+    d.ConservativeRaster    = (D3D11_CONSERVATIVE_RASTERIZATION_MODE)
+                              a->ConservativeRasterizationMode;
+
+    HRESULT hr;
+    if (pD->pDev3) {
+        ID3D11RasterizerState2 *pState2 = NULL;
+        hr = ID3D11Device3_CreateRasterizerState2(pD->pDev3, &d, &pState2);
+        s->pState = (ID3D11RasterizerState1 *)pState2;
+    } else {
+        if (d.ConservativeRaster != D3D11_CONSERVATIVE_RASTERIZATION_MODE_OFF)
+            TR_LOG("CreateRasterizerState: ConservativeRaster requested but no Device3");
+        /* DESC1 is DESC2 without the trailing ConservativeRaster. */
+        hr = ID3D11Device1_CreateRasterizerState1(pD->pDev1,
+                (const D3D11_RASTERIZER_DESC1 *)&d, &s->pState);
+    }
+    if (FAILED(hr) || !s->pState) {
+        TR_LOG("CreateRasterizerState: failed 0x%08lx", hr);
+        s->pState = NULL;
+        tritonSetCreateError(pD, hr);
+    }
+}
 
 SIZE_T APIENTRY
 tritonCalcPrivateRasterizerStateSize(D3D10DDI_HDEVICE hDev, const D3D11_1_DDI_RASTERIZER_DESC *pArgs)
@@ -213,40 +264,22 @@ tritonCreateRasterizerState(D3D10DDI_HDEVICE hDevice,
                             D3D10DDI_HRASTERIZERSTATE hState,
                             D3D10DDI_HRTRASTERIZERSTATE hRTState)
 {
-    PTRITON_DEVICE          pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RASTERIZERSTATE s  = (PTRITON_RASTERIZERSTATE)(hState.pDrvPrivate);
-    if (!pD || !s) return;
-    s->pState = NULL;
-
-    D3D11_RASTERIZER_DESC1 d = {};
-    d.FillMode              = (D3D11_FILL_MODE)pArgs->FillMode;
-    d.CullMode              = (D3D11_CULL_MODE)pArgs->CullMode;
-    d.FrontCounterClockwise = pArgs->FrontCounterClockwise;
-    d.DepthBias             = pArgs->DepthBias;
-    d.DepthBiasClamp        = pArgs->DepthBiasClamp;
-    d.SlopeScaledDepthBias  = pArgs->SlopeScaledDepthBias;
-    d.DepthClipEnable       = pArgs->DepthClipEnable;
-    d.ScissorEnable         = pArgs->ScissorEnable;
-    d.MultisampleEnable     = pArgs->MultisampleEnable;
-    d.AntialiasedLineEnable = pArgs->AntialiasedLineEnable;
-    d.ForcedSampleCount     = pArgs->ForcedSampleCount;
-    HRESULT hr = ID3D11Device1_CreateRasterizerState1(pD->pDev1, &d, &s->pState);
-    if (FAILED(hr)) {
-        TR_LOG("CreateRasterizerState: failed 0x%08lx", hr);
-        s->pState = NULL;
-        tritonSetCreateError(pD, hr);
-    }
+    D3DWDDM2_0DDI_RASTERIZER_DESC up = {};
+    up.FillMode              = pArgs->FillMode;
+    up.CullMode              = pArgs->CullMode;
+    up.FrontCounterClockwise = pArgs->FrontCounterClockwise;
+    up.DepthBias             = pArgs->DepthBias;
+    up.DepthBiasClamp        = pArgs->DepthBiasClamp;
+    up.SlopeScaledDepthBias  = pArgs->SlopeScaledDepthBias;
+    up.DepthClipEnable       = pArgs->DepthClipEnable;
+    up.ScissorEnable         = pArgs->ScissorEnable;
+    up.MultisampleEnable     = pArgs->MultisampleEnable;
+    up.AntialiasedLineEnable = pArgs->AntialiasedLineEnable;
+    up.ForcedSampleCount     = pArgs->ForcedSampleCount;
+    up.ConservativeRasterizationMode = D3DWDDM2_0DDI_CONSERVATIVE_RASTERIZATION_OFF;
+    tritonCreateRasterizerCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                                 (PTRITON_RASTERIZERSTATE)hState.pDrvPrivate, &up);
 }
-
-void APIENTRY
-tritonDestroyRasterizerState(D3D10DDI_HDEVICE hDev, D3D10DDI_HRASTERIZERSTATE hState)
-{
-    PTRITON_RASTERIZERSTATE s = (PTRITON_RASTERIZERSTATE)(hState.pDrvPrivate);
-    if (s && s->pState) { ID3D11RasterizerState1_Release(s->pState); s->pState = NULL; }
-}
-
-/* ---------- Rasterizer (11.0 device table — D3D10.0 desc) ----------
- * The 11.0 desc has no ForcedSampleCount. Upgrade to the 11.1 form. */
 
 SIZE_T APIENTRY
 tritonCalcPrivateRasterizerStateSize_10(D3D10DDI_HDEVICE hDev, const D3D10_DDI_RASTERIZER_DESC *pArgs)
@@ -260,7 +293,7 @@ tritonCreateRasterizerState_10(D3D10DDI_HDEVICE hDevice,
                                D3D10DDI_HRASTERIZERSTATE hState,
                                D3D10DDI_HRTRASTERIZERSTATE hRTState)
 {
-    D3D11_1_DDI_RASTERIZER_DESC up = {};
+    D3DWDDM2_0DDI_RASTERIZER_DESC up = {};
     up.FillMode              = pArgs->FillMode;
     up.CullMode              = pArgs->CullMode;
     up.FrontCounterClockwise = pArgs->FrontCounterClockwise;
@@ -271,25 +304,10 @@ tritonCreateRasterizerState_10(D3D10DDI_HDEVICE hDevice,
     up.ScissorEnable         = pArgs->ScissorEnable;
     up.MultisampleEnable     = pArgs->MultisampleEnable;
     up.AntialiasedLineEnable = pArgs->AntialiasedLineEnable;
-    up.ForcedSampleCount     = 0;
-    tritonCreateRasterizerState(hDevice, &up, hState, hRTState);
+    up.ConservativeRasterizationMode = D3DWDDM2_0DDI_CONSERVATIVE_RASTERIZATION_OFF;
+    tritonCreateRasterizerCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                                 (PTRITON_RASTERIZERSTATE)hState.pDrvPrivate, &up);
 }
-
-void APIENTRY
-tritonSetRasterizerState(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRASTERIZERSTATE hState)
-{
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    if (!pD) return;
-    PTRITON_RASTERIZERSTATE s = (PTRITON_RASTERIZERSTATE)(hState.pDrvPrivate);
-    ID3D11DeviceContext1_RSSetState(
-        pD->pCtx1, s ? (ID3D11RasterizerState *)s->pState : NULL);
-}
-
-/* ---------- Rasterizer (WDDM 2.0: adds ConservativeRasterizationMode) ----
- * Forward through ID3D11Device3::CreateRasterizerState2.
- * ID3D11RasterizerState2 derives from RasterizerState1, so the result is
- * stored as the base pointer. Without Device3 the call falls back to the
- * 11.1 path and ConservativeRaster is logged and dropped. */
 
 SIZE_T APIENTRY
 tritonCalcPrivateRasterizerStateSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
@@ -304,55 +322,25 @@ tritonCreateRasterizerState_WDDM2_0(D3D10DDI_HDEVICE hDevice,
                                     D3D10DDI_HRASTERIZERSTATE hState,
                                     D3D10DDI_HRTRASTERIZERSTATE hRTState)
 {
-    PTRITON_DEVICE          pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RASTERIZERSTATE s  = (PTRITON_RASTERIZERSTATE)(hState.pDrvPrivate);
-    if (!pD || !s) return;
+    tritonCreateRasterizerCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                                 (PTRITON_RASTERIZERSTATE)hState.pDrvPrivate, pArgs);
+}
 
-    if (!pD->pDev3) {
-        D3D11_1_DDI_RASTERIZER_DESC up = {};
-        up.FillMode              = pArgs->FillMode;
-        up.CullMode              = pArgs->CullMode;
-        up.FrontCounterClockwise = pArgs->FrontCounterClockwise;
-        up.DepthBias             = pArgs->DepthBias;
-        up.DepthBiasClamp        = pArgs->DepthBiasClamp;
-        up.SlopeScaledDepthBias  = pArgs->SlopeScaledDepthBias;
-        up.DepthClipEnable       = pArgs->DepthClipEnable;
-        up.ScissorEnable         = pArgs->ScissorEnable;
-        up.MultisampleEnable     = pArgs->MultisampleEnable;
-        up.AntialiasedLineEnable = pArgs->AntialiasedLineEnable;
-        up.ForcedSampleCount     = pArgs->ForcedSampleCount;
-        if (pArgs->ConservativeRasterizationMode != D3DWDDM2_0DDI_CONSERVATIVE_RASTERIZATION_OFF)
-            TR_LOG("CreateRasterizerState_WDDM2_0: ConservativeRaster requested but no Device3");
-        tritonCreateRasterizerState(hDevice, &up, hState, hRTState);
-        return;
-    }
+void APIENTRY
+tritonDestroyRasterizerState(D3D10DDI_HDEVICE hDev, D3D10DDI_HRASTERIZERSTATE hState)
+{
+    PTRITON_RASTERIZERSTATE s = (PTRITON_RASTERIZERSTATE)(hState.pDrvPrivate);
+    if (s && s->pState) { ID3D11RasterizerState1_Release(s->pState); s->pState = NULL; }
+}
 
-    s->pState = NULL;
-
-    D3D11_RASTERIZER_DESC2 d = {};
-    d.FillMode              = (D3D11_FILL_MODE)pArgs->FillMode;
-    d.CullMode              = (D3D11_CULL_MODE)pArgs->CullMode;
-    d.FrontCounterClockwise = pArgs->FrontCounterClockwise;
-    d.DepthBias             = pArgs->DepthBias;
-    d.DepthBiasClamp        = pArgs->DepthBiasClamp;
-    d.SlopeScaledDepthBias  = pArgs->SlopeScaledDepthBias;
-    d.DepthClipEnable       = pArgs->DepthClipEnable;
-    d.ScissorEnable         = pArgs->ScissorEnable;
-    d.MultisampleEnable     = pArgs->MultisampleEnable;
-    d.AntialiasedLineEnable = pArgs->AntialiasedLineEnable;
-    d.ForcedSampleCount     = pArgs->ForcedSampleCount;
-    d.ConservativeRaster    = (D3D11_CONSERVATIVE_RASTERIZATION_MODE)
-                              pArgs->ConservativeRasterizationMode;
-
-    ID3D11RasterizerState2 *pState2 = NULL;
-    HRESULT hr = ID3D11Device3_CreateRasterizerState2(pD->pDev3, &d, &pState2);
-    if (FAILED(hr)) {
-        TR_LOG("CreateRasterizerState_WDDM2_0: failed 0x%08lx", hr);
-        s->pState = NULL;
-        tritonSetCreateError(pD, hr);
-        return;
-    }
-    s->pState = (ID3D11RasterizerState1 *)pState2;
+void APIENTRY
+tritonSetRasterizerState(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRASTERIZERSTATE hState)
+{
+    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
+    if (!pD) return;
+    PTRITON_RASTERIZERSTATE s = (PTRITON_RASTERIZERSTATE)(hState.pDrvPrivate);
+    ID3D11DeviceContext1_RSSetState(
+        pD->pCtx1, s ? (ID3D11RasterizerState *)s->pState : NULL);
 }
 
 /* ---------- Sampler ---------- */
@@ -403,55 +391,24 @@ tritonDestroySampler(D3D10DDI_HDEVICE hDev, D3D10DDI_HSAMPLER hState)
     if (s && s->pState) { ID3D11SamplerState_Release(s->pState); s->pState = NULL; }
 }
 
-void APIENTRY
-tritonPsSetSamplers(D3D10DDI_HDEVICE hDevice, UINT Start, UINT NumSamplers,
-                    const D3D10DDI_HSAMPLER *phSamplers)
-{
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    if (!pD) return;
-    ID3D11SamplerState *aS[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};
-    if (NumSamplers > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT) return;
-    for (UINT i = 0; i < NumSamplers; ++i) {
-        PTRITON_SAMPLER s = phSamplers
-            ? (PTRITON_SAMPLER)(phSamplers[i].pDrvPrivate)
-            : NULL;
-        aS[i] = s ? s->pState : NULL;
-    }
-    ID3D11DeviceContext1_PSSetSamplers(pD->pCtx1, Start, NumSamplers, aS);
-}
-
-void APIENTRY
-tritonVsSetSamplers(D3D10DDI_HDEVICE hDevice, UINT Start, UINT NumSamplers,
-                    const D3D10DDI_HSAMPLER *phSamplers)
-{
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    if (!pD) return;
-    ID3D11SamplerState *aS[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};
-    if (NumSamplers > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT) return;
-    for (UINT i = 0; i < NumSamplers; ++i) {
-        PTRITON_SAMPLER s = phSamplers
-            ? (PTRITON_SAMPLER)(phSamplers[i].pDrvPrivate)
-            : NULL;
-        aS[i] = s ? s->pState : NULL;
-    }
-    ID3D11DeviceContext1_VSSetSamplers(pD->pCtx1, Start, NumSamplers, aS);
-}
-
 #define TR_SAMPLER_SETTER(stage, ctx_method)                                              \
-void APIENTRY                                                                  \
+void APIENTRY                                                                             \
 triton ## stage ## SetSamplers(D3D10DDI_HDEVICE hDevice, UINT Start, UINT N,              \
                                const D3D10DDI_HSAMPLER *ph)                               \
 {                                                                                         \
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);            \
+    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);                            \
     if (!pD) return;                                                                      \
     ID3D11SamplerState *a[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};                    \
-    if (N > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT) return;                                \
+    if (Start > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT ||                                  \
+        N > D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT - Start) return;                        \
     for (UINT i = 0; i < N; ++i) {                                                        \
-        PTRITON_SAMPLER s = ph ? (PTRITON_SAMPLER)(ph[i].pDrvPrivate) : NULL; \
+        PTRITON_SAMPLER s = ph ? (PTRITON_SAMPLER)(ph[i].pDrvPrivate) : NULL;             \
         a[i] = s ? s->pState : NULL;                                                      \
     }                                                                                     \
     ID3D11DeviceContext1_##ctx_method(pD->pCtx1, Start, N, a);                            \
 }
+TR_SAMPLER_SETTER(Vs, VSSetSamplers)
+TR_SAMPLER_SETTER(Ps, PSSetSamplers)
 TR_SAMPLER_SETTER(Gs, GSSetSamplers)
 TR_SAMPLER_SETTER(Hs, HSSetSamplers)
 TR_SAMPLER_SETTER(Ds, DSSetSamplers)

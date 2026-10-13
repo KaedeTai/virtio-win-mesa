@@ -830,8 +830,8 @@ triton ## stage ## SetShaderResources(D3D10DDI_HDEVICE hDevice, UINT Start, UINT
 {                                                                                        \
     PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);                           \
     if (!pD) return;                                                                     \
-    if (N > D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT)                                \
-        N = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;                                \
+    if (Start > D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT ||                          \
+        N > D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT - Start) return;                \
     ID3D11ShaderResourceView *a[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};      \
     for (UINT i = 0; i < N; ++i) {                                                       \
         PTRITON_SRVIEW v = ph                                                            \

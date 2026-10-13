@@ -80,30 +80,19 @@ tritonCalcPrivateQuerySize(D3D10DDI_HDEVICE hDev, const D3D10DDIARG_CREATEQUERY 
     return sizeof(TRITON_QUERY);
 }
 
+static void tritonCreateQueryCommon(PTRITON_DEVICE pD, PTRITON_QUERY q,
+                                    const D3DWDDM2_0DDIARG_CREATEQUERY *a);
+
 void APIENTRY
 tritonCreateQuery(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_CREATEQUERY *pArgs,
                   D3D10DDI_HQUERY hQuery, D3D10DDI_HRTQUERY hRTQuery)
 {
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_QUERY  q  = (PTRITON_QUERY)(hQuery.pDrvPrivate);
-    if (!pD || !q) return;
-    q->pQuery   = NULL;
-
-    D3D11_QUERY_DESC d = {};
-    d.Query     = tritonQueryDdiToD3D11(pArgs->Query);
-    d.MiscFlags = (pArgs->MiscFlags & D3D10DDI_QUERY_MISCFLAG_PREDICATEHINT)
-                  ? D3D11_QUERY_MISC_PREDICATEHINT : 0;
-    /* CreatePredicate returns an ID3D11Predicate, which derives from
-     * ID3D11Query, so the result fits the existing slot. */
-    HRESULT hr;
-    if (tritonQueryIsPredicate(d.Query)) {
-        ID3D11Predicate *pPred = NULL;
-        hr = ID3D11Device1_CreatePredicate(pD->pDev1, &d, &pPred);
-        q->pQuery = (ID3D11Query *)pPred;
-    } else {
-        hr = ID3D11Device1_CreateQuery(pD->pDev1, &d, &q->pQuery);
-    }
-    if (FAILED(hr)) { tritonQueryCreateFailed(pD, d.Query, hr); q->pQuery = NULL; }
+    D3DWDDM2_0DDIARG_CREATEQUERY a;
+    a.Query       = pArgs->Query;
+    a.MiscFlags   = pArgs->MiscFlags;
+    a.ContextType = 0;
+    tritonCreateQueryCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                            (PTRITON_QUERY)hQuery.pDrvPrivate, &a);
 }
 
 void APIENTRY
@@ -808,45 +797,50 @@ tritonCalcPrivateQuerySize_WDDM2_0(D3D10DDI_HDEVICE hDev, const D3DWDDM2_0DDIARG
     return sizeof(TRITON_QUERY);
 }
 
-void APIENTRY
-tritonCreateQuery_WDDM2_0(D3D10DDI_HDEVICE hDevice,
-                          const D3DWDDM2_0DDIARG_CREATEQUERY *pArgs,
-                          D3D10DDI_HQUERY hQuery, D3D10DDI_HRTQUERY hRTQuery)
+/* Queries go through ID3D11Device3::CreateQuery1 when the host exposes it,
+ * so ContextType reaches it.  There is no CreatePredicate1, so predicates
+ * (and every type on a host without Device3) take the 11.0 calls with
+ * ContextType dropped. */
+static void
+tritonCreateQueryCommon(PTRITON_DEVICE pD, PTRITON_QUERY q,
+                        const D3DWDDM2_0DDIARG_CREATEQUERY *a)
 {
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_QUERY  q  = (PTRITON_QUERY)(hQuery.pDrvPrivate);
     if (!pD || !q) return;
-
-    if (!pD->pDev3) {
-        D3D10DDIARG_CREATEQUERY a;
-        a.Query     = pArgs->Query;
-        a.MiscFlags = pArgs->MiscFlags;
-        tritonCreateQuery(hDevice, &a, hQuery, hRTQuery);
-        if (pArgs->ContextType != 0 && pArgs->ContextType != 1)
-            TR_LOG("CreateQuery_WDDM2_0: non-3D ContextType=%u without Device3", pArgs->ContextType);
-        return;
-    }
-
-    q->pQuery  = NULL;
+    q->pQuery = NULL;
 
     D3D11_QUERY_DESC1 d = {};
-    d.Query       = tritonQueryDdiToD3D11(pArgs->Query);
-    d.MiscFlags   = (pArgs->MiscFlags & D3D10DDI_QUERY_MISCFLAG_PREDICATEHINT)
+    d.Query       = tritonQueryDdiToD3D11(a->Query);
+    d.MiscFlags   = (a->MiscFlags & D3D10DDI_QUERY_MISCFLAG_PREDICATEHINT)
                     ? D3D11_QUERY_MISC_PREDICATEHINT : 0;
-    d.ContextType = tritonContextFlagToEnum(pArgs->ContextType);
+    d.ContextType = tritonContextFlagToEnum(a->ContextType);
 
     HRESULT hr;
-    if (tritonQueryIsPredicate(d.Query)) {
-        /* No CreatePredicate1 with ContextType in D3D11.3; fall back to
-         * the 11.0 path (ContextType discarded for predicates). */
+    if (tritonQueryIsPredicate(d.Query) || !pD->pDev3) {
+        /* CreatePredicate returns an ID3D11Predicate, which derives from
+         * ID3D11Query, so the result fits the existing slot. */
         D3D11_QUERY_DESC d0 = { d.Query, d.MiscFlags };
-        ID3D11Predicate *pPred = NULL;
-        hr = ID3D11Device1_CreatePredicate(pD->pDev1, &d0, &pPred);
-        q->pQuery = (ID3D11Query *)pPred;
+        if (a->ContextType > 1 && !pD->pDev3)
+            TR_LOG("CreateQuery: non-3D ContextType=%u without Device3", a->ContextType);
+        if (tritonQueryIsPredicate(d.Query)) {
+            ID3D11Predicate *pPred = NULL;
+            hr = ID3D11Device1_CreatePredicate(pD->pDev1, &d0, &pPred);
+            q->pQuery = (ID3D11Query *)pPred;
+        } else {
+            hr = ID3D11Device1_CreateQuery(pD->pDev1, &d0, &q->pQuery);
+        }
     } else {
         ID3D11Query1 *pQuery1 = NULL;
         hr = ID3D11Device3_CreateQuery1(pD->pDev3, &d, &pQuery1);
         q->pQuery = (ID3D11Query *)pQuery1;
     }
     if (FAILED(hr)) { tritonQueryCreateFailed(pD, d.Query, hr); q->pQuery = NULL; }
+}
+
+void APIENTRY
+tritonCreateQuery_WDDM2_0(D3D10DDI_HDEVICE hDevice,
+                          const D3DWDDM2_0DDIARG_CREATEQUERY *pArgs,
+                          D3D10DDI_HQUERY hQuery, D3D10DDI_HRTQUERY hRTQuery)
+{
+    tritonCreateQueryCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                            (PTRITON_QUERY)hQuery.pDrvPrivate, pArgs);
 }

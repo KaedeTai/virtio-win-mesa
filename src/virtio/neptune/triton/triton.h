@@ -75,7 +75,6 @@ typedef struct TRITON_DEVICE {
     ID3D11Device3                  *pDev3;
     ID3D11DeviceContext1           *pCtx1;
     ID3D11DeviceContext3           *pCtx3;
-    D3D_FEATURE_LEVEL               FeatureLevel;
 
     /* Currently-bound VS and element layout. Used to lazily create the
      * ID3D11InputLayout the first time both are known. Weak refs: the

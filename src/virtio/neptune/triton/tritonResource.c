@@ -96,10 +96,12 @@ static void tritonTranslateUsage(const D3D11DDIARG_CREATERESOURCE *a,
 
 /* Assemble D3D11_SUBRESOURCE_DATA[] from pInitialDataUP for the
  * CreateBuffer/CreateTexture* initial-data forms. The caller owns the
- * returned heap buffer. NULL when pInitialDataUP is NULL. */
+ * returned heap buffer. NULL when there is no initial data, and also when
+ * the allocation failed, which *pOom reports. */
 static D3D11_SUBRESOURCE_DATA *
-tritonBuildInitData(const D3D11DDIARG_CREATERESOURCE *a)
+tritonBuildInitData(const D3D11DDIARG_CREATERESOURCE *a, BOOL *pOom)
 {
+    *pOom = FALSE;
     if (!a->pInitialDataUP) return NULL;
     /* Subresource count is MipLevels * ArraySize. A cube may arrive with
      * ArraySize==0 meaning one 6-face cube; the create path below
@@ -112,7 +114,7 @@ tritonBuildInitData(const D3D11DDIARG_CREATERESOURCE *a)
     if (count == 0) return NULL;
     D3D11_SUBRESOURCE_DATA *p = (D3D11_SUBRESOURCE_DATA *)(
         HeapAlloc(GetProcessHeap(), 0, count * sizeof(D3D11_SUBRESOURCE_DATA)));
-    if (!p) return NULL;
+    if (!p) { *pOom = TRUE; return NULL; }
     for (UINT i = 0; i < count; ++i) {
         p[i].pSysMem          = a->pInitialDataUP[i].pSysMem;
         p[i].SysMemPitch      = a->pInitialDataUP[i].SysMemPitch;
@@ -355,7 +357,12 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
         misc |= D3D11_RESOURCE_MISC_SHARED;
     }
 
-    D3D11_SUBRESOURCE_DATA *initData = tritonBuildInitData(pArgs);
+    BOOL initOom;
+    D3D11_SUBRESOURCE_DATA *initData = tritonBuildInitData(pArgs, &initOom);
+    if (initOom) {
+        tritonSetCreateError(pD, E_OUTOFMEMORY);
+        return;
+    }
     HRESULT hr = E_NOTIMPL;
 
     switch (pArgs->ResourceDimension) {
@@ -936,31 +943,6 @@ TR_CB_SETTER_11_1(DS, DSSetConstantBuffers1)
 TR_CB_SETTER_11_1(CS, CSSetConstantBuffers1)
 
 #undef TR_CB_SETTER_11_1
-
-/* DefaultConstantBufferUpdateSubresourceUP: runtime hint that the given
- * subresource is a constant buffer being updated in full. Route to
- * UpdateSubresource(1). */
-
-void APIENTRY
-tritonDefaultCbUpdateSubresourceUP(D3D10DDI_HDEVICE hDevice,
-                                   D3D10DDI_HRESOURCE hResource, UINT DstSubresource,
-                                   const D3D10_DDI_BOX *pDstBox, const VOID *pSrc,
-                                   UINT SrcRowPitch, UINT SrcDepthPitch)
-{
-    tritonResourceUpdateSubresourceUP(hDevice, hResource, DstSubresource,
-                                      pDstBox, pSrc, SrcRowPitch, SrcDepthPitch);
-}
-
-void APIENTRY
-tritonDefaultCbUpdateSubresourceUP_11_1(D3D10DDI_HDEVICE hDevice,
-                                        D3D10DDI_HRESOURCE hResource, UINT DstSubresource,
-                                        const D3D10_DDI_BOX *pDstBox, const VOID *pSrc,
-                                        UINT SrcRowPitch, UINT SrcDepthPitch,
-                                        UINT CopyFlags)
-{
-    tritonResourceUpdateSubresourceUP_11_1(hDevice, hResource, DstSubresource,
-                                           pDstBox, pSrc, SrcRowPitch, SrcDepthPitch, CopyFlags);
-}
 
 /* Tiled resources are not offered (D3DWDDM1_3DDICAPS_D3D11_OPTIONS1 reports
  * no tier), so the runtime never creates one and the tile DDIs are never

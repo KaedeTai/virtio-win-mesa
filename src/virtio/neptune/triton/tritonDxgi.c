@@ -73,17 +73,12 @@ tritonPresentEnsureFenceLocked(PTRITON_DEVICE pD)
 static HANDLE
 tritonPresentPopEvent(PTRITON_DEVICE pD)
 {
-   /* Reuse a pooled event only if its SetEventOnCompletion registration has
-    * already FIRED -- i.e. the event is signalled (auto-reset).  The KMD
-    * signals the event when the present fence retires, so a signalled event
-    * means its present completed and re-arming it cannot cross-talk (reusing
-    * a still-armed event lets an old registration wake a NEWER frame's wait
-    * early -- the black-frame bug).  Do NOT judge retirement by
+   /* A still-armed event must not be reused before its registration fired:
+    * the old registration would wake a NEWER frame's wait early (the
+    * black-frame bug).  Retirement is not judged by
     * ID3D11Fence_GetCompletedValue: that reads a periodically-published
-    * feedback copy that LAGS real completion, so the check fails spuriously
-    * and the pop creates (then, once the pool fills, leaks) a fresh event
-    * almost every frame.  WaitForSingleObject(h,0) both tests AND drains
-    * the fired signal. */
+    * feedback copy that lags real completion, so the pop would create (and,
+    * once the pool fills, leak) a fresh event almost every frame. */
    for (UINT i = 0; i < pD->presentEventPoolCount; i++) {
       HANDLE h = pD->presentEventPool[i];
       /* Reusable when no registration is outstanding (nothing can signal it
@@ -1414,29 +1409,19 @@ triton_fill_1_2(DXGI1_2_DDI_BASE_FUNCTIONS *p)
    p->pfnPresentMultiplaneOverlay        = NULL;
 }
 
+/* The 1.3 table keeps the 1.2 slots through pfnReclaimResources in place;
+ * its MPO block is one slot longer (all NULL here), then Present1 and
+ * CheckPresentDurationSupport follow. */
+_Static_assert(offsetof(DXGI1_3_DDI_BASE_FUNCTIONS, pfnReclaimResources) ==
+               offsetof(DXGI1_2_DDI_BASE_FUNCTIONS, pfnReclaimResources),
+               "DXGI 1.2/1.3 base tables diverge before the MPO block");
 static void
 triton_fill_1_3(DXGI1_3_DDI_BASE_FUNCTIONS *p)
 {
-   p->pfnPresent                = tritonDxgiPresent;
-   p->pfnGetGammaCaps           = tritonDxgiGetGammaCaps;
-   p->pfnSetDisplayMode         = tritonDxgiSetDisplayMode;
-   p->pfnSetResourcePriority    = tritonDxgiSetResourcePriority;
-   p->pfnQueryResourceResidency = tritonDxgiQueryResourceResidency;
-   p->pfnRotateResourceIdentities = tritonDxgiRotateResourceIdentities;
-   p->pfnBlt                    = tritonDxgiBlt;
-   p->pfnResolveSharedResource  = tritonDxgiResolveSharedResource;
-   p->pfnBlt1                   = tritonDxgiBlt1;
-   p->pfnOfferResources         = tritonDxgiOfferResources;
-   p->pfnReclaimResources       = tritonDxgiReclaimResources;
-   /* Multiplane-overlay entries stay NULL (unsupported); see
-    * triton_fill_1_2. */
-   p->pfnGetMultiplaneOverlayCaps      = NULL;
-   p->pfnGetMultiplaneOverlayGroupCaps = NULL;
-   p->pfnReserved1                     = NULL;
-   p->pfnPresentMultiplaneOverlay      = NULL;
-   p->pfnReserved2                     = NULL;
-   p->pfnPresent1                      = tritonDxgiPresent1;
-   p->pfnCheckPresentDurationSupport   = tritonDxgiCheckPresentDurationSupport;
+   triton_fill_1_2((DXGI1_2_DDI_BASE_FUNCTIONS *)p);
+   p->pfnReserved2                   = NULL;
+   p->pfnPresent1                    = tritonDxgiPresent1;
+   p->pfnCheckPresentDurationSupport = tritonDxgiCheckPresentDurationSupport;
 }
 
 /* The 1.4 table is the 1.3 prefix plus the WDDM2.0 entries. */
