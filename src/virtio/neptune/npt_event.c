@@ -540,7 +540,7 @@ npt_event_arm_token_fd(struct npt_device *dev, uint64_t token)
    if (!st || !token)
       return -1;
 
-   npt_dispatch_event_register(dev->renderer, token);
+   npt_dispatch_event_register_ring(npt_device_method_ring(dev), token);
 
    uint32_t ring_idx = atomic_fetch_add(&st->next_event_ring_idx, 1);
    /* npt_event_init repairs a degenerate range, so the span is never zero --
@@ -558,7 +558,7 @@ npt_event_arm_token_fd(struct npt_device *dev, uint64_t token)
    mtx_unlock(&st->arm_mutex);
 
    if (sync_fd < 0)
-      npt_dispatch_event_release(dev->renderer, token);
+      npt_dispatch_event_release_ring(npt_device_method_ring(dev), token);
    return sync_fd;
 }
 
@@ -566,7 +566,7 @@ void
 npt_event_release_token(struct npt_device *dev, uint64_t token)
 {
    if (token)
-      npt_dispatch_event_release(dev->renderer, token);
+      npt_dispatch_event_release_ring(npt_device_method_ring(dev), token);
 }
 
 /*

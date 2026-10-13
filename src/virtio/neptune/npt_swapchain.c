@@ -275,10 +275,11 @@ gsc_present_common(void *self, UINT SyncInterval, UINT Flags)
 
    if (!s->no_gpu_fence) {
       token = npt_gsc_make_token();
-      /* REGISTER + ARM (synchronous) must land before the host decodes
-       * SetEventOnCompletion below: its hEvent -> eventfd substitution
-       * only fires once the token's proxy exists (else the raw token
-       * passes through as a bogus HANDLE). */
+      /* The token's REGISTER and ARM go out on the method ring, ahead
+       * of the SetEventOnCompletion below on the same ring: its
+       * hEvent -> eventfd substitution only fires once the token's
+       * proxy exists (else the raw token passes through as a bogus
+       * HANDLE). */
       wait_fence_fd = npt_event_arm_token_fd(dev, token);
       if (wait_fence_fd < 0) {
          token = 0;  /* arm failed: self-released */

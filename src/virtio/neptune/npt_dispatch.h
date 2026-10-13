@@ -182,9 +182,6 @@ HRESULT npt_dispatch_shared_open_res(struct npt_ring *ring,
  * EVENT
  * ========================================================================== */
 
-bool npt_dispatch_event_register(struct npt_renderer *renderer,
-                                 uint64_t event_token);
-
 /* Ring-borne REGISTER_EVENT: rides the method ring (not the renderer command
  * stream) so it is ordered ahead of the synchronous ARM_EVENT_FENCE that
  * follows on the same ring.  The host therefore holds a registration reference
@@ -204,9 +201,6 @@ bool npt_dispatch_event_arm_fence(struct npt_ring *ring, uint64_t event_token,
  * that ring (value-checked retirement; see neptune-protocol/npt_protocol_transport.h). */
 bool npt_dispatch_event_gate_wait(struct npt_ring *ring, uint64_t fence_id,
                                   uint64_t value, uint32_t ring_idx);
-
-bool npt_dispatch_event_release(struct npt_renderer *renderer,
-                                uint64_t event_token);
 
 /* Ring-borne RELEASE_EVENT, the counterpart to npt_dispatch_event_register_ring.
  * Riding the same method ring keeps a token's RELEASE strictly before the next
