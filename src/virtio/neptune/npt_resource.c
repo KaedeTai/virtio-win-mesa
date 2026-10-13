@@ -411,6 +411,15 @@ npt_d3d_map_ring_open(struct npt_d3d_map_ring *r,
       rec->slot = next_slot_locked(r, &wait);
       r->current_slot = rec->slot;
       break;
+   case NPT_D3D_MAP_SLOT_SYNC:
+      if (slot_held_locked(r, 0)) {
+         rec->slot = next_slot_locked(r, &wait);
+      } else {
+         rec->slot = 0;
+         wait = r->slots && r->slots[0].in_flight;
+      }
+      r->current_slot = rec->slot;
+      break;
    }
    *slot_rec = *rec;
    /* The record holds the slot, so a rotate during the wait passes it. */
@@ -418,6 +427,19 @@ npt_d3d_map_ring_open(struct npt_d3d_map_ring *r,
       wait_slot_locked(r, rec->slot);
    mtx_unlock(&r->lock);
    return true;
+}
+
+void
+npt_d3d_map_ring_set_byte_size(struct npt_d3d_map_ring *r,
+                               const void *context, uint32_t subresource,
+                               uint32_t byte_size)
+{
+   mtx_lock(&r->lock);
+   struct npt_d3d_map_record *rec =
+      find_record_locked(r, context, subresource);
+   if (rec)
+      rec->byte_size = byte_size;
+   mtx_unlock(&r->lock);
 }
 
 bool
@@ -1458,9 +1480,6 @@ npt_d3d11_texture_ensure_map_shmem(struct npt_d3d11_texture *t)
    return npt_d3d_map_ring_alloc_shmem(&aux->map_ring, (uint32_t)aligned_slot);
 }
 
-uint32_t npt_d3d11_texture_get_map_shmem_res_id(const struct npt_d3d11_texture *t)
-{ const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_slot_res_id(&aux->map_ring, 0) : 0; }
-
 uint32_t npt_d3d11_texture_get_slot_shmem_res_id(const struct npt_d3d11_texture *t,
                                                  uint32_t slot)
 { const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_slot_res_id(&aux->map_ring, slot) : 0; }
@@ -1470,12 +1489,6 @@ uint32_t npt_d3d11_texture_get_shmem_size(const struct npt_d3d11_texture *t)
 
 uint32_t npt_d3d11_texture_get_slot_size(const struct npt_d3d11_texture *t)
 { const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? aux->map_ring.aligned_slot_size : 0; }
-
-void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t)
-{
-   const struct npt_d3d11_texture_aux *aux = tex_aux(t);
-   return aux ? npt_d3d_map_ring_slot_ptr(&aux->map_ring, 0) : NULL;
-}
 
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t, uint32_t slot)
 { const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_slot_offset(&aux->map_ring, slot) : 0; }
@@ -1522,6 +1535,17 @@ bool npt_d3d11_texture_map_find(struct npt_d3d11_texture *t,
    struct npt_d3d11_texture_aux *aux = tex_aux(t);
    return aux && npt_d3d_map_ring_find(&aux->map_ring, context, subresource,
                                        out);
+}
+
+void npt_d3d11_texture_map_set_byte_size(struct npt_d3d11_texture *t,
+                                         const void *context,
+                                         uint32_t subresource,
+                                         uint32_t byte_size)
+{
+   struct npt_d3d11_texture_aux *aux = tex_aux(t);
+   if (aux)
+      npt_d3d_map_ring_set_byte_size(&aux->map_ring, context, subresource,
+                                     byte_size);
 }
 
 void npt_d3d11_texture_map_close(struct npt_d3d11_texture *t,

@@ -71,6 +71,9 @@ enum npt_d3d_map_slot_choice {
    NPT_D3D_MAP_SLOT_ZERO,      /* sync MAP_RESOURCE */
    NPT_D3D_MAP_SLOT_CURRENT,   /* WRITE_NO_OVERWRITE */
    NPT_D3D_MAP_SLOT_NEXT,      /* WRITE_DISCARD */
+   /* Sync MAP_RESOURCE of one of several subresources: slot 0 unless
+    * another open Map holds it, then a free slot as for NEXT. */
+   NPT_D3D_MAP_SLOT_SYNC,
 };
 
 struct npt_d3d_map_ring {
@@ -142,6 +145,12 @@ npt_d3d_map_ring_slot_res_id(const struct npt_d3d_map_ring *r, uint32_t slot)
 bool npt_d3d_map_ring_open(struct npt_d3d_map_ring *r,
                            struct npt_d3d_map_record *rec,
                            enum npt_d3d_map_slot_choice choice);
+
+/* Records the byte size the open Map of (context, subresource) moves,
+ * once a sync Map has learned it. */
+void npt_d3d_map_ring_set_byte_size(struct npt_d3d_map_ring *r,
+                                    const void *context, uint32_t subresource,
+                                    uint32_t byte_size);
 
 /* Copies the open Map of (context, subresource) into *out; false if
  * there is none. */
@@ -353,15 +362,12 @@ bool npt_d3d11_texture_has_desc(const struct npt_d3d11_texture *t);
 bool npt_d3d11_texture_is_mappable(const struct npt_d3d11_texture *t);
 
 bool npt_d3d11_texture_ensure_map_shmem(struct npt_d3d11_texture *t);
-/* Slot 0's res_id (sync MAP_RESOURCE always lands on slot 0). */
-uint32_t npt_d3d11_texture_get_map_shmem_res_id(const struct npt_d3d11_texture *t);
 /* Per-slot res_id for async Unmap on the rename ring. */
 uint32_t npt_d3d11_texture_get_slot_shmem_res_id(const struct npt_d3d11_texture *t,
                                                  uint32_t slot);
 /* Total bytes currently allocated across active slots (informational). */
 uint32_t npt_d3d11_texture_get_shmem_size(const struct npt_d3d11_texture *t);
 uint32_t npt_d3d11_texture_get_slot_size(const struct npt_d3d11_texture *t);
-void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t);
 
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t,
                                        uint32_t slot);
@@ -381,6 +387,10 @@ bool npt_d3d11_texture_map_open(struct npt_d3d11_texture *t,
 bool npt_d3d11_texture_map_find(struct npt_d3d11_texture *t,
                                 const void *context, uint32_t subresource,
                                 struct npt_d3d_map_record *out);
+void npt_d3d11_texture_map_set_byte_size(struct npt_d3d11_texture *t,
+                                         const void *context,
+                                         uint32_t subresource,
+                                         uint32_t byte_size);
 void npt_d3d11_texture_map_close(struct npt_d3d11_texture *t,
                                  const void *context, uint32_t subresource,
                                  struct npt_ring *ring, uint32_t seqno);

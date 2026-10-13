@@ -320,12 +320,12 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
        * (defensive: shouldn't happen for 2D); fall through to sync. */
    }
 
-   /* Sync MAP_RESOURCE on slot 0; host MAP dispatcher reads from
-    * offset 0.  Cache the returned pitches for the next fast-path.  The
+   /* Sync MAP_RESOURCE, on slot 0 unless another subresource's open Map
+    * holds it.  Cache the returned pitches for the next fast-path.  The
     * Unmap's byte_size is filled in once the host's pitches are known;
     * access_flags=0 => Unmap reuses sync-MAP map_state. */
    if (!npt_d3d11_texture_map_open(t, key, Subresource,
-                                   NPT_D3D_MAP_SLOT_ZERO,
+                                   NPT_D3D_MAP_SLOT_SYNC,
                                    /*access_flags=*/0, /*byte_size=*/0,
                                    &slot))
       return NPT_E_OUTOFMEMORY;
@@ -344,10 +344,10 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
    HRESULT hr = npt_dispatch_resource_map(
       ring, context_id, resource_id, Subresource,
       npt_d3d11_map_to_access_flags(MapType), MapFlags,
-      npt_d3d11_texture_get_map_shmem_res_id(t),
+      npt_d3d11_texture_get_slot_shmem_res_id(t, slot),
       /*byte_size=*/per_slot,
       mip_rows, mip_d,
-      /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, 0),
+      /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, slot),
       &row_pitch, &depth_pitch, NULL);
 
    /* Bound Unmap memcpy at the host-pitch footprint.  Refuse if the
@@ -368,14 +368,13 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
       npt_d3d11_texture_map_close(t, key, Subresource, NULL, 0);
       return hr;
    }
-   npt_d3d11_texture_map_open(t, key, Subresource, NPT_D3D_MAP_SLOT_ZERO,
-                              /*access_flags=*/0, byte_size, &slot);
+   npt_d3d11_texture_map_set_byte_size(t, key, Subresource, byte_size);
 
    /* RowPitch is stable per (resource, subresource); pitch drift
     * would trip the byte_size > per_slot guard above. */
    npt_d3d11_texture_set_cached_pitches(t, row_pitch, depth_pitch);
 
-   pMappedResource->pData = npt_d3d11_texture_shmem_ptr(t);
+   pMappedResource->pData = npt_d3d11_texture_slot_ptr(t, slot);
    pMappedResource->RowPitch = row_pitch;
    pMappedResource->DepthPitch = depth_pitch;
    return NPT_S_OK;
@@ -419,31 +418,21 @@ ctx_Unmap_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource)
    if (!npt_d3d11_texture_map_find(t, key, Subresource, &rec))
       return;
 
+   /* A sync Map's slot goes in flight too: the host copies out of it
+    * at Unmap, after this returns. */
    struct npt_ring *ring = npt_com_self_ring(self);
    npt_d3d11_texture_slot_visible(t, rec.slot, ring);
    uint32_t seqno = 0;
-   if (rec.access_flags) {
-      npt_dispatch_resource_unmap_seqno(ring,
-         ((struct npt_com_base *)self)->base.id,
-         ((struct npt_com_base *)t)->base.id,
-         rec.subresource,
-         npt_d3d11_texture_get_slot_shmem_res_id(t, rec.slot),
-         rec.byte_size,
-         /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, rec.slot),
-         rec.access_flags,
-         &seqno);
-      npt_d3d11_texture_map_close(t, key, Subresource, ring, seqno);
-   } else {
-      npt_dispatch_resource_unmap(ring,
-         ((struct npt_com_base *)self)->base.id,
-         ((struct npt_com_base *)t)->base.id,
-         rec.subresource,
-         npt_d3d11_texture_get_slot_shmem_res_id(t, rec.slot),
-         rec.byte_size,
-         /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, rec.slot),
-         /*access_flags=*/0);
-      npt_d3d11_texture_map_close(t, key, Subresource, NULL, 0);
-   }
+   npt_dispatch_resource_unmap_seqno(ring,
+      ((struct npt_com_base *)self)->base.id,
+      ((struct npt_com_base *)t)->base.id,
+      rec.subresource,
+      npt_d3d11_texture_get_slot_shmem_res_id(t, rec.slot),
+      rec.byte_size,
+      /*shmem_offset=*/npt_d3d11_texture_slot_offset(t, rec.slot),
+      rec.access_flags,
+      &seqno);
+   npt_d3d11_texture_map_close(t, key, Subresource, ring, seqno);
 }
 
 /* Resources without a wrapper fall through to E_NOTIMPL / no-op. */
