@@ -4,9 +4,10 @@
  *
  * D3D12 DDI heaps + resources.  pfnCreateHeapAndResource triple-
  * dispatches to the inner device (CreateHeap / CreateCommittedResource /
- * CreatePlacedResource); residency is a no-op because the memory is UMA
- * and host-managed, and KM allocations exist only for presentable and
- * shared resources, via the shared-bridge blob export.
+ * CreatePlacedResource).  Residency DDIs are no-ops because the memory is
+ * host-managed; presentable resources get a shared-blob KM allocation and
+ * every other heap or committed resource a memory-less placeholder, so
+ * runtime-serviced residency calls have an allocation to name.
  *
  * pfnCalcPrivate{,Opened}HeapAndResourceSizes return a 16-byte struct by
  * value, so their ABI passes a hidden return-buffer pointer ahead of the

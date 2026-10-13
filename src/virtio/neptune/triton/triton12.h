@@ -378,10 +378,10 @@ void triton12InstallQueueDeviceFuncs0062(D3D12DDI_DEVICE_FUNCS_CORE_0062 *t);
 void triton12InstallPresentFuncs0062(D3D12DDI_COMMAND_LIST_FUNCS_3D_0062 *t);
 void triton12InstallListDeviceFuncs0062(D3D12DDI_DEVICE_FUNCS_CORE_0062 *t);
 void triton12InstallListFuncs0062(D3D12DDI_COMMAND_LIST_FUNCS_3D_0062 *t);
-/* _0080/_0074: the R7/R8 arg structs append fields the handlers never
- * read (mesh/amplification shader handles on the PSO, a sampler-feedback
- * mip region on the resource desc), so the existing bodies install
- * through their new pfn types; the seven new slots report "none". */
+/* _0080/_0074: the PSO args gain the mesh/amplification shader handles
+ * (read by the _0075 PSO create), the resource desc a sampler-feedback mip
+ * region the handlers never read; DispatchMesh and the mesh shader creates
+ * are forwarded and the remaining new slots report "none". */
 void triton12InstallPipelineFuncs0080(D3D12DDI_DEVICE_FUNCS_CORE_0080 *t);
 void triton12InstallResourceFuncs0080(D3D12DDI_DEVICE_FUNCS_CORE_0080 *t);
 void triton12InstallListDeviceFuncs0080(D3D12DDI_DEVICE_FUNCS_CORE_0080 *t);

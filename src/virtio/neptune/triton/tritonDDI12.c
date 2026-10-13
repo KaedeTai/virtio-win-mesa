@@ -296,7 +296,7 @@ triton12GetCaps(D3D12DDI_HADAPTER hAdapter, const D3D12DDIARG_GETCAPS *pArgs)
                                    : fl12_0 ? (UINT)D3D12DDI_3DPIPELINELEVEL_12_0
                                             : (UINT)D3D12DDI_3DPIPELINELEVEL_11_1;
 
-    if ((int)pArgs->Type == 1074 /* D3D12DDICAPS_TYPE_0081_3DPIPELINESUPPORT1 */) {
+    if ((int)pArgs->Type == D3D12DDICAPS_TYPE_0081_3DPIPELINESUPPORT1) {
         /* In/out struct, exempt from the zero-fill default: field 0 is
          * the runtime's input (HighestRuntimeSupportedFeatureLevel) and
          * field 1 our answer, where zero reads as "no pipeline". */
@@ -747,7 +747,7 @@ triton12GetCaps(D3D12DDI_HADAPTER hAdapter, const D3D12DDIARG_GETCAPS *pArgs)
                        pCaps->DerivativesInMeshAndAmplificationShaders,
                        OPTIONS9,
                        hc->options9.DerivativesInMeshAndAmplificationShadersSupported,
-                       FALSE, "mesh shader DDI not implemented");
+                       FALSE, "not validated against the host's mesh path");
             /* The API encoding (D3D12_WAVE_MMA_TIER_1_0 = 10) does not
              * exist in D3D12DDI_WAVE_MMA_TIER, which encodes only
              * NOT_SUPPORTED and 0_5_EXPERIMENTAL: the host value cannot
@@ -849,14 +849,16 @@ triton12GetCaps(D3D12DDI_HADAPTER hAdapter, const D3D12DDIARG_GETCAPS *pArgs)
         break;
     }
     case D3D12DDICAPS_TYPE_EXECUTECOMMANDLISTS_PARALLELISM: {
-        /* pData = BOOL.  Every queue's ExecuteCommandLists serialises on
-         * the device QueueLock and one ring (npt_entry_d3d12.c), so the
-         * runtime gains nothing from calling it in parallel. */
+        /* pData = BOOL.  Every ExecuteCommandLists first publishes all
+         * threads' staged commands into the one ring
+         * (npt_overrides_d3d12_queue.c), so concurrent calls serialise
+         * there and the runtime gains nothing from issuing them in
+         * parallel. */
         if (pArgs->DataSize >= sizeof(BOOL)) {
             BOOL *pCaps = (BOOL *)pArgs->pData;
             TRITON_CAP_TODO("d3d12", "EXECUTECOMMANDLISTS_PARALLELISM", *pCaps,
                             FALSE, 0, FALSE,
-                            "ExecuteCommandLists is serialised on QueueLock + one ring");
+                            "ExecuteCommandLists serialises on the ring's stage flush");
         }
         break;
     }
@@ -1147,7 +1149,7 @@ triton12CheckMultisampleQualityLevels(D3D12DDI_HDEVICE hDevice,
     if (!p || !p->pDev)
         return;
     if (Flags & D3D12DDI_MULTISAMPLE_QUALITY_LEVEL_FLAG_TILED_RESOURCE)
-        return; /* no tiled resources */
+        return; /* no multisampled reserved resources */
     *pNumQualityLevels = t12MsaaQuality(p, Format, SampleCount);
 }
 
