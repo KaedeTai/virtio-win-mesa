@@ -1496,7 +1496,7 @@ npt_ring_create(struct npt_device *device,
    ring->direct_size = layout->buffer_size >> NPT_RING_DIRECT_ORDER;
    assert(ring->direct_size);
 
-   atomic_store_explicit(ring->head, 0, memory_order_relaxed);
+   atomic_store_explicit((volatile atomic_uint *)ring->head, 0, memory_order_relaxed);
    atomic_store_explicit(ring->tail, 0, memory_order_relaxed);
    atomic_store_explicit(ring->status, 0, memory_order_relaxed);
 
