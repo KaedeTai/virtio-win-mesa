@@ -79,8 +79,12 @@ typedef struct TRITON12_DEVICE
     UINT                         HostTiledTier;
     /* R4 (_0040+) creates command lists with no allocator; the host API
      * needs one at create, so each list type gets a device-level scratch
-     * allocator that only ever backs the empty create-then-close. */
+     * allocator that only ever backs the empty create-then-close.
+     * ScratchLock holds across that create and Close, which are host
+     * calls; it is separate from QueueLock so submissions never wait on
+     * a list create. */
     ID3D12CommandAllocator      *pScratchAlloc[TRITON12_POOL_TYPES];
+    CRITICAL_SECTION             ScratchLock;
     /* Escapes, runtime virtio context and residency requests on the
      * runtime's kernel device (tritonKm.h); its lock is QueueLock. */
     TRITON_KM                    Km;

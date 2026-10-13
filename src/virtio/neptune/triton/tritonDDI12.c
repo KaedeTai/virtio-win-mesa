@@ -101,6 +101,7 @@ triton12CreateDevice(D3D12DDI_HADAPTER hAdapter,
      * here rather than lazily on first queue create: CreateCommandQueue is
      * free-threaded, so a lazy init would race two queues into two locks. */
     InitializeCriticalSection(&p->QueueLock);
+    InitializeCriticalSection(&p->ScratchLock);
     p->QueueLockInit = TRUE;
     p->Km.pLock = &p->QueueLock;
 
@@ -133,6 +134,7 @@ triton12DestroyDevice(D3D12DDI_HDEVICE hDevice)
         p->QueueLockInit = FALSE;
         p->QueueCount = 0;
         DeleteCriticalSection(&p->QueueLock);
+        DeleteCriticalSection(&p->ScratchLock);
     }
     p->pAdapter = NULL;
 }

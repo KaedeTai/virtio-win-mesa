@@ -295,11 +295,11 @@ t12CreateCommandList0040(D3D12DDI_HDEVICE hDevice,
      * creating lists of the same type would therefore collide on a
      * shared scratch allocator and the second create would fail, which
      * surfaces much later as recording sent to an object the host never
-     * registered.  Hold the device lock across create+Close so the
+     * registered.  Hold ScratchLock across create+Close so the
      * scratch allocator backs one recording list at a time. */
     const UINT si = t12PoolIndex(type);
     HRESULT hr;
-    EnterCriticalSection(&p->QueueLock);
+    EnterCriticalSection(&p->ScratchLock);
     if (!p->pScratchAlloc[si]) {
         HRESULT ahr = ID3D12Device_CreateCommandAllocator(
             p->pDev, type, &IID_ID3D12CommandAllocator,
@@ -308,7 +308,7 @@ t12CreateCommandList0040(D3D12DDI_HDEVICE hDevice,
             p->pScratchAlloc[si] = NULL;
     }
     if (!p->pScratchAlloc[si]) {
-        LeaveCriticalSection(&p->QueueLock);
+        LeaveCriticalSection(&p->ScratchLock);
         return E_OUTOFMEMORY;
     }
     hr = ID3D12Device_CreateCommandList(
@@ -316,7 +316,7 @@ t12CreateCommandList0040(D3D12DDI_HDEVICE hDevice,
         &IID_ID3D12GraphicsCommandList, (void **)&l->pList);
     if (SUCCEEDED(hr))
         ID3D12GraphicsCommandList_Close(l->pList);
-    LeaveCriticalSection(&p->QueueLock);
+    LeaveCriticalSection(&p->ScratchLock);
 
     TR_LOG_HR(hr, "12.CreateCommandList(0040): type=%d qflags=0x%x id=%llu -> 0x%08lx",
            (int)pArgs->Type, (unsigned)pArgs->QueueFlags,
