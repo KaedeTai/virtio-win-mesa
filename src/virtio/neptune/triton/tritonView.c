@@ -131,96 +131,145 @@ tritonCalcPrivateRenderTargetViewSize(D3D10DDI_HDEVICE hDevice,
     return sizeof(TRITON_RTVIEW);
 }
 
-void APIENTRY
-tritonCreateRenderTargetView(D3D10DDI_HDEVICE hDevice,
-                             const D3D10DDIARG_CREATERENDERTARGETVIEW *pArgs,
-                             D3D10DDI_HRENDERTARGETVIEW hRTV,
-                             D3D10DDI_HRTRENDERTARGETVIEW hRTRTV)
+/* The 11.x create args are a prefix of the WDDM 2.0 ones: the Tex2D member
+ * only gains a trailing PlaneSlice, and no other member reaches past it, so
+ * the bytes before PlaneSlice carry every 11.x field. */
+#define TRITON_RTV_ARGS11_BYTES offsetof(D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW, Tex2D.PlaneSlice)
+_Static_assert(offsetof(D3D10DDIARG_CREATERENDERTARGETVIEW, Tex2D) == offsetof(D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW, Tex2D) &&
+               offsetof(D3D10DDIARG_CREATERENDERTARGETVIEW, Tex2D) + sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex2D) ==
+                   TRITON_RTV_ARGS11_BYTES &&
+               TRITON_RTV_ARGS11_BYTES <= sizeof(D3D10DDIARG_CREATERENDERTARGETVIEW),
+               "RTV create args are not prefix-compatible");
+_Static_assert(sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Buffer) <= sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex2D),
+               "RTV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex1D) <= sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex2D),
+               "RTV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex3D) <= sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex2D),
+               "RTV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->TexCube) <= sizeof(((D3D10DDIARG_CREATERENDERTARGETVIEW *)0)->Tex2D),
+               "RTV create arg union outgrew Tex2D");
+
+static BOOL
+tritonBuildRtvDesc(const TRITON_RESOURCE *r, const D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW *a,
+                   D3D11_RENDER_TARGET_VIEW_DESC1 *d)
 {
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RTVIEW   v  = (PTRITON_RTVIEW)(hRTV.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) {
-        TR_LOG("CreateRenderTargetView: missing handle (dev=%p view=%p res=%p)",
-               (void *)pD, (void *)v, (void *)(r ? r->pResource : NULL));
-        tritonSetCreateError(pD, E_INVALIDARG);
-        return;
-    }
-
-    v->pResource           = r;
-    v->pRTV                = NULL;
-
-    D3D11_RENDER_TARGET_VIEW_DESC d = {};
-    d.Format = pArgs->Format;
-
+    memset(d, 0, sizeof(*d));
+    d->Format = a->Format;
     const BOOL fIsArray = (r->ArraySize > 1);
-
-    switch (pArgs->ResourceDimension) {
+    switch (a->ResourceDimension) {
     case D3D10DDIRESOURCE_BUFFER:
-        d.ViewDimension = D3D11_RTV_DIMENSION_BUFFER;
-        d.Buffer.FirstElement = pArgs->Buffer.FirstElement;
-        d.Buffer.NumElements  = pArgs->Buffer.NumElements;
+        d->ViewDimension = D3D11_RTV_DIMENSION_BUFFER;
+        d->Buffer.FirstElement = a->Buffer.FirstElement;
+        d->Buffer.NumElements  = a->Buffer.NumElements;
         break;
     case D3D10DDIRESOURCE_TEXTURE1D:
         if (fIsArray) {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
-            d.Texture1DArray.MipSlice        = pArgs->Tex1D.MipSlice;
-            d.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
-            d.Texture1DArray.ArraySize       = pArgs->Tex1D.ArraySize;
+            d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
+            d->Texture1DArray.MipSlice        = a->Tex1D.MipSlice;
+            d->Texture1DArray.FirstArraySlice = a->Tex1D.FirstArraySlice;
+            d->Texture1DArray.ArraySize       = a->Tex1D.ArraySize;
         } else {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
-            d.Texture1D.MipSlice = pArgs->Tex1D.MipSlice;
+            d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
+            d->Texture1D.MipSlice = a->Tex1D.MipSlice;
         }
         break;
     case D3D10DDIRESOURCE_TEXTURE2D:
         if (r->SampleDesc.Count > 1) {
             if (fIsArray) {
-                d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
-                d.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-                d.Texture2DMSArray.ArraySize       = pArgs->Tex2D.ArraySize;
+                d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
+                d->Texture2DMSArray.FirstArraySlice = a->Tex2D.FirstArraySlice;
+                d->Texture2DMSArray.ArraySize       = a->Tex2D.ArraySize;
             } else {
-                d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+                d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
             }
         } else if (fIsArray) {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-            d.Texture2DArray.MipSlice        = pArgs->Tex2D.MipSlice;
-            d.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-            d.Texture2DArray.ArraySize       = pArgs->Tex2D.ArraySize;
+            d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+            d->Texture2DArray.MipSlice        = a->Tex2D.MipSlice;
+            d->Texture2DArray.FirstArraySlice = a->Tex2D.FirstArraySlice;
+            d->Texture2DArray.ArraySize       = a->Tex2D.ArraySize;
+            d->Texture2DArray.PlaneSlice      = a->Tex2D.PlaneSlice;
         } else {
-            d.ViewDimension       = D3D11_RTV_DIMENSION_TEXTURE2D;
-            d.Texture2D.MipSlice  = pArgs->Tex2D.MipSlice;
+            d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+            d->Texture2D.MipSlice    = a->Tex2D.MipSlice;
+            d->Texture2D.PlaneSlice  = a->Tex2D.PlaneSlice;
         }
         break;
     case D3D10DDIRESOURCE_TEXTURE3D:
-        d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
-        d.Texture3D.MipSlice    = pArgs->Tex3D.MipSlice;
-        d.Texture3D.FirstWSlice = pArgs->Tex3D.FirstW;
-        d.Texture3D.WSize       = pArgs->Tex3D.WSize;
+        d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
+        d->Texture3D.MipSlice    = a->Tex3D.MipSlice;
+        d->Texture3D.FirstWSlice = a->Tex3D.FirstW;
+        d->Texture3D.WSize       = a->Tex3D.WSize;
         break;
     case D3D10DDIRESOURCE_TEXTURECUBE:
-        d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-        d.Texture2DArray.MipSlice        = pArgs->TexCube.MipSlice;
-        d.Texture2DArray.FirstArraySlice = pArgs->TexCube.FirstArraySlice;
-        d.Texture2DArray.ArraySize       = pArgs->TexCube.ArraySize;
+        d->ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+        d->Texture2DArray.MipSlice        = a->TexCube.MipSlice;
+        d->Texture2DArray.FirstArraySlice = a->TexCube.FirstArraySlice;
+        d->Texture2DArray.ArraySize       = a->TexCube.ArraySize;
         break;
     default:
-        TR_LOG("CreateRenderTargetView: unknown dimension %d",
-               pArgs->ResourceDimension);
+        TR_LOG("CreateRenderTargetView: unknown dimension %d", a->ResourceDimension);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Views are created through the 11.3 *View1 call when the host exposes it,
+ * so PlaneSlice reaches it; otherwise through the base call, which takes the
+ * DESC1 with its trailing PlaneSlice fields dropped (DESC is a prefix of
+ * DESC1 member by member). */
+static void
+tritonCreateRtvCommon(PTRITON_DEVICE pD, TRITON_RTVIEW *v, const D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW *a)
+{
+    PTRITON_RESOURCE r = (PTRITON_RESOURCE)(a->hDrvResource.pDrvPrivate);
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
+    v->pResource = r;
+    v->pRTV = NULL;
+
+    D3D11_RENDER_TARGET_VIEW_DESC1 d;
+    if (!tritonBuildRtvDesc(r, a, &d)) {
         tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
-
-    v->fDesc1 = FALSE;
-    v->Desc   = d;
-    HRESULT hr = ID3D11Device1_CreateRenderTargetView(
-        pD->pDev1, r->pResource, &d, &v->pRTV);
-    if (FAILED(hr)) {
-        TR_LOG("CreateRenderTargetView: failed hr=0x%08lx", hr);
+    HRESULT hr;
+    if (pD->pDev3) {
+        ID3D11RenderTargetView1 *p1 = NULL;
+        v->fDesc1 = TRUE;
+        v->Desc1  = d;
+        hr = ID3D11Device3_CreateRenderTargetView1(pD->pDev3, r->pResource, &d, &p1);
+        v->pRTV = (ID3D11RenderTargetView *)p1;
+    } else {
+        v->fDesc1 = FALSE;
+        memcpy(&v->Desc, &d, sizeof(v->Desc));
+        hr = ID3D11Device1_CreateRenderTargetView(pD->pDev1, r->pResource, &v->Desc, &v->pRTV);
+    }
+    if (FAILED(hr) || !v->pRTV) {
+        TR_LOG("CreateRenderTargetView: 0x%08lx", hr);
         v->pRTV = NULL;
         tritonSetCreateError(pD, hr);
         return;
     }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_RTV);
+}
+
+void APIENTRY
+tritonCreateRenderTargetView(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_CREATERENDERTARGETVIEW *pArgs,
+                             D3D10DDI_HRENDERTARGETVIEW hView, D3D10DDI_HRTRENDERTARGETVIEW hRTView)
+{
+    (void)hRTView;
+    D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW a;
+    memset(&a, 0, sizeof(a));
+    memcpy(&a, pArgs, TRITON_RTV_ARGS11_BYTES);
+    tritonCreateRtvCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                          (TRITON_RTVIEW *)hView.pDrvPrivate, &a);
+}
+
+void APIENTRY
+tritonCreateRenderTargetView_WDDM2_0(D3D10DDI_HDEVICE hDevice, const D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW *pArgs,
+                                     D3D10DDI_HRENDERTARGETVIEW hView, D3D10DDI_HRTRENDERTARGETVIEW hRTView)
+{
+    (void)hRTView;
+    tritonCreateRtvCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                          (TRITON_RTVIEW *)hView.pDrvPrivate, pArgs);
 }
 
 void APIENTRY
@@ -342,97 +391,164 @@ tritonCalcPrivateSRVSize(D3D10DDI_HDEVICE hDev, const D3D11DDIARG_CREATESHADERRE
     return sizeof(TRITON_SRVIEW);
 }
 
-void APIENTRY
-tritonCreateSRV(D3D10DDI_HDEVICE hDevice,
-                const D3D11DDIARG_CREATESHADERRESOURCEVIEW *pArgs,
-                D3D10DDI_HSHADERRESOURCEVIEW hSRV,
-                D3D10DDI_HRTSHADERRESOURCEVIEW hRTSRV)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_SRVIEW   v  = (PTRITON_SRVIEW)(hSRV.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
-    v->pResource = r;
-    v->pSRV      = NULL;
+/* The 11.x create args are a prefix of the WDDM 2.0 ones: the Tex2D member
+ * only gains a trailing PlaneSlice, and no other member reaches past it, so
+ * the bytes before PlaneSlice carry every 11.x field. */
+#define TRITON_SRV_ARGS11_BYTES offsetof(D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW, Tex2D.PlaneSlice)
+_Static_assert(offsetof(D3D11DDIARG_CREATESHADERRESOURCEVIEW, Tex2D) == offsetof(D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW, Tex2D) &&
+               offsetof(D3D11DDIARG_CREATESHADERRESOURCEVIEW, Tex2D) + sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex2D) ==
+                   TRITON_SRV_ARGS11_BYTES &&
+               TRITON_SRV_ARGS11_BYTES <= sizeof(D3D11DDIARG_CREATESHADERRESOURCEVIEW),
+               "SRV create args are not prefix-compatible");
+_Static_assert(sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Buffer) <= sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex2D),
+               "SRV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex1D) <= sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex2D),
+               "SRV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex3D) <= sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex2D),
+               "SRV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->TexCube) <= sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex2D),
+               "SRV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->BufferEx) <= sizeof(((D3D11DDIARG_CREATESHADERRESOURCEVIEW *)0)->Tex2D),
+               "SRV create arg union outgrew Tex2D");
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC d = {};
-    d.Format = pArgs->Format;
-    const BOOL fIsArray = (r->ArraySize > 1);
+static BOOL
+tritonBuildSrvDesc(const TRITON_RESOURCE *r, const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *a,
+                   D3D11_SHADER_RESOURCE_VIEW_DESC1 *d)
+{
+    memset(d, 0, sizeof(*d));
+    d->Format = a->Format;
+    const BOOL fIsArray     = (r->ArraySize > 1);
     const BOOL fIsCubeArray = (r->ArraySize > 6);
-    switch (pArgs->ResourceDimension) {
+    switch (a->ResourceDimension) {
     case D3D10DDIRESOURCE_BUFFER:
-        d.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        d.Buffer.FirstElement = pArgs->Buffer.FirstElement;
-        d.Buffer.NumElements  = pArgs->Buffer.NumElements;
+        d->ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+        d->Buffer.FirstElement = a->Buffer.FirstElement;
+        d->Buffer.NumElements  = a->Buffer.NumElements;
         break;
     case D3D11DDIRESOURCE_BUFFEREX:
-        d.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
-        d.BufferEx.FirstElement = pArgs->BufferEx.FirstElement;
-        d.BufferEx.NumElements  = pArgs->BufferEx.NumElements;
-        d.BufferEx.Flags        = pArgs->BufferEx.Flags;
+        d->ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+        d->BufferEx.FirstElement = a->BufferEx.FirstElement;
+        d->BufferEx.NumElements  = a->BufferEx.NumElements;
+        d->BufferEx.Flags        = a->BufferEx.Flags;
         break;
     case D3D10DDIRESOURCE_TEXTURE1D:
         if (fIsArray) {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
-            d.Texture1DArray.MostDetailedMip = pArgs->Tex1D.MostDetailedMip;
-            d.Texture1DArray.MipLevels       = pArgs->Tex1D.MipLevels;
-            d.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
-            d.Texture1DArray.ArraySize       = pArgs->Tex1D.ArraySize;
+            d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
+            d->Texture1DArray.MostDetailedMip = a->Tex1D.MostDetailedMip;
+            d->Texture1DArray.MipLevels       = a->Tex1D.MipLevels;
+            d->Texture1DArray.FirstArraySlice = a->Tex1D.FirstArraySlice;
+            d->Texture1DArray.ArraySize       = a->Tex1D.ArraySize;
         } else {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-            d.Texture1D.MostDetailedMip = pArgs->Tex1D.MostDetailedMip;
-            d.Texture1D.MipLevels       = pArgs->Tex1D.MipLevels;
+            d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
+            d->Texture1D.MostDetailedMip = a->Tex1D.MostDetailedMip;
+            d->Texture1D.MipLevels       = a->Tex1D.MipLevels;
         }
         break;
     case D3D10DDIRESOURCE_TEXTURE2D:
         if (r->SampleDesc.Count > 1) {
             if (fIsArray) {
-                d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
-                d.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-                d.Texture2DMSArray.ArraySize       = pArgs->Tex2D.ArraySize;
+                d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
+                d->Texture2DMSArray.FirstArraySlice = a->Tex2D.FirstArraySlice;
+                d->Texture2DMSArray.ArraySize       = a->Tex2D.ArraySize;
             } else {
-                d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+                d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
             }
         } else if (fIsArray) {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-            d.Texture2DArray.MostDetailedMip = pArgs->Tex2D.MostDetailedMip;
-            d.Texture2DArray.MipLevels       = pArgs->Tex2D.MipLevels;
-            d.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-            d.Texture2DArray.ArraySize       = pArgs->Tex2D.ArraySize;
+            d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+            d->Texture2DArray.MostDetailedMip = a->Tex2D.MostDetailedMip;
+            d->Texture2DArray.MipLevels       = a->Tex2D.MipLevels;
+            d->Texture2DArray.FirstArraySlice = a->Tex2D.FirstArraySlice;
+            d->Texture2DArray.ArraySize       = a->Tex2D.ArraySize;
+            d->Texture2DArray.PlaneSlice      = a->Tex2D.PlaneSlice;
         } else {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-            d.Texture2D.MostDetailedMip = pArgs->Tex2D.MostDetailedMip;
-            d.Texture2D.MipLevels       = pArgs->Tex2D.MipLevels;
+            d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+            d->Texture2D.MostDetailedMip = a->Tex2D.MostDetailedMip;
+            d->Texture2D.MipLevels       = a->Tex2D.MipLevels;
+            d->Texture2D.PlaneSlice      = a->Tex2D.PlaneSlice;
         }
         break;
     case D3D10DDIRESOURCE_TEXTURE3D:
-        d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-        d.Texture3D.MostDetailedMip = pArgs->Tex3D.MostDetailedMip;
-        d.Texture3D.MipLevels       = pArgs->Tex3D.MipLevels;
+        d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+        d->Texture3D.MostDetailedMip = a->Tex3D.MostDetailedMip;
+        d->Texture3D.MipLevels       = a->Tex3D.MipLevels;
         break;
     case D3D10DDIRESOURCE_TEXTURECUBE:
         if (fIsCubeArray) {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-            d.TextureCubeArray.MostDetailedMip = pArgs->TexCube.MostDetailedMip;
-            d.TextureCubeArray.MipLevels       = pArgs->TexCube.MipLevels;
-            d.TextureCubeArray.First2DArrayFace= pArgs->TexCube.First2DArrayFace;
-            d.TextureCubeArray.NumCubes        = pArgs->TexCube.NumCubes;
+            d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
+            d->TextureCubeArray.MostDetailedMip = a->TexCube.MostDetailedMip;
+            d->TextureCubeArray.MipLevels       = a->TexCube.MipLevels;
+            d->TextureCubeArray.First2DArrayFace= a->TexCube.First2DArrayFace;
+            d->TextureCubeArray.NumCubes        = a->TexCube.NumCubes;
         } else {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-            d.TextureCube.MostDetailedMip = pArgs->TexCube.MostDetailedMip;
-            d.TextureCube.MipLevels       = pArgs->TexCube.MipLevels;
+            d->ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+            d->TextureCube.MostDetailedMip = a->TexCube.MostDetailedMip;
+            d->TextureCube.MipLevels       = a->TexCube.MipLevels;
         }
         break;
     default:
-        TR_LOG("CreateSRV: unknown dimension %d", pArgs->ResourceDimension);
+        TR_LOG("CreateSRV: unknown dimension %d", a->ResourceDimension);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Views are created through the 11.3 *View1 call when the host exposes it,
+ * so PlaneSlice reaches it; otherwise through the base call, which takes the
+ * DESC1 with its trailing PlaneSlice fields dropped (DESC is a prefix of
+ * DESC1 member by member). */
+static void
+tritonCreateSrvCommon(PTRITON_DEVICE pD, TRITON_SRVIEW *v, const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *a)
+{
+    PTRITON_RESOURCE r = (PTRITON_RESOURCE)(a->hDrvResource.pDrvPrivate);
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
+    v->pResource = r;
+    v->pSRV = NULL;
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC1 d;
+    if (!tritonBuildSrvDesc(r, a, &d)) {
         tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
-    v->fDesc1 = FALSE;
-    v->Desc   = d;
-    HRESULT hr = ID3D11Device1_CreateShaderResourceView(pD->pDev1, r->pResource, &d, &v->pSRV);
-    if (FAILED(hr)) { TR_LOG("CreateSRV: 0x%08lx", hr); v->pSRV = NULL; tritonSetCreateError(pD, hr); return; }
+    HRESULT hr;
+    if (pD->pDev3) {
+        ID3D11ShaderResourceView1 *p1 = NULL;
+        v->fDesc1 = TRUE;
+        v->Desc1  = d;
+        hr = ID3D11Device3_CreateShaderResourceView1(pD->pDev3, r->pResource, &d, &p1);
+        v->pSRV = (ID3D11ShaderResourceView *)p1;
+    } else {
+        v->fDesc1 = FALSE;
+        memcpy(&v->Desc, &d, sizeof(v->Desc));
+        hr = ID3D11Device1_CreateShaderResourceView(pD->pDev1, r->pResource, &v->Desc, &v->pSRV);
+    }
+    if (FAILED(hr) || !v->pSRV) {
+        TR_LOG("CreateSRV: 0x%08lx", hr);
+        v->pSRV = NULL;
+        tritonSetCreateError(pD, hr);
+        return;
+    }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_SRV);
+}
+
+void APIENTRY
+tritonCreateSRV(D3D10DDI_HDEVICE hDevice, const D3D11DDIARG_CREATESHADERRESOURCEVIEW *pArgs,
+                D3D10DDI_HSHADERRESOURCEVIEW hView, D3D10DDI_HRTSHADERRESOURCEVIEW hRTView)
+{
+    (void)hRTView;
+    D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW a;
+    memset(&a, 0, sizeof(a));
+    memcpy(&a, pArgs, TRITON_SRV_ARGS11_BYTES);
+    tritonCreateSrvCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                          (TRITON_SRVIEW *)hView.pDrvPrivate, &a);
+}
+
+void APIENTRY
+tritonCreateSRV_WDDM2_0(D3D10DDI_HDEVICE hDevice, const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *pArgs,
+                        D3D10DDI_HSHADERRESOURCEVIEW hView, D3D10DDI_HRTSHADERRESOURCEVIEW hRTView)
+{
+    (void)hRTView;
+    tritonCreateSrvCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                          (TRITON_SRVIEW *)hView.pDrvPrivate, pArgs);
 }
 
 void APIENTRY
@@ -536,68 +652,131 @@ tritonCalcPrivateUAVSize(D3D10DDI_HDEVICE hDev, const D3D11DDIARG_CREATEUNORDERE
     return sizeof(TRITON_UAVIEW);
 }
 
-void APIENTRY
-tritonCreateUAV(D3D10DDI_HDEVICE hDevice,
-                const D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs,
-                D3D11DDI_HUNORDEREDACCESSVIEW hUAV,
-                D3D11DDI_HRTUNORDEREDACCESSVIEW hRTUAV)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_UAVIEW   v  = (PTRITON_UAVIEW)(hUAV.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
-    v->pResource = r;
-    v->pUAV      = NULL;
+/* The 11.x create args are a prefix of the WDDM 2.0 ones: the Tex2D member
+ * only gains a trailing PlaneSlice, and no other member reaches past it, so
+ * the bytes before PlaneSlice carry every 11.x field. */
+#define TRITON_UAV_ARGS11_BYTES offsetof(D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW, Tex2D.PlaneSlice)
+_Static_assert(offsetof(D3D11DDIARG_CREATEUNORDEREDACCESSVIEW, Tex2D) == offsetof(D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW, Tex2D) &&
+               offsetof(D3D11DDIARG_CREATEUNORDEREDACCESSVIEW, Tex2D) + sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Tex2D) ==
+                   TRITON_UAV_ARGS11_BYTES &&
+               TRITON_UAV_ARGS11_BYTES <= sizeof(D3D11DDIARG_CREATEUNORDEREDACCESSVIEW),
+               "UAV create args are not prefix-compatible");
+_Static_assert(sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Buffer) <= sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Tex2D),
+               "UAV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Tex1D) <= sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Tex2D),
+               "UAV create arg union outgrew Tex2D");
+_Static_assert(sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Tex3D) <= sizeof(((D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *)0)->Tex2D),
+               "UAV create arg union outgrew Tex2D");
 
-    D3D11_UNORDERED_ACCESS_VIEW_DESC d = {};
-    d.Format = pArgs->Format;
+static BOOL
+tritonBuildUavDesc(const TRITON_RESOURCE *r, const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *a,
+                   D3D11_UNORDERED_ACCESS_VIEW_DESC1 *d)
+{
+    memset(d, 0, sizeof(*d));
+    d->Format = a->Format;
     const BOOL fIsArray = (r->ArraySize > 1);
-    switch (pArgs->ResourceDimension) {
+    switch (a->ResourceDimension) {
     case D3D10DDIRESOURCE_BUFFER:
     case D3D11DDIRESOURCE_BUFFEREX:
-        d.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-        d.Buffer.FirstElement = pArgs->Buffer.FirstElement;
-        d.Buffer.NumElements  = pArgs->Buffer.NumElements;
-        d.Buffer.Flags        = pArgs->Buffer.Flags;
+        d->ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        d->Buffer.FirstElement = a->Buffer.FirstElement;
+        d->Buffer.NumElements  = a->Buffer.NumElements;
+        d->Buffer.Flags        = a->Buffer.Flags;
         break;
     case D3D10DDIRESOURCE_TEXTURE1D:
         if (fIsArray) {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
-            d.Texture1DArray.MipSlice        = pArgs->Tex1D.MipSlice;
-            d.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
-            d.Texture1DArray.ArraySize       = pArgs->Tex1D.ArraySize;
+            d->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
+            d->Texture1DArray.MipSlice        = a->Tex1D.MipSlice;
+            d->Texture1DArray.FirstArraySlice = a->Tex1D.FirstArraySlice;
+            d->Texture1DArray.ArraySize       = a->Tex1D.ArraySize;
         } else {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
-            d.Texture1D.MipSlice = pArgs->Tex1D.MipSlice;
+            d->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
+            d->Texture1D.MipSlice = a->Tex1D.MipSlice;
         }
         break;
     case D3D10DDIRESOURCE_TEXTURE2D:
         if (fIsArray) {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
-            d.Texture2DArray.MipSlice        = pArgs->Tex2D.MipSlice;
-            d.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-            d.Texture2DArray.ArraySize       = pArgs->Tex2D.ArraySize;
+            d->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+            d->Texture2DArray.MipSlice        = a->Tex2D.MipSlice;
+            d->Texture2DArray.FirstArraySlice = a->Tex2D.FirstArraySlice;
+            d->Texture2DArray.ArraySize       = a->Tex2D.ArraySize;
+            d->Texture2DArray.PlaneSlice      = a->Tex2D.PlaneSlice;
         } else {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-            d.Texture2D.MipSlice = pArgs->Tex2D.MipSlice;
+            d->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+            d->Texture2D.MipSlice    = a->Tex2D.MipSlice;
+            d->Texture2D.PlaneSlice  = a->Tex2D.PlaneSlice;
         }
         break;
     case D3D10DDIRESOURCE_TEXTURE3D:
-        d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
-        d.Texture3D.MipSlice    = pArgs->Tex3D.MipSlice;
-        d.Texture3D.FirstWSlice = pArgs->Tex3D.FirstW;
-        d.Texture3D.WSize       = pArgs->Tex3D.WSize;
+        d->ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
+        d->Texture3D.MipSlice    = a->Tex3D.MipSlice;
+        d->Texture3D.FirstWSlice = a->Tex3D.FirstW;
+        d->Texture3D.WSize       = a->Tex3D.WSize;
         break;
     default:
-        TR_LOG("CreateUAV: unknown dimension %d", pArgs->ResourceDimension);
+        TR_LOG("CreateUAV: unknown dimension %d", a->ResourceDimension);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Views are created through the 11.3 *View1 call when the host exposes it,
+ * so PlaneSlice reaches it; otherwise through the base call, which takes the
+ * DESC1 with its trailing PlaneSlice fields dropped (DESC is a prefix of
+ * DESC1 member by member). */
+static void
+tritonCreateUavCommon(PTRITON_DEVICE pD, TRITON_UAVIEW *v, const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *a)
+{
+    PTRITON_RESOURCE r = (PTRITON_RESOURCE)(a->hDrvResource.pDrvPrivate);
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
+    v->pResource = r;
+    v->pUAV = NULL;
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC1 d;
+    if (!tritonBuildUavDesc(r, a, &d)) {
         tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
-    v->fDesc1 = FALSE;
-    v->Desc   = d;
-    HRESULT hr = ID3D11Device1_CreateUnorderedAccessView(pD->pDev1, r->pResource, &d, &v->pUAV);
-    if (FAILED(hr)) { TR_LOG("CreateUAV: 0x%08lx", hr); v->pUAV = NULL; tritonSetCreateError(pD, hr); return; }
+    HRESULT hr;
+    if (pD->pDev3) {
+        ID3D11UnorderedAccessView1 *p1 = NULL;
+        v->fDesc1 = TRUE;
+        v->Desc1  = d;
+        hr = ID3D11Device3_CreateUnorderedAccessView1(pD->pDev3, r->pResource, &d, &p1);
+        v->pUAV = (ID3D11UnorderedAccessView *)p1;
+    } else {
+        v->fDesc1 = FALSE;
+        memcpy(&v->Desc, &d, sizeof(v->Desc));
+        hr = ID3D11Device1_CreateUnorderedAccessView(pD->pDev1, r->pResource, &v->Desc, &v->pUAV);
+    }
+    if (FAILED(hr) || !v->pUAV) {
+        TR_LOG("CreateUAV: 0x%08lx", hr);
+        v->pUAV = NULL;
+        tritonSetCreateError(pD, hr);
+        return;
+    }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_UAV);
+}
+
+void APIENTRY
+tritonCreateUAV(D3D10DDI_HDEVICE hDevice, const D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs,
+                D3D11DDI_HUNORDEREDACCESSVIEW hView, D3D11DDI_HRTUNORDEREDACCESSVIEW hRTView)
+{
+    (void)hRTView;
+    D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW a;
+    memset(&a, 0, sizeof(a));
+    memcpy(&a, pArgs, TRITON_UAV_ARGS11_BYTES);
+    tritonCreateUavCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                          (TRITON_UAVIEW *)hView.pDrvPrivate, &a);
+}
+
+void APIENTRY
+tritonCreateUAV_WDDM2_0(D3D10DDI_HDEVICE hDevice, const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs,
+                        D3D11DDI_HUNORDEREDACCESSVIEW hView, D3D11DDI_HRTUNORDEREDACCESSVIEW hRTView)
+{
+    (void)hRTView;
+    tritonCreateUavCommon((PTRITON_DEVICE)hDevice.pDrvPrivate,
+                          (TRITON_UAVIEW *)hView.pDrvPrivate, pArgs);
 }
 
 void APIENTRY
@@ -700,139 +879,13 @@ tritonGenerateMips(D3D10DDI_HDEVICE hDevice, D3D10DDI_HSHADERRESOURCEVIEW hSRV)
     ID3D11DeviceContext1_GenerateMips(pD->pCtx1, v->pSRV);
 }
 
-/* ---------- WDDM 2.0 view-create variants ----------
- *
- * The WDDM 2.0 ARG structs add PlaneSlice (Tex2D only) for planar /
- * video formats. Forward through ID3D11Device3::Create*View1 with
- * PlaneSlice plumbed into the matching D3D11_*_VIEW_DESC1 union member.
- * The *View1 interfaces derive from their base view interface, so the
- * result is stored as the base pointer.
- *
- * Without Device3 the call routes through the 11.x create path instead;
- * PlaneSlice is dropped, which is harmless for non-planar formats. */
+/* ---------- WDDM 2.0 view sizes (creates are above) ---------- */
 
 SIZE_T APIENTRY
 tritonCalcPrivateSRVSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
                                  const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *pArgs)
 {
     return sizeof(TRITON_SRVIEW);
-}
-
-void APIENTRY
-tritonCreateSRV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
-                        const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *pArgs,
-                        D3D10DDI_HSHADERRESOURCEVIEW hSRV,
-                        D3D10DDI_HRTSHADERRESOURCEVIEW hRTSRV)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_SRVIEW   v  = (PTRITON_SRVIEW)(hSRV.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
-
-    if (!pD->pDev3) {
-        D3D11DDIARG_CREATESHADERRESOURCEVIEW a = {};
-        a.hDrvResource      = pArgs->hDrvResource;
-        a.Format            = pArgs->Format;
-        a.ResourceDimension = pArgs->ResourceDimension;
-        a.Buffer            = pArgs->Buffer;
-        a.Tex1D             = pArgs->Tex1D;
-        a.Tex2D.MostDetailedMip = pArgs->Tex2D.MostDetailedMip;
-        a.Tex2D.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-        a.Tex2D.MipLevels       = pArgs->Tex2D.MipLevels;
-        a.Tex2D.ArraySize       = pArgs->Tex2D.ArraySize;
-        a.Tex3D             = pArgs->Tex3D;
-        a.TexCube           = pArgs->TexCube;
-        a.BufferEx          = pArgs->BufferEx;
-        tritonCreateSRV(hDevice, &a, hSRV, hRTSRV);
-        return;
-    }
-
-    v->pResource = r;
-    v->pSRV      = NULL;
-
-    D3D11_SHADER_RESOURCE_VIEW_DESC1 d = {};
-    d.Format = pArgs->Format;
-    const BOOL fIsArray     = (r->ArraySize > 1);
-    const BOOL fIsCubeArray = (r->ArraySize > 6);
-    switch (pArgs->ResourceDimension) {
-    case D3D10DDIRESOURCE_BUFFER:
-        d.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-        d.Buffer.FirstElement = pArgs->Buffer.FirstElement;
-        d.Buffer.NumElements  = pArgs->Buffer.NumElements;
-        break;
-    case D3D11DDIRESOURCE_BUFFEREX:
-        d.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
-        d.BufferEx.FirstElement = pArgs->BufferEx.FirstElement;
-        d.BufferEx.NumElements  = pArgs->BufferEx.NumElements;
-        d.BufferEx.Flags        = pArgs->BufferEx.Flags;
-        break;
-    case D3D10DDIRESOURCE_TEXTURE1D:
-        if (fIsArray) {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1DARRAY;
-            d.Texture1DArray.MostDetailedMip = pArgs->Tex1D.MostDetailedMip;
-            d.Texture1DArray.MipLevels       = pArgs->Tex1D.MipLevels;
-            d.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
-            d.Texture1DArray.ArraySize       = pArgs->Tex1D.ArraySize;
-        } else {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
-            d.Texture1D.MostDetailedMip = pArgs->Tex1D.MostDetailedMip;
-            d.Texture1D.MipLevels       = pArgs->Tex1D.MipLevels;
-        }
-        break;
-    case D3D10DDIRESOURCE_TEXTURE2D:
-        if (r->SampleDesc.Count > 1) {
-            if (fIsArray) {
-                d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMSARRAY;
-                d.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-                d.Texture2DMSArray.ArraySize       = pArgs->Tex2D.ArraySize;
-            } else {
-                d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
-            }
-        } else if (fIsArray) {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-            d.Texture2DArray.MostDetailedMip = pArgs->Tex2D.MostDetailedMip;
-            d.Texture2DArray.MipLevels       = pArgs->Tex2D.MipLevels;
-            d.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-            d.Texture2DArray.ArraySize       = pArgs->Tex2D.ArraySize;
-            d.Texture2DArray.PlaneSlice      = pArgs->Tex2D.PlaneSlice;
-        } else {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-            d.Texture2D.MostDetailedMip = pArgs->Tex2D.MostDetailedMip;
-            d.Texture2D.MipLevels       = pArgs->Tex2D.MipLevels;
-            d.Texture2D.PlaneSlice      = pArgs->Tex2D.PlaneSlice;
-        }
-        break;
-    case D3D10DDIRESOURCE_TEXTURE3D:
-        d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-        d.Texture3D.MostDetailedMip = pArgs->Tex3D.MostDetailedMip;
-        d.Texture3D.MipLevels       = pArgs->Tex3D.MipLevels;
-        break;
-    case D3D10DDIRESOURCE_TEXTURECUBE:
-        if (fIsCubeArray) {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBEARRAY;
-            d.TextureCubeArray.MostDetailedMip = pArgs->TexCube.MostDetailedMip;
-            d.TextureCubeArray.MipLevels       = pArgs->TexCube.MipLevels;
-            d.TextureCubeArray.First2DArrayFace= pArgs->TexCube.First2DArrayFace;
-            d.TextureCubeArray.NumCubes        = pArgs->TexCube.NumCubes;
-        } else {
-            d.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-            d.TextureCube.MostDetailedMip = pArgs->TexCube.MostDetailedMip;
-            d.TextureCube.MipLevels       = pArgs->TexCube.MipLevels;
-        }
-        break;
-    default:
-        TR_LOG("CreateSRV_WDDM2_0: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetCreateError(pD, E_INVALIDARG);
-        return;
-    }
-    ID3D11ShaderResourceView1 *pView1 = NULL;
-    v->fDesc1 = TRUE;
-    v->Desc1  = d;
-    HRESULT hr = ID3D11Device3_CreateShaderResourceView1(
-        pD->pDev3, r->pResource, &d, &pView1);
-    if (FAILED(hr)) { TR_LOG("CreateSRV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetCreateError(pD, hr); }
-    v->pSRV = (ID3D11ShaderResourceView *)pView1;
-    if (v->pSRV) tritonResourceLinkView(r, &v->link, TRITON_VIEW_SRV);
 }
 
 SIZE_T APIENTRY
@@ -842,194 +895,11 @@ tritonCalcPrivateRenderTargetViewSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
     return sizeof(TRITON_RTVIEW);
 }
 
-void APIENTRY
-tritonCreateRenderTargetView_WDDM2_0(D3D10DDI_HDEVICE hDevice,
-                                     const D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW *pArgs,
-                                     D3D10DDI_HRENDERTARGETVIEW hRTV,
-                                     D3D10DDI_HRTRENDERTARGETVIEW hRTRTV)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RTVIEW   v  = (PTRITON_RTVIEW)(hRTV.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
-
-    if (!pD->pDev3) {
-        D3D10DDIARG_CREATERENDERTARGETVIEW a = {};
-        a.hDrvResource      = pArgs->hDrvResource;
-        a.Format            = pArgs->Format;
-        a.ResourceDimension = pArgs->ResourceDimension;
-        a.Buffer            = pArgs->Buffer;
-        a.Tex1D             = pArgs->Tex1D;
-        a.Tex2D.MipSlice        = pArgs->Tex2D.MipSlice;
-        a.Tex2D.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-        a.Tex2D.ArraySize       = pArgs->Tex2D.ArraySize;
-        a.Tex3D             = pArgs->Tex3D;
-        a.TexCube           = pArgs->TexCube;
-        tritonCreateRenderTargetView(hDevice, &a, hRTV, hRTRTV);
-        return;
-    }
-
-    v->pResource           = r;
-    v->pRTV                = NULL;
-
-    D3D11_RENDER_TARGET_VIEW_DESC1 d = {};
-    d.Format = pArgs->Format;
-    const BOOL fIsArray = (r->ArraySize > 1);
-    switch (pArgs->ResourceDimension) {
-    case D3D10DDIRESOURCE_BUFFER:
-        d.ViewDimension = D3D11_RTV_DIMENSION_BUFFER;
-        d.Buffer.FirstElement = pArgs->Buffer.FirstElement;
-        d.Buffer.NumElements  = pArgs->Buffer.NumElements;
-        break;
-    case D3D10DDIRESOURCE_TEXTURE1D:
-        if (fIsArray) {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1DARRAY;
-            d.Texture1DArray.MipSlice        = pArgs->Tex1D.MipSlice;
-            d.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
-            d.Texture1DArray.ArraySize       = pArgs->Tex1D.ArraySize;
-        } else {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
-            d.Texture1D.MipSlice = pArgs->Tex1D.MipSlice;
-        }
-        break;
-    case D3D10DDIRESOURCE_TEXTURE2D:
-        if (r->SampleDesc.Count > 1) {
-            if (fIsArray) {
-                d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMSARRAY;
-                d.Texture2DMSArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-                d.Texture2DMSArray.ArraySize       = pArgs->Tex2D.ArraySize;
-            } else {
-                d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
-            }
-        } else if (fIsArray) {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-            d.Texture2DArray.MipSlice        = pArgs->Tex2D.MipSlice;
-            d.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-            d.Texture2DArray.ArraySize       = pArgs->Tex2D.ArraySize;
-            d.Texture2DArray.PlaneSlice      = pArgs->Tex2D.PlaneSlice;
-        } else {
-            d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-            d.Texture2D.MipSlice    = pArgs->Tex2D.MipSlice;
-            d.Texture2D.PlaneSlice  = pArgs->Tex2D.PlaneSlice;
-        }
-        break;
-    case D3D10DDIRESOURCE_TEXTURE3D:
-        d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
-        d.Texture3D.MipSlice    = pArgs->Tex3D.MipSlice;
-        d.Texture3D.FirstWSlice = pArgs->Tex3D.FirstW;
-        d.Texture3D.WSize       = pArgs->Tex3D.WSize;
-        break;
-    case D3D10DDIRESOURCE_TEXTURECUBE:
-        d.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-        d.Texture2DArray.MipSlice        = pArgs->TexCube.MipSlice;
-        d.Texture2DArray.FirstArraySlice = pArgs->TexCube.FirstArraySlice;
-        d.Texture2DArray.ArraySize       = pArgs->TexCube.ArraySize;
-        break;
-    default:
-        TR_LOG("CreateRTV_WDDM2_0: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetCreateError(pD, E_INVALIDARG);
-        return;
-    }
-    ID3D11RenderTargetView1 *pView1 = NULL;
-    v->fDesc1 = TRUE;
-    v->Desc1  = d;
-    HRESULT hr = ID3D11Device3_CreateRenderTargetView1(
-        pD->pDev3, r->pResource, &d, &pView1);
-    if (FAILED(hr)) { TR_LOG("CreateRTV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetCreateError(pD, hr); }
-    v->pRTV = (ID3D11RenderTargetView *)pView1;
-    if (v->pRTV) tritonResourceLinkView(r, &v->link, TRITON_VIEW_RTV);
-}
-
 SIZE_T APIENTRY
 tritonCalcPrivateUAVSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
                                  const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs)
 {
     return sizeof(TRITON_UAVIEW);
-}
-
-void APIENTRY
-tritonCreateUAV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
-                        const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs,
-                        D3D11DDI_HUNORDEREDACCESSVIEW hUAV,
-                        D3D11DDI_HRTUNORDEREDACCESSVIEW hRTUAV)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_UAVIEW   v  = (PTRITON_UAVIEW)(hUAV.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
-
-    if (!pD->pDev3) {
-        D3D11DDIARG_CREATEUNORDEREDACCESSVIEW a = {};
-        a.hDrvResource      = pArgs->hDrvResource;
-        a.Format            = pArgs->Format;
-        a.ResourceDimension = pArgs->ResourceDimension;
-        a.Buffer            = pArgs->Buffer;
-        a.Tex1D             = pArgs->Tex1D;
-        a.Tex2D.MipSlice        = pArgs->Tex2D.MipSlice;
-        a.Tex2D.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-        a.Tex2D.ArraySize       = pArgs->Tex2D.ArraySize;
-        a.Tex3D             = pArgs->Tex3D;
-        tritonCreateUAV(hDevice, &a, hUAV, hRTUAV);
-        return;
-    }
-
-    v->pResource = r;
-    v->pUAV      = NULL;
-
-    D3D11_UNORDERED_ACCESS_VIEW_DESC1 d = {};
-    d.Format = pArgs->Format;
-    const BOOL fIsArray = (r->ArraySize > 1);
-    switch (pArgs->ResourceDimension) {
-    case D3D10DDIRESOURCE_BUFFER:
-    case D3D11DDIRESOURCE_BUFFEREX:
-        d.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-        d.Buffer.FirstElement = pArgs->Buffer.FirstElement;
-        d.Buffer.NumElements  = pArgs->Buffer.NumElements;
-        d.Buffer.Flags        = pArgs->Buffer.Flags;
-        break;
-    case D3D10DDIRESOURCE_TEXTURE1D:
-        if (fIsArray) {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1DARRAY;
-            d.Texture1DArray.MipSlice        = pArgs->Tex1D.MipSlice;
-            d.Texture1DArray.FirstArraySlice = pArgs->Tex1D.FirstArraySlice;
-            d.Texture1DArray.ArraySize       = pArgs->Tex1D.ArraySize;
-        } else {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
-            d.Texture1D.MipSlice = pArgs->Tex1D.MipSlice;
-        }
-        break;
-    case D3D10DDIRESOURCE_TEXTURE2D:
-        if (fIsArray) {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
-            d.Texture2DArray.MipSlice        = pArgs->Tex2D.MipSlice;
-            d.Texture2DArray.FirstArraySlice = pArgs->Tex2D.FirstArraySlice;
-            d.Texture2DArray.ArraySize       = pArgs->Tex2D.ArraySize;
-            d.Texture2DArray.PlaneSlice      = pArgs->Tex2D.PlaneSlice;
-        } else {
-            d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
-            d.Texture2D.MipSlice    = pArgs->Tex2D.MipSlice;
-            d.Texture2D.PlaneSlice  = pArgs->Tex2D.PlaneSlice;
-        }
-        break;
-    case D3D10DDIRESOURCE_TEXTURE3D:
-        d.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE3D;
-        d.Texture3D.MipSlice    = pArgs->Tex3D.MipSlice;
-        d.Texture3D.FirstWSlice = pArgs->Tex3D.FirstW;
-        d.Texture3D.WSize       = pArgs->Tex3D.WSize;
-        break;
-    default:
-        TR_LOG("CreateUAV_WDDM2_0: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetCreateError(pD, E_INVALIDARG);
-        return;
-    }
-    ID3D11UnorderedAccessView1 *pView1 = NULL;
-    v->fDesc1 = TRUE;
-    v->Desc1  = d;
-    HRESULT hr = ID3D11Device3_CreateUnorderedAccessView1(
-        pD->pDev3, r->pResource, &d, &pView1);
-    if (FAILED(hr)) { TR_LOG("CreateUAV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetCreateError(pD, hr); }
-    v->pUAV = (ID3D11UnorderedAccessView *)pView1;
-    if (v->pUAV) tritonResourceLinkView(r, &v->link, TRITON_VIEW_UAV);
 }
 
 /* WDDM 2.0 Flush(ContextType, FlushFlags).
