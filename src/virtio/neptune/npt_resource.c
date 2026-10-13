@@ -1028,6 +1028,23 @@ npt_dxgi_format_subresource_rows(DXGI_FORMAT fmt, uint32_t height)
    }
 }
 
+uint32_t
+npt_d3d11_texture_desc_mip_levels(const struct npt_d3d11_texture_desc *d)
+{
+   if (d->mip_levels)
+      return d->mip_levels;
+   /* MipLevels 0 asks for the full chain, down to 1x1x1. */
+   uint32_t extent = d->width;
+   if (d->height > extent) extent = d->height;
+   if (d->depth > extent) extent = d->depth;
+   uint32_t levels = 1;
+   while (extent > 1) {
+      extent >>= 1;
+      levels++;
+   }
+   return levels;
+}
+
 void
 npt_d3d11_texture_set_desc(struct npt_d3d11_texture *t,
                            const struct npt_d3d11_texture_desc *d)
@@ -1037,7 +1054,7 @@ npt_d3d11_texture_set_desc(struct npt_d3d11_texture *t,
    aux->width = d->width;
    aux->height = d->height ? d->height : 1;
    aux->depth = d->depth ? d->depth : 1;
-   aux->mip_levels = d->mip_levels ? d->mip_levels : 1;
+   aux->mip_levels = npt_d3d11_texture_desc_mip_levels(d);
    aux->array_size = d->array_size ? d->array_size : 1;
    aux->format = d->format;
    aux->bytes_per_pixel = npt_dxgi_format_bytes_per_pixel(d->format);

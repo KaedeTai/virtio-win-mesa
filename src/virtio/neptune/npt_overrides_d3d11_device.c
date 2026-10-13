@@ -191,7 +191,7 @@ finish_create_texture(void *self,
    const uint64_t raw_id  = (uint64_t)(uintptr_t)raw;
 
    if (pInitialData) {
-      const uint32_t mips = desc->mip_levels ? desc->mip_levels : 1u;
+      const uint32_t mips = npt_d3d11_texture_desc_mip_levels(desc);
       const uint32_t arr  = desc->array_size ? desc->array_size : 1u;
       npt_upload_texture_initial_data(dev, raw_id,
                                       pInitialData, mips * arr,

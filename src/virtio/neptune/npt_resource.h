@@ -284,6 +284,9 @@ struct npt_d3d11_texture_desc {
    D3D11_TEXTURE_LAYOUT texture_layout;
 };
 
+/* The desc's mip count with MipLevels 0 resolved to the full chain. */
+uint32_t npt_d3d11_texture_desc_mip_levels(const struct npt_d3d11_texture_desc *d);
+
 /* Must be called before any Map(); otherwise dimensions are 0 and
  * the cached bytes-per-pixel is 0. */
 void npt_d3d11_texture_set_desc(struct npt_d3d11_texture *t,
