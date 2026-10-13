@@ -32,6 +32,7 @@ struct event_pending {
    int    sync_fd;
    void  *handle;
    uint64_t token;     /* single-use host proxy token; released on completion */
+   uint32_t ring_idx;  /* event ring the arm occupies until completion */
    bool   direct;      /* KMD signals `handle` itself from its completion
                         * DPC; the waiter only releases the token */
    struct event_pending *next;
@@ -66,6 +67,12 @@ struct npt_event_state {
    uint32_t                       ring_base;
    uint32_t                       ring_end;
    _Atomic uint32_t               next_event_ring_idx;
+   /* App-event arms outstanding per event ring (index - ring_base).
+    * Each host ring retires its fences in order, and an app may arm an
+    * event for a value that is reached much later, so every later fence
+    * on that ring waits behind it.  Arms go to the least-occupied ring;
+    * present and gate arms are short and are not counted. */
+   _Atomic uint32_t               app_arms[NPT_MAX_TIMELINES];
 
    /* Holds ARM + submit_present_fence back-to-back on the same ring. */
    mtx_t                          arm_mutex;
@@ -104,6 +111,28 @@ struct npt_event_state {
    pthread_t                      waiter_thread[NPT_EVENT_WAITER_MAX];
 #endif
 };
+
+/* Pick an event ring: the first with no outstanding app arm, starting
+ * from a rotating position, else the least occupied. */
+static uint32_t
+event_pick_ring(struct npt_event_state *st)
+{
+   const uint32_t span = st->ring_end - st->ring_base;
+   const uint32_t start = atomic_fetch_add(&st->next_event_ring_idx, 1) % span;
+   uint32_t best = start;
+   uint32_t best_load = UINT32_MAX;
+   for (uint32_t i = 0; i < span; i++) {
+      const uint32_t r = (start + i) % span;
+      const uint32_t load = atomic_load(&st->app_arms[r]);
+      if (load < best_load) {
+         best = r;
+         best_load = load;
+         if (!load)
+            break;
+      }
+   }
+   return st->ring_base + best;
+}
 
 #if defined(__WINE__)
 static void
@@ -330,6 +359,7 @@ static void *event_waiter_thread(void *arg)
                     p->pop_depth, p->handle);
       }
       close_fd(p->sync_fd);
+      atomic_fetch_sub(&st->app_arms[p->ring_idx - st->ring_base], 1);
       /* Single-use proxy: release after completion (the host firing
        * necessarily preceded the KMD signal we just consumed). */
       npt_dispatch_event_release_ring(npt_device_method_ring(dev), p->token);
@@ -379,7 +409,7 @@ npt_event_init(struct npt_device *dev)
    st->ring_base = npt_renderer_event_ring_base(info);
    st->ring_end  = npt_renderer_event_ring_end(info);
    assert(st->ring_end > st->ring_base);
-   atomic_init(&st->next_event_ring_idx, st->ring_base);
+   atomic_init(&st->next_event_ring_idx, 0);
    atomic_init(&st->waiter_join, false);
    st->pending_head = NULL;
 
@@ -437,6 +467,15 @@ npt_event_fini(struct npt_device *dev)
    dev->event = NULL;
 }
 
+static uint64_t
+event_arm_abort(struct npt_device *dev, struct npt_event_state *st,
+                uint32_t ring_idx, uint64_t token)
+{
+   atomic_fetch_sub(&st->app_arms[ring_idx - st->ring_base], 1);
+   npt_dispatch_event_release_ring(npt_device_method_ring(dev), token);
+   return 0;
+}
+
 uint64_t
 npt_event_arm(struct npt_device *dev, void *hEvent)
 {
@@ -459,11 +498,8 @@ npt_event_arm(struct npt_device *dev, void *hEvent)
    uint64_t token = npt_com_allocate_next_id();
    npt_dispatch_event_register_ring(npt_device_method_ring(dev), token);
 
-   /* Round-robin across event rings so independent in-flight arms
-    * don't queue up on one sync-queue worker. */
-   uint32_t ring_idx = atomic_fetch_add(&st->next_event_ring_idx, 1);
-   const uint32_t span = st->ring_end - st->ring_base;
-   ring_idx = st->ring_base + (ring_idx - st->ring_base) % span;
+   const uint32_t ring_idx = event_pick_ring(st);
+   atomic_fetch_add(&st->app_arms[ring_idx - st->ring_base], 1);
 
    /* Same dispatch thread as the SetEventOnCompletion that follows
     * and the DC::Signal that triggers the fence.  Pre-DC fallback
@@ -473,8 +509,7 @@ npt_event_arm(struct npt_device *dev, void *hEvent)
                                               token, ring_idx);
    if (!arm_ok) {
       mtx_unlock(&st->arm_mutex);
-      npt_dispatch_event_release_ring(npt_device_method_ring(dev), token);
-      return 0;
+      return event_arm_abort(dev, st, ring_idx, token);
    }
    /* Hand the app's own event to the transport so the KMD can
     * KeSetEvent it straight from the completion DPC; the waiter then
@@ -485,20 +520,18 @@ npt_event_arm(struct npt_device *dev, void *hEvent)
                                                           &direct_ok);
    mtx_unlock(&st->arm_mutex);
 
-   if (sync_fd < 0) {
-      npt_dispatch_event_release_ring(npt_device_method_ring(dev), token);
-      return 0;
-   }
+   if (sync_fd < 0)
+      return event_arm_abort(dev, st, ring_idx, token);
 
    struct event_pending *p = calloc(1, sizeof(*p));
    if (!p) {
       close_fd(sync_fd);
-      npt_dispatch_event_release_ring(npt_device_method_ring(dev), token);
-      return 0;
+      return event_arm_abort(dev, st, ring_idx, token);
    }
    p->sync_fd = sync_fd;
    p->handle  = hEvent;
    p->token   = token;
+   p->ring_idx = ring_idx;
    p->direct  = direct_ok;
    if (npt_env.event_waiter_trace_ms)
       p->push_us = event_now_us();
@@ -544,13 +577,7 @@ npt_event_arm_token_fd(struct npt_device *dev, uint64_t token)
 
    npt_dispatch_event_register_ring(npt_device_method_ring(dev), token);
 
-   uint32_t ring_idx = atomic_fetch_add(&st->next_event_ring_idx, 1);
-   /* npt_event_init repairs a degenerate range, so the span is never zero --
-    * npt_event_arm relies on the same invariant.  Asserting it keeps the
-    * registration above paired with a release on every reachable exit. */
-   const uint32_t span = st->ring_end - st->ring_base;
-   assert(span);
-   ring_idx = st->ring_base + (ring_idx - st->ring_base) % span;
+   const uint32_t ring_idx = event_pick_ring(st);
 
    mtx_lock(&st->arm_mutex);
    bool arm_ok = npt_dispatch_event_arm_fence(npt_device_method_ring(dev),
@@ -618,10 +645,7 @@ npt_event_gate_arm(struct npt_device *dev, uint64_t fence_obj_id,
       return 0;
    struct npt_event_state *st = dev->event;
 
-   uint32_t ring_idx = atomic_fetch_add(&st->next_event_ring_idx, 1);
-   const uint32_t span = st->ring_end - st->ring_base;
-   assert(span);
-   ring_idx = st->ring_base + (ring_idx - st->ring_base) % span;
+   const uint32_t ring_idx = event_pick_ring(st);
 
    mtx_lock(&st->arm_mutex);
    /* Escape first: if the fence outruns the GATE_WAIT the host parks it
