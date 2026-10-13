@@ -76,7 +76,7 @@ dev_CreateBuffer_override(void *self,
          .extent = { 0, 0, 0, pDesc->ByteWidth, 1, 1 },
          .rows = 1, .row_texels = 1, .buffer = true,
       };
-      npt_resource_update(npt_device_method_ring(dev),
+      npt_resource_update(npt_device_method_ring(dev), /*context_id=*/0,
                           (uint64_t)(uintptr_t)raw, /*subresource=*/0,
                           /*box=*/NULL, /*row_pitch=*/0, /*depth_pitch=*/0,
                           pInitialData->pSysMem, pDesc->ByteWidth,
@@ -175,7 +175,8 @@ npt_upload_texture_initial_data(struct npt_device *dev,
       };
       const bool planar = rows != npt_dxgi_format_block_rows(format, mh);
       const bool banded = !planar && (depth <= 1u || d->SysMemPitch);
-      npt_resource_update(npt_device_method_ring(dev), tex_id, sub,
+      npt_resource_update(npt_device_method_ring(dev), /*context_id=*/0,
+                          tex_id, sub,
                           /*box=*/NULL, d->SysMemPitch, d->SysMemSlicePitch,
                           d->pSysMem, full, copy, banded ? &split : NULL);
    }

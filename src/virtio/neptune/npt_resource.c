@@ -980,17 +980,20 @@ npt_dxgi_format_row_texels(DXGI_FORMAT fmt)
 }
 
 static bool
-update_send(struct npt_ring *ring, uint64_t resource_id, uint32_t subresource,
+update_send(struct npt_ring *ring, uint64_t context_id, uint64_t resource_id,
+            uint32_t subresource,
             const D3D11_BOX *box, uint32_t row_pitch, uint32_t depth_pitch,
             const uint8_t *data, uint64_t full, uint64_t copy)
 {
-   return npt_dispatch_resource_update(ring, resource_id, subresource,
+   return npt_dispatch_resource_update(ring, context_id, resource_id,
+                                       subresource,
                                        row_pitch, depth_pitch, box, data,
                                        (uint32_t)full, (uint32_t)copy);
 }
 
 bool
-npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
+npt_resource_update(struct npt_ring *ring, uint64_t context_id,
+                    uint64_t resource_id,
                     uint32_t subresource, const D3D11_BOX *box,
                     uint32_t row_pitch, uint32_t depth_pitch,
                     const void *data, uint64_t full, uint64_t copy,
@@ -999,7 +1002,7 @@ npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
    if (!full || !copy || copy > full)
       return false;
    if (full <= NPT_RESOURCE_UPDATE_CHUNK_BYTES)
-      return update_send(ring, resource_id, subresource, box, row_pitch,
+      return update_send(ring, context_id, resource_id, subresource, box, row_pitch,
                          depth_pitch, data, full, copy);
 
    const uint64_t cap = NPT_RESOURCE_UPDATE_CHUNK_BYTES;
@@ -1015,7 +1018,7 @@ npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
       for (uint32_t l = left; l < right && ok; ) {
          const uint32_t r = right - l > cap ? l + (uint32_t)cap : right;
          const D3D11_BOX b = { l, 0, 0, r, 1, 1 };
-         ok = update_send(ring, resource_id, subresource, &b, 0, 0,
+         ok = update_send(ring, context_id, resource_id, subresource, &b, 0, 0,
                           src + (l - left), r - l, r - l);
          l = r;
       }
@@ -1043,7 +1046,7 @@ npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
          D3D11_BOX b = *e;
          b.front = e->front + s0;
          b.back = b.front + n;
-         ok = update_send(ring, resource_id, subresource, &b, row_pitch,
+         ok = update_send(ring, context_id, resource_id, subresource, &b, row_pitch,
                           depth_pitch, src + (uint64_t)depth_pitch * s0, band,
                           last ? band - tail : band);
       }
@@ -1064,7 +1067,7 @@ npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
          b.top = e->top + r0 * split->row_texels;
          const uint32_t bottom = e->top + (r0 + n) * split->row_texels;
          b.bottom = bottom < e->bottom ? bottom : e->bottom;
-         ok = update_send(ring, resource_id, subresource, &b, row_pitch,
+         ok = update_send(ring, context_id, resource_id, subresource, &b, row_pitch,
                           depth_pitch,
                           src + (uint64_t)depth_pitch * s +
                              (uint64_t)row_pitch * r0,

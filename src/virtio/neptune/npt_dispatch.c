@@ -411,7 +411,8 @@ npt_dispatch_create_heap_from_shmem(struct npt_ring *ring, uint64_t device_id,
 }
 
 bool
-npt_dispatch_resource_update(struct npt_ring *ring, uint64_t resource_host_id,
+npt_dispatch_resource_update(struct npt_ring *ring, uint64_t context_id,
+                             uint64_t resource_host_id,
                              uint32_t subresource, uint32_t row_pitch,
                              uint32_t depth_pitch, const D3D11_BOX *box,
                              const void *data, uint32_t byte_size,
@@ -432,6 +433,7 @@ npt_dispatch_resource_update(struct npt_ring *ring, uint64_t resource_host_id,
                              NPT_TRANSPORT_RESOURCE_UPDATE);
    cmd.header.object_id = resource_host_id;
    cmd.header.cmd_size = cmd_size;
+   cmd.context_id = context_id;
    cmd.subresource = subresource;
    cmd.row_pitch = row_pitch;
    cmd.depth_pitch = depth_pitch;

@@ -733,7 +733,7 @@ res12_WriteToSubresource_override(void *self, UINT DstSubresource,
       .buffer = false,
    };
    struct npt_device *dev = npt_com_self_device(self);
-   if (!npt_resource_update(npt_device_method_ring(dev),
+   if (!npt_resource_update(npt_device_method_ring(dev), /*context_id=*/0,
                             ((struct npt_com_base *)self)->base.id,
                             DstSubresource, pDstBox ? &extent : NULL,
                             SrcRowPitch, SrcDepthPitch, pSrcData, full, copy,

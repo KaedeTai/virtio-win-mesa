@@ -595,9 +595,15 @@ ctx_UpdateSubresource_override(void *self, ID3D11Resource *pDstResource,
       return;
    }
 
-   (void)npt_resource_update(npt_device_method_ring(dev), resource_id,
-                             DstSubresource, pDstBox, SrcRowPitch,
-                             SrcDepthPitch, pSrcData, byte_size, copy_size,
+   /* A deferred context records the update; the immediate context's is
+    * applied by the host's immediate context.  Either way it rides the
+    * context's own ring, ordered with its draws. */
+   const uint64_t context_id = npt_d3d11_context_is_immediate(self)
+      ? 0 : npt_com_self_id(self);
+   (void)npt_resource_update(npt_com_self_ring(self), context_id,
+                             resource_id, DstSubresource, pDstBox,
+                             SrcRowPitch, SrcDepthPitch, pSrcData,
+                             byte_size, copy_size,
                              split_ok ? &split : NULL);
 }
 

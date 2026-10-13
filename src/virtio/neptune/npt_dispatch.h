@@ -143,8 +143,11 @@ HRESULT npt_dispatch_create_heap_from_shmem(struct npt_ring *ring,
                                             uint32_t heap_flags);
 
 /* byte_size is reserved on the ring and is what the host may consume;
- * copy_size (<= byte_size) is how much of `data` is actually read. */
+ * copy_size (<= byte_size) is how much of `data` is actually read.
+ * context_id: the deferred D3D11 context to record the update on, 0 for
+ * the immediate context (and for D3D12). */
 bool npt_dispatch_resource_update(struct npt_ring *ring,
+                                  uint64_t context_id,
                                   uint64_t resource_host_id,
                                   uint32_t subresource,
                                   uint32_t row_pitch,

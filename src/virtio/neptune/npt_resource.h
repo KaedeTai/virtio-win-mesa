@@ -197,10 +197,12 @@ struct npt_update_split {
 };
 
 /* Sends `full` bytes (reserved for the host) of which `copy` are read
- * from `data`, as one RESOURCE_UPDATE when it fits the chunk size and
+ * from `data` (context_id as for npt_dispatch_resource_update), as one
+ * RESOURCE_UPDATE when it fits the chunk size and
  * as bands of `split` otherwise.  A NULL `split` marks a region with no
  * band layout (planar formats); an oversized one is then refused. */
-bool npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
+bool npt_resource_update(struct npt_ring *ring, uint64_t context_id,
+                         uint64_t resource_id,
                          uint32_t subresource, const D3D11_BOX *box,
                          uint32_t row_pitch, uint32_t depth_pitch,
                          const void *data, uint64_t full, uint64_t copy,
