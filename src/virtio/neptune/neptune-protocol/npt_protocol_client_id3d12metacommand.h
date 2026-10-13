@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12metacommand: ID3D12MetaCommand
+/* Family id3d12metacommand: ID3D12MetaCommand */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -132,11 +132,20 @@ npt_idxgioutputduplication_default_GetFramePointerShape(void *self, UINT Pointer
     return _ret;
 }
 
+/* IDXGIOutputDuplication::MapDesktopSurface has no transport (unsupported): fail the
+ * call without touching the wire. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgioutputduplication_default_MapDesktopSurface(void *self, DXGI_MAPPED_RECT * pLockedRect)
 {
-    HRESULT _ret = npt_call_IDXGIOutputDuplication_MapDesktopSurface(npt_com_self_ring(self),npt_com_self_id(self),pLockedRect);
-    return _ret;
+    (void)self;
+    if (pLockedRect)
+        memset(pLockedRect, 0, sizeof(*pLockedRect));
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("IDXGIOutputDuplication::MapDesktopSurface is not supported over Neptune");
+    }
+    return (HRESULT)0x80004001 /* E_NOTIMPL */;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE

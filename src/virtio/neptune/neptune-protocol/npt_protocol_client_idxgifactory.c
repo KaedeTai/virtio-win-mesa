@@ -140,6 +140,8 @@ npt_idxgifactory_default_GetWindowAssociation(void *self, HWND * pWindowHandle)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory_default_CreateSwapChain(void *self, IUnknown * pDevice, DXGI_SWAP_CHAIN_DESC * pDesc, IDXGISwapChain ** ppSwapChain)
 {
+    if (!ppSwapChain)
+        return npt_call_IDXGIFactory_CreateSwapChain(npt_com_self_ring(self), npt_com_self_id(self), pDevice, pDesc, ppSwapChain);
     IDXGISwapChain *_raw_ppSwapChain = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -169,6 +171,8 @@ npt_idxgifactory_default_CreateSwapChain(void *self, IUnknown * pDevice, DXGI_SW
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory_default_CreateSoftwareAdapter(void *self, HMODULE Module, IDXGIAdapter ** ppAdapter)
 {
+    if (!ppAdapter)
+        return npt_call_IDXGIFactory_CreateSoftwareAdapter(npt_com_self_ring(self), npt_com_self_id(self), Module, ppAdapter);
     IDXGIAdapter *_raw_ppAdapter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -280,6 +284,8 @@ npt_idxgifactory2_default_IsWindowedStereoEnabled(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_CreateSwapChainForHwnd(void *self, IUnknown * pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 * pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC * pFullscreenDesc, IDXGIOutput * pRestrictToOutput, IDXGISwapChain1 ** ppSwapChain)
 {
+    if (!ppSwapChain)
+        return npt_call_IDXGIFactory2_CreateSwapChainForHwnd(npt_com_self_ring(self), npt_com_self_id(self), pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
     IDXGISwapChain1 *_raw_ppSwapChain = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -309,6 +315,8 @@ npt_idxgifactory2_default_CreateSwapChainForHwnd(void *self, IUnknown * pDevice,
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_CreateSwapChainForCoreWindow(void *self, IUnknown * pDevice, IUnknown * pWindow, const DXGI_SWAP_CHAIN_DESC1 * pDesc, IDXGIOutput * pRestrictToOutput, IDXGISwapChain1 ** ppSwapChain)
 {
+    if (!ppSwapChain)
+        return npt_call_IDXGIFactory2_CreateSwapChainForCoreWindow(npt_com_self_ring(self), npt_com_self_id(self), pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
     IDXGISwapChain1 *_raw_ppSwapChain = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -349,11 +357,17 @@ npt_idxgifactory2_default_RegisterStereoStatusWindow(void *self, HWND WindowHand
     return _ret;
 }
 
+/* skip_default: IDXGIFactory2::RegisterStereoStatusEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_RegisterStereoStatusEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
 {
-    HRESULT _ret = npt_call_IDXGIFactory2_RegisterStereoStatusEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent,pdwCookie);
-    return _ret;
+    (void)self;
+    (void)hEvent;
+    (void)pdwCookie;
+    npt_com_assert_overridden("IDXGIFactory2", "RegisterStereoStatusEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -369,11 +383,17 @@ npt_idxgifactory2_default_RegisterOcclusionStatusWindow(void *self, HWND WindowH
     return _ret;
 }
 
+/* skip_default: IDXGIFactory2::RegisterOcclusionStatusEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_RegisterOcclusionStatusEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
 {
-    HRESULT _ret = npt_call_IDXGIFactory2_RegisterOcclusionStatusEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent,pdwCookie);
-    return _ret;
+    (void)self;
+    (void)hEvent;
+    (void)pdwCookie;
+    npt_com_assert_overridden("IDXGIFactory2", "RegisterOcclusionStatusEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -385,6 +405,8 @@ npt_idxgifactory2_default_UnregisterOcclusionStatus(void *self, DWORD dwCookie)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory2_default_CreateSwapChainForComposition(void *self, IUnknown * pDevice, const DXGI_SWAP_CHAIN_DESC1 * pDesc, IDXGIOutput * pRestrictToOutput, IDXGISwapChain1 ** ppSwapChain)
 {
+    if (!ppSwapChain)
+        return npt_call_IDXGIFactory2_CreateSwapChainForComposition(npt_com_self_ring(self), npt_com_self_id(self), pDevice, pDesc, pRestrictToOutput, ppSwapChain);
     IDXGISwapChain1 *_raw_ppSwapChain = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -609,11 +631,17 @@ npt_idxgifactory6_client_create(struct npt_device *dev, uint64_t host_id)
 /* IDXGIFactory7 (tier 7)                                  */
 /* ================================================================== */
 
+/* skip_default: IDXGIFactory7::RegisterAdaptersChangedEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactory7_default_RegisterAdaptersChangedEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
 {
-    HRESULT _ret = npt_call_IDXGIFactory7_RegisterAdaptersChangedEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent,pdwCookie);
-    return _ret;
+    (void)self;
+    (void)hEvent;
+    (void)pdwCookie;
+    npt_com_assert_overridden("IDXGIFactory7", "RegisterAdaptersChangedEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE

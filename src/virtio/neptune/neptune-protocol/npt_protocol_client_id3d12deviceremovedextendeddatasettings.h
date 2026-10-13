@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12deviceremovedextendeddatasettings: ID3D12DeviceRemovedExtendedDataSettings, ID3D12DeviceRemovedExtendedDataSettings1, ID3D12DeviceRemovedExtendedDataSettings2
+/* Family id3d12deviceremovedextendeddatasettings: ID3D12DeviceRemovedExtendedDataSettings, ID3D12DeviceRemovedExtendedDataSettings1, ID3D12DeviceRemovedExtendedDataSettings2 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

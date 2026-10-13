@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11unorderedaccessview: ID3D11UnorderedAccessView, ID3D11UnorderedAccessView1
+/* Family id3d11unorderedaccessview: ID3D11UnorderedAccessView, ID3D11UnorderedAccessView1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

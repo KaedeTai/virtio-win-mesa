@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12shadercachesession: ID3D12ShaderCacheSession
+/* Family id3d12shadercachesession: ID3D12ShaderCacheSession */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

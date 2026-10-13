@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d10blob: ID3D10Blob
+/* Family id3d10blob: ID3D10Blob */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from
@@ -64,7 +64,7 @@ struct npt_id3d10blob_client_vtbl {
     ULONG   (NPT_STDMETHODCALLTYPE *AddRef)(void *self);
     ULONG   (NPT_STDMETHODCALLTYPE *Release)(void *self);
     /* slot 3: ID3D10Blob::GetBufferPointer */
-    void (NPT_STDMETHODCALLTYPE *GetBufferPointer)(void *self);
+    void * (NPT_STDMETHODCALLTYPE *GetBufferPointer)(void *self);
     /* slot 4: ID3D10Blob::GetBufferSize */
     SIZE_T (NPT_STDMETHODCALLTYPE *GetBufferSize)(void *self);
 };
@@ -75,7 +75,7 @@ struct npt_id3d10blob_client_vtbl {
  * marked skip_default get a generated stub that aborts at runtime via
  * npt_com_assert_overridden; the consumer must patch the vtable slot
  * with a real implementation before the method is called. */
-extern void NPT_STDMETHODCALLTYPE
+extern void * NPT_STDMETHODCALLTYPE
 npt_id3d10blob_default_GetBufferPointer(void *self);
 extern SIZE_T NPT_STDMETHODCALLTYPE
 npt_id3d10blob_default_GetBufferSize(void *self);

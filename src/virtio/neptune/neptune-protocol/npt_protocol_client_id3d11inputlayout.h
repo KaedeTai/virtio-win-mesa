@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11inputlayout: ID3D11InputLayout
+/* Family id3d11inputlayout: ID3D11InputLayout */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

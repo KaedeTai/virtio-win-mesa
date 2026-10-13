@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12stateobjectproperties: ID3D12StateObjectProperties, ID3D12StateObjectProperties1
+/* Family id3d12stateobjectproperties: ID3D12StateObjectProperties, ID3D12StateObjectProperties1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from
@@ -64,7 +64,7 @@ struct npt_id3d12stateobjectproperties_client_vtbl {
     ULONG   (NPT_STDMETHODCALLTYPE *AddRef)(void *self);
     ULONG   (NPT_STDMETHODCALLTYPE *Release)(void *self);
     /* slot 3: ID3D12StateObjectProperties::GetShaderIdentifier */
-    void (NPT_STDMETHODCALLTYPE *GetShaderIdentifier)(void *self, const WCHAR * pExportName);
+    void * (NPT_STDMETHODCALLTYPE *GetShaderIdentifier)(void *self, const WCHAR * pExportName);
     /* slot 4: ID3D12StateObjectProperties::GetShaderStackSize */
     UINT64 (NPT_STDMETHODCALLTYPE *GetShaderStackSize)(void *self, const WCHAR * pExportName);
     /* slot 5: ID3D12StateObjectProperties::GetPipelineStackSize */
@@ -79,7 +79,7 @@ struct npt_id3d12stateobjectproperties_client_vtbl {
  * marked skip_default get a generated stub that aborts at runtime via
  * npt_com_assert_overridden; the consumer must patch the vtable slot
  * with a real implementation before the method is called. */
-extern void NPT_STDMETHODCALLTYPE
+extern void * NPT_STDMETHODCALLTYPE
 npt_id3d12stateobjectproperties_default_GetShaderIdentifier(void *self, const WCHAR * pExportName);
 extern UINT64 NPT_STDMETHODCALLTYPE
 npt_id3d12stateobjectproperties_default_GetShaderStackSize(void *self, const WCHAR * pExportName);
@@ -114,7 +114,7 @@ struct npt_id3d12stateobjectproperties1_client_vtbl {
     ULONG   (NPT_STDMETHODCALLTYPE *AddRef)(void *self);
     ULONG   (NPT_STDMETHODCALLTYPE *Release)(void *self);
     /* slot 3: ID3D12StateObjectProperties::GetShaderIdentifier */
-    void (NPT_STDMETHODCALLTYPE *GetShaderIdentifier)(void *self, const WCHAR * pExportName);
+    void * (NPT_STDMETHODCALLTYPE *GetShaderIdentifier)(void *self, const WCHAR * pExportName);
     /* slot 4: ID3D12StateObjectProperties::GetShaderStackSize */
     UINT64 (NPT_STDMETHODCALLTYPE *GetShaderStackSize)(void *self, const WCHAR * pExportName);
     /* slot 5: ID3D12StateObjectProperties::GetPipelineStackSize */

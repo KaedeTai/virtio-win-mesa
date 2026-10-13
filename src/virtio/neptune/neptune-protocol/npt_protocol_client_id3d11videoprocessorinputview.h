@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11videoprocessorinputview: ID3D11VideoProcessorInputView
+/* Family id3d11videoprocessorinputview: ID3D11VideoProcessorInputView */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -145,6 +145,8 @@ npt_id3d11device_default_CreateTexture3D(void *self, const D3D11_TEXTURE3D_DESC 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateShaderResourceView(void *self, ID3D11Resource * pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC * pDesc, ID3D11ShaderResourceView ** ppSRView)
 {
+    if (!ppSRView)
+        return npt_call_ID3D11Device_CreateShaderResourceView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc, ppSRView);
     ID3D11ShaderResourceView *_raw_ppSRView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -174,6 +176,8 @@ npt_id3d11device_default_CreateShaderResourceView(void *self, ID3D11Resource * p
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateUnorderedAccessView(void *self, ID3D11Resource * pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC * pDesc, ID3D11UnorderedAccessView ** ppUAView)
 {
+    if (!ppUAView)
+        return npt_call_ID3D11Device_CreateUnorderedAccessView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc, ppUAView);
     ID3D11UnorderedAccessView *_raw_ppUAView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -203,6 +207,8 @@ npt_id3d11device_default_CreateUnorderedAccessView(void *self, ID3D11Resource * 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateRenderTargetView(void *self, ID3D11Resource * pResource, const D3D11_RENDER_TARGET_VIEW_DESC * pDesc, ID3D11RenderTargetView ** ppRTView)
 {
+    if (!ppRTView)
+        return npt_call_ID3D11Device_CreateRenderTargetView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc, ppRTView);
     ID3D11RenderTargetView *_raw_ppRTView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -232,6 +238,8 @@ npt_id3d11device_default_CreateRenderTargetView(void *self, ID3D11Resource * pRe
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateDepthStencilView(void *self, ID3D11Resource * pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC * pDesc, ID3D11DepthStencilView ** ppDepthStencilView)
 {
+    if (!ppDepthStencilView)
+        return npt_call_ID3D11Device_CreateDepthStencilView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc, ppDepthStencilView);
     ID3D11DepthStencilView *_raw_ppDepthStencilView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -261,6 +269,8 @@ npt_id3d11device_default_CreateDepthStencilView(void *self, ID3D11Resource * pRe
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateInputLayout(void *self, const D3D11_INPUT_ELEMENT_DESC * pInputElementDescs, UINT NumElements, const void * pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout ** ppInputLayout)
 {
+    if (!ppInputLayout)
+        return npt_call_ID3D11Device_CreateInputLayout(npt_com_self_ring(self), npt_com_self_id(self), pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
     ID3D11InputLayout *_raw_ppInputLayout = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -290,6 +300,8 @@ npt_id3d11device_default_CreateInputLayout(void *self, const D3D11_INPUT_ELEMENT
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateVertexShader(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage * pClassLinkage, ID3D11VertexShader ** ppVertexShader)
 {
+    if (!ppVertexShader)
+        return npt_call_ID3D11Device_CreateVertexShader(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
     ID3D11VertexShader *_raw_ppVertexShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -319,6 +331,8 @@ npt_id3d11device_default_CreateVertexShader(void *self, const void * pShaderByte
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateGeometryShader(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage * pClassLinkage, ID3D11GeometryShader ** ppGeometryShader)
 {
+    if (!ppGeometryShader)
+        return npt_call_ID3D11Device_CreateGeometryShader(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pClassLinkage, ppGeometryShader);
     ID3D11GeometryShader *_raw_ppGeometryShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -348,6 +362,8 @@ npt_id3d11device_default_CreateGeometryShader(void *self, const void * pShaderBy
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateGeometryShaderWithStreamOutput(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY * pSODeclaration, UINT NumEntries, const UINT * pBufferStrides, UINT NumStrides, UINT RasterizedStream, ID3D11ClassLinkage * pClassLinkage, ID3D11GeometryShader ** ppGeometryShader)
 {
+    if (!ppGeometryShader)
+        return npt_call_ID3D11Device_CreateGeometryShaderWithStreamOutput(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader);
     ID3D11GeometryShader *_raw_ppGeometryShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -377,6 +393,8 @@ npt_id3d11device_default_CreateGeometryShaderWithStreamOutput(void *self, const 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreatePixelShader(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage * pClassLinkage, ID3D11PixelShader ** ppPixelShader)
 {
+    if (!ppPixelShader)
+        return npt_call_ID3D11Device_CreatePixelShader(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
     ID3D11PixelShader *_raw_ppPixelShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -406,6 +424,8 @@ npt_id3d11device_default_CreatePixelShader(void *self, const void * pShaderBytec
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateHullShader(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage * pClassLinkage, ID3D11HullShader ** ppHullShader)
 {
+    if (!ppHullShader)
+        return npt_call_ID3D11Device_CreateHullShader(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pClassLinkage, ppHullShader);
     ID3D11HullShader *_raw_ppHullShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -435,6 +455,8 @@ npt_id3d11device_default_CreateHullShader(void *self, const void * pShaderByteco
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateDomainShader(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage * pClassLinkage, ID3D11DomainShader ** ppDomainShader)
 {
+    if (!ppDomainShader)
+        return npt_call_ID3D11Device_CreateDomainShader(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pClassLinkage, ppDomainShader);
     ID3D11DomainShader *_raw_ppDomainShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -464,6 +486,8 @@ npt_id3d11device_default_CreateDomainShader(void *self, const void * pShaderByte
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateComputeShader(void *self, const void * pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage * pClassLinkage, ID3D11ComputeShader ** ppComputeShader)
 {
+    if (!ppComputeShader)
+        return npt_call_ID3D11Device_CreateComputeShader(npt_com_self_ring(self), npt_com_self_id(self), pShaderBytecode, BytecodeLength, pClassLinkage, ppComputeShader);
     ID3D11ComputeShader *_raw_ppComputeShader = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -493,6 +517,8 @@ npt_id3d11device_default_CreateComputeShader(void *self, const void * pShaderByt
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateClassLinkage(void *self, ID3D11ClassLinkage ** ppLinkage)
 {
+    if (!ppLinkage)
+        return npt_call_ID3D11Device_CreateClassLinkage(npt_com_self_ring(self), npt_com_self_id(self), ppLinkage);
     ID3D11ClassLinkage *_raw_ppLinkage = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -522,6 +548,8 @@ npt_id3d11device_default_CreateClassLinkage(void *self, ID3D11ClassLinkage ** pp
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateBlendState(void *self, const D3D11_BLEND_DESC * pBlendStateDesc, ID3D11BlendState ** ppBlendState)
 {
+    if (!ppBlendState)
+        return npt_call_ID3D11Device_CreateBlendState(npt_com_self_ring(self), npt_com_self_id(self), pBlendStateDesc, ppBlendState);
     ID3D11BlendState *_raw_ppBlendState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -551,6 +579,8 @@ npt_id3d11device_default_CreateBlendState(void *self, const D3D11_BLEND_DESC * p
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateDepthStencilState(void *self, const D3D11_DEPTH_STENCIL_DESC * pDepthStencilDesc, ID3D11DepthStencilState ** ppDepthStencilState)
 {
+    if (!ppDepthStencilState)
+        return npt_call_ID3D11Device_CreateDepthStencilState(npt_com_self_ring(self), npt_com_self_id(self), pDepthStencilDesc, ppDepthStencilState);
     ID3D11DepthStencilState *_raw_ppDepthStencilState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -580,6 +610,8 @@ npt_id3d11device_default_CreateDepthStencilState(void *self, const D3D11_DEPTH_S
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateRasterizerState(void *self, const D3D11_RASTERIZER_DESC * pRasterizerDesc, ID3D11RasterizerState ** ppRasterizerState)
 {
+    if (!ppRasterizerState)
+        return npt_call_ID3D11Device_CreateRasterizerState(npt_com_self_ring(self), npt_com_self_id(self), pRasterizerDesc, ppRasterizerState);
     ID3D11RasterizerState *_raw_ppRasterizerState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -609,6 +641,8 @@ npt_id3d11device_default_CreateRasterizerState(void *self, const D3D11_RASTERIZE
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateSamplerState(void *self, const D3D11_SAMPLER_DESC * pSamplerDesc, ID3D11SamplerState ** ppSamplerState)
 {
+    if (!ppSamplerState)
+        return npt_call_ID3D11Device_CreateSamplerState(npt_com_self_ring(self), npt_com_self_id(self), pSamplerDesc, ppSamplerState);
     ID3D11SamplerState *_raw_ppSamplerState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -638,6 +672,8 @@ npt_id3d11device_default_CreateSamplerState(void *self, const D3D11_SAMPLER_DESC
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateQuery(void *self, const D3D11_QUERY_DESC * pQueryDesc, ID3D11Query ** ppQuery)
 {
+    if (!ppQuery)
+        return npt_call_ID3D11Device_CreateQuery(npt_com_self_ring(self), npt_com_self_id(self), pQueryDesc, ppQuery);
     ID3D11Query *_raw_ppQuery = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -667,6 +703,8 @@ npt_id3d11device_default_CreateQuery(void *self, const D3D11_QUERY_DESC * pQuery
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreatePredicate(void *self, const D3D11_QUERY_DESC * pPredicateDesc, ID3D11Predicate ** ppPredicate)
 {
+    if (!ppPredicate)
+        return npt_call_ID3D11Device_CreatePredicate(npt_com_self_ring(self), npt_com_self_id(self), pPredicateDesc, ppPredicate);
     ID3D11Predicate *_raw_ppPredicate = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -696,6 +734,8 @@ npt_id3d11device_default_CreatePredicate(void *self, const D3D11_QUERY_DESC * pP
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateCounter(void *self, const D3D11_COUNTER_DESC * pCounterDesc, ID3D11Counter ** ppCounter)
 {
+    if (!ppCounter)
+        return npt_call_ID3D11Device_CreateCounter(npt_com_self_ring(self), npt_com_self_id(self), pCounterDesc, ppCounter);
     ID3D11Counter *_raw_ppCounter = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -725,6 +765,8 @@ npt_id3d11device_default_CreateCounter(void *self, const D3D11_COUNTER_DESC * pC
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_CreateDeferredContext(void *self, UINT ContextFlags, ID3D11DeviceContext ** ppDeferredContext)
 {
+    if (!ppDeferredContext)
+        return npt_call_ID3D11Device_CreateDeferredContext(npt_com_self_ring(self), npt_com_self_id(self), ContextFlags, ppDeferredContext);
     ID3D11DeviceContext *_raw_ppDeferredContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -754,6 +796,8 @@ npt_id3d11device_default_CreateDeferredContext(void *self, UINT ContextFlags, ID
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device_default_OpenSharedResource(void *self, HANDLE hResource, const IID * ReturnedInterface, void ** ppResource)
 {
+    if (!ppResource)
+        return npt_call_ID3D11Device_OpenSharedResource(npt_com_self_ring(self), npt_com_self_id(self), hResource, ReturnedInterface, ppResource);
     void *_raw_ppResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -983,6 +1027,8 @@ npt_id3d11device1_default_GetImmediateContext1(void *self, ID3D11DeviceContext1 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device1_default_CreateDeferredContext1(void *self, UINT ContextFlags, ID3D11DeviceContext1 ** ppDeferredContext)
 {
+    if (!ppDeferredContext)
+        return npt_call_ID3D11Device1_CreateDeferredContext1(npt_com_self_ring(self), npt_com_self_id(self), ContextFlags, ppDeferredContext);
     ID3D11DeviceContext1 *_raw_ppDeferredContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1012,6 +1058,8 @@ npt_id3d11device1_default_CreateDeferredContext1(void *self, UINT ContextFlags, 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device1_default_CreateBlendState1(void *self, const D3D11_BLEND_DESC1 * pBlendStateDesc, ID3D11BlendState1 ** ppBlendState)
 {
+    if (!ppBlendState)
+        return npt_call_ID3D11Device1_CreateBlendState1(npt_com_self_ring(self), npt_com_self_id(self), pBlendStateDesc, ppBlendState);
     ID3D11BlendState1 *_raw_ppBlendState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1041,6 +1089,8 @@ npt_id3d11device1_default_CreateBlendState1(void *self, const D3D11_BLEND_DESC1 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device1_default_CreateRasterizerState1(void *self, const D3D11_RASTERIZER_DESC1 * pRasterizerDesc, ID3D11RasterizerState1 ** ppRasterizerState)
 {
+    if (!ppRasterizerState)
+        return npt_call_ID3D11Device1_CreateRasterizerState1(npt_com_self_ring(self), npt_com_self_id(self), pRasterizerDesc, ppRasterizerState);
     ID3D11RasterizerState1 *_raw_ppRasterizerState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1100,6 +1150,8 @@ npt_id3d11device1_default_CreateDeviceContextState(void *self, UINT Flags, const
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device1_default_OpenSharedResource1(void *self, HANDLE hResource, const IID * returnedInterface, void ** ppResource)
 {
+    if (!ppResource)
+        return npt_call_ID3D11Device1_OpenSharedResource1(npt_com_self_ring(self), npt_com_self_id(self), hResource, returnedInterface, ppResource);
     void *_raw_ppResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1129,6 +1181,8 @@ npt_id3d11device1_default_OpenSharedResource1(void *self, HANDLE hResource, cons
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device1_default_OpenSharedResourceByName(void *self, const WCHAR * lpName, DWORD dwDesiredAccess, const IID * returnedInterface, void ** ppResource)
 {
+    if (!ppResource)
+        return npt_call_ID3D11Device1_OpenSharedResourceByName(npt_com_self_ring(self), npt_com_self_id(self), lpName, dwDesiredAccess, returnedInterface, ppResource);
     void *_raw_ppResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1215,6 +1269,8 @@ npt_id3d11device2_default_GetImmediateContext2(void *self, ID3D11DeviceContext2 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device2_default_CreateDeferredContext2(void *self, UINT ContextFlags, ID3D11DeviceContext2 ** ppDeferredContext)
 {
+    if (!ppDeferredContext)
+        return npt_call_ID3D11Device2_CreateDeferredContext2(npt_com_self_ring(self), npt_com_self_id(self), ContextFlags, ppDeferredContext);
     ID3D11DeviceContext2 *_raw_ppDeferredContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1277,6 +1333,8 @@ npt_id3d11device2_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateTexture2D1(void *self, const D3D11_TEXTURE2D_DESC1 * pDesc1, const D3D11_SUBRESOURCE_DATA * pInitialData, ID3D11Texture2D1 ** ppTexture2D)
 {
+    if (!ppTexture2D)
+        return npt_call_ID3D11Device3_CreateTexture2D1(npt_com_self_ring(self), npt_com_self_id(self), pDesc1, pInitialData, ppTexture2D);
     ID3D11Texture2D1 *_raw_ppTexture2D = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1306,6 +1364,8 @@ npt_id3d11device3_default_CreateTexture2D1(void *self, const D3D11_TEXTURE2D_DES
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateTexture3D1(void *self, const D3D11_TEXTURE3D_DESC1 * pDesc1, const D3D11_SUBRESOURCE_DATA * pInitialData, ID3D11Texture3D1 ** ppTexture3D)
 {
+    if (!ppTexture3D)
+        return npt_call_ID3D11Device3_CreateTexture3D1(npt_com_self_ring(self), npt_com_self_id(self), pDesc1, pInitialData, ppTexture3D);
     ID3D11Texture3D1 *_raw_ppTexture3D = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1335,6 +1395,8 @@ npt_id3d11device3_default_CreateTexture3D1(void *self, const D3D11_TEXTURE3D_DES
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateRasterizerState2(void *self, const D3D11_RASTERIZER_DESC2 * pRasterizerDesc, ID3D11RasterizerState2 ** ppRasterizerState)
 {
+    if (!ppRasterizerState)
+        return npt_call_ID3D11Device3_CreateRasterizerState2(npt_com_self_ring(self), npt_com_self_id(self), pRasterizerDesc, ppRasterizerState);
     ID3D11RasterizerState2 *_raw_ppRasterizerState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1364,6 +1426,8 @@ npt_id3d11device3_default_CreateRasterizerState2(void *self, const D3D11_RASTERI
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateShaderResourceView1(void *self, ID3D11Resource * pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 * pDesc1, ID3D11ShaderResourceView1 ** ppSRView1)
 {
+    if (!ppSRView1)
+        return npt_call_ID3D11Device3_CreateShaderResourceView1(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc1, ppSRView1);
     ID3D11ShaderResourceView1 *_raw_ppSRView1 = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1393,6 +1457,8 @@ npt_id3d11device3_default_CreateShaderResourceView1(void *self, ID3D11Resource *
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateUnorderedAccessView1(void *self, ID3D11Resource * pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC1 * pDesc1, ID3D11UnorderedAccessView1 ** ppUAView1)
 {
+    if (!ppUAView1)
+        return npt_call_ID3D11Device3_CreateUnorderedAccessView1(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc1, ppUAView1);
     ID3D11UnorderedAccessView1 *_raw_ppUAView1 = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1422,6 +1488,8 @@ npt_id3d11device3_default_CreateUnorderedAccessView1(void *self, ID3D11Resource 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateRenderTargetView1(void *self, ID3D11Resource * pResource, const D3D11_RENDER_TARGET_VIEW_DESC1 * pDesc1, ID3D11RenderTargetView1 ** ppRTView1)
 {
+    if (!ppRTView1)
+        return npt_call_ID3D11Device3_CreateRenderTargetView1(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc1, ppRTView1);
     ID3D11RenderTargetView1 *_raw_ppRTView1 = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1451,6 +1519,8 @@ npt_id3d11device3_default_CreateRenderTargetView1(void *self, ID3D11Resource * p
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateQuery1(void *self, const D3D11_QUERY_DESC1 * pQueryDesc1, ID3D11Query1 ** ppQuery1)
 {
+    if (!ppQuery1)
+        return npt_call_ID3D11Device3_CreateQuery1(npt_com_self_ring(self), npt_com_self_id(self), pQueryDesc1, ppQuery1);
     ID3D11Query1 *_raw_ppQuery1 = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1517,6 +1587,8 @@ npt_id3d11device3_default_GetImmediateContext3(void *self, ID3D11DeviceContext3 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device3_default_CreateDeferredContext3(void *self, UINT ContextFlags, ID3D11DeviceContext3 ** ppDeferredContext)
 {
+    if (!ppDeferredContext)
+        return npt_call_ID3D11Device3_CreateDeferredContext3(npt_com_self_ring(self), npt_com_self_id(self), ContextFlags, ppDeferredContext);
     ID3D11DeviceContext3 *_raw_ppDeferredContext = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1575,11 +1647,17 @@ npt_id3d11device3_client_create(struct npt_device *dev, uint64_t host_id)
 /* ID3D11Device4 (tier 4)                                  */
 /* ================================================================== */
 
+/* skip_default: ID3D11Device4::RegisterDeviceRemovedEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device4_default_RegisterDeviceRemovedEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
 {
-    HRESULT _ret = npt_call_ID3D11Device4_RegisterDeviceRemovedEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent,pdwCookie);
-    return _ret;
+    (void)self;
+    (void)hEvent;
+    (void)pdwCookie;
+    npt_com_assert_overridden("ID3D11Device4", "RegisterDeviceRemovedEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -1611,6 +1689,8 @@ npt_id3d11device4_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device5_default_OpenSharedFence(void *self, HANDLE hFence, const IID * ReturnedInterface, void ** ppFence)
 {
+    if (!ppFence)
+        return npt_call_ID3D11Device5_OpenSharedFence(npt_com_self_ring(self), npt_com_self_id(self), hFence, ReturnedInterface, ppFence);
     void *_raw_ppFence = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1640,6 +1720,8 @@ npt_id3d11device5_default_OpenSharedFence(void *self, HANDLE hFence, const IID *
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11device5_default_CreateFence(void *self, UINT64 InitialValue, D3D11_FENCE_FLAG Flags, const IID * ReturnedInterface, void ** ppFence)
 {
+    if (!ppFence)
+        return npt_call_ID3D11Device5_CreateFence(npt_com_self_ring(self), npt_com_self_id(self), InitialValue, Flags, ReturnedInterface, ppFence);
     void *_raw_ppFence = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

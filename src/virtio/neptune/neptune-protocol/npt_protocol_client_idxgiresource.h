@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgiresource: IDXGIResource, IDXGIResource1
+/* Family idxgiresource: IDXGIResource, IDXGIResource1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

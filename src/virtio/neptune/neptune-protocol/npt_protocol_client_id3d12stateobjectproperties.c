@@ -78,10 +78,19 @@ npt_id3d12stateobjectproperties_default_Release(void *self)
 /* ID3D12StateObjectProperties (tier 0)                                  */
 /* ================================================================== */
 
-void NPT_STDMETHODCALLTYPE
+/* ID3D12StateObjectProperties::GetShaderIdentifier has no transport (unsupported): fail the
+ * call without touching the wire. */
+void * NPT_STDMETHODCALLTYPE
 npt_id3d12stateobjectproperties_default_GetShaderIdentifier(void *self, const WCHAR * pExportName)
 {
-    npt_async_ID3D12StateObjectProperties_GetShaderIdentifier(npt_com_self_ring(self),npt_com_self_id(self),pExportName);
+    (void)self;
+    (void)pExportName;
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("ID3D12StateObjectProperties::GetShaderIdentifier is not supported over Neptune");
+    }
+    return NULL;
 }
 
 UINT64 NPT_STDMETHODCALLTYPE

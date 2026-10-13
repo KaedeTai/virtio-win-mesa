@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgidisplaycontrol: IDXGIDisplayControl
+/* Family idxgidisplaycontrol: IDXGIDisplayControl */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

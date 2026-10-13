@@ -89,11 +89,21 @@ npt_idxgisurface_default_GetDesc(void *self, DXGI_SURFACE_DESC * pDesc)
     return _ret;
 }
 
+/* IDXGISurface::Map has no transport (unsupported): fail the
+ * call without touching the wire. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgisurface_default_Map(void *self, DXGI_MAPPED_RECT * pLockedRect, UINT MapFlags)
 {
-    HRESULT _ret = npt_call_IDXGISurface_Map(npt_com_self_ring(self),npt_com_self_id(self),pLockedRect,MapFlags);
-    return _ret;
+    (void)self;
+    if (pLockedRect)
+        memset(pLockedRect, 0, sizeof(*pLockedRect));
+    (void)MapFlags;
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("IDXGISurface::Map is not supported over Neptune");
+    }
+    return (HRESULT)0x80004001 /* E_NOTIMPL */;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE

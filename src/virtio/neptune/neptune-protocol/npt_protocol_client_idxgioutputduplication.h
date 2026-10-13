@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgioutputduplication: IDXGIOutputDuplication
+/* Family idxgioutputduplication: IDXGIOutputDuplication */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

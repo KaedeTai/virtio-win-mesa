@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11predicate: ID3D11Predicate
+/* Family id3d11predicate: ID3D11Predicate */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

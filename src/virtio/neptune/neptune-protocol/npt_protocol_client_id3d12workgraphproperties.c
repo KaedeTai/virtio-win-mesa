@@ -83,11 +83,19 @@ npt_id3d12workgraphproperties_default_GetNumWorkGraphs(void *self)
     return _ret;
 }
 
-WCHAR NPT_STDMETHODCALLTYPE
+/* ID3D12WorkGraphProperties::GetProgramName has no transport (unsupported): fail the
+ * call without touching the wire. */
+const WCHAR * NPT_STDMETHODCALLTYPE
 npt_id3d12workgraphproperties_default_GetProgramName(void *self, UINT WorkGraphIndex)
 {
-    WCHAR _ret = npt_call_ID3D12WorkGraphProperties_GetProgramName(npt_com_self_ring(self),npt_com_self_id(self),WorkGraphIndex);
-    return _ret;
+    (void)self;
+    (void)WorkGraphIndex;
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("ID3D12WorkGraphProperties::GetProgramName is not supported over Neptune");
+    }
+    return NULL;
 }
 
 UINT NPT_STDMETHODCALLTYPE

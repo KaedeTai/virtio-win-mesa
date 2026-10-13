@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11videoprocessorenumerator: ID3D11VideoProcessorEnumerator, ID3D11VideoProcessorEnumerator1
+/* Family id3d11videoprocessorenumerator: ID3D11VideoProcessorEnumerator, ID3D11VideoProcessorEnumerator1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

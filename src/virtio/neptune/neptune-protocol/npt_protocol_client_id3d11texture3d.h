@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11texture3d: ID3D11Texture3D, ID3D11Texture3D1
+/* Family id3d11texture3d: ID3D11Texture3D, ID3D11Texture3D1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

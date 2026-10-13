@@ -205,7 +205,7 @@ npt_sizeof_IDXGIDevice_CreateSurface(const DXGI_SURFACE_DESC * pDesc,const UINT 
     cmd_size += npt_sizeof_simple_pointer(pSharedResource);
     if (pSharedResource)
         cmd_size += npt_sizeof_DXGI_SHARED_RESOURCE(pSharedResource, max_mode);
-cmd_size += sizeof(uint64_t) + (size_t)(NumSurfaces) * sizeof(uint64_t);  /* ppSurface: array_count + N guest ids */
+cmd_size += sizeof(uint64_t) + (ppSurface ? (size_t)(NumSurfaces) : 0) * sizeof(uint64_t);  /* ppSurface: array_count + N guest ids */
     return cmd_size;
 }
 

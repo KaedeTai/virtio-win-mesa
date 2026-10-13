@@ -76,10 +76,18 @@ npt_id3d10blob_default_Release(void *self)
 /* ID3D10Blob (tier 0)                                  */
 /* ================================================================== */
 
-void NPT_STDMETHODCALLTYPE
+/* ID3D10Blob::GetBufferPointer has no transport (unsupported): fail the
+ * call without touching the wire. */
+void * NPT_STDMETHODCALLTYPE
 npt_id3d10blob_default_GetBufferPointer(void *self)
 {
-    npt_async_ID3D10Blob_GetBufferPointer(npt_com_self_ring(self),npt_com_self_id(self));
+    (void)self;
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("ID3D10Blob::GetBufferPointer is not supported over Neptune");
+    }
+    return NULL;
 }
 
 SIZE_T NPT_STDMETHODCALLTYPE

@@ -112,6 +112,8 @@ npt_id3d12sdkconfiguration_client_create(struct npt_device *dev, uint64_t host_i
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12sdkconfiguration1_default_CreateDeviceFactory(void *self, UINT SDKVersion, const CHAR * SDKPath, const IID * riid, void ** ppvFactory)
 {
+    if (!ppvFactory)
+        return npt_call_ID3D12SDKConfiguration1_CreateDeviceFactory(npt_com_self_ring(self), npt_com_self_id(self), SDKVersion, SDKPath, riid, ppvFactory);
     void *_raw_ppvFactory = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

@@ -158,6 +158,8 @@ npt_id3d12devicefactory_default_EnableExperimentalFeatures(void *self, UINT NumF
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12devicefactory_default_CreateDevice(void *self, IUnknown * adapter, D3D_FEATURE_LEVEL FeatureLevel, const IID * riid, void ** ppvDevice)
 {
+    if (!ppvDevice)
+        return npt_call_ID3D12DeviceFactory_CreateDevice(npt_com_self_ring(self), npt_com_self_id(self), adapter, FeatureLevel, riid, ppvDevice);
     void *_raw_ppvDevice = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

@@ -201,11 +201,17 @@ npt_idxgiadapter2_client_create(struct npt_device *dev, uint64_t host_id)
 /* IDXGIAdapter3 (tier 3)                                  */
 /* ================================================================== */
 
+/* skip_default: IDXGIAdapter3::RegisterHardwareContentProtectionTeardownStatusEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter3_default_RegisterHardwareContentProtectionTeardownStatusEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
 {
-    HRESULT _ret = npt_call_IDXGIAdapter3_RegisterHardwareContentProtectionTeardownStatusEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent,pdwCookie);
-    return _ret;
+    (void)self;
+    (void)hEvent;
+    (void)pdwCookie;
+    npt_com_assert_overridden("IDXGIAdapter3", "RegisterHardwareContentProtectionTeardownStatusEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 void NPT_STDMETHODCALLTYPE
@@ -232,11 +238,17 @@ npt_idxgiadapter3_default_SetVideoMemoryReservation(void *self, UINT NodeIndex, 
     return (HRESULT)0 /* S_OK */;
 }
 
+/* skip_default: IDXGIAdapter3::RegisterVideoMemoryBudgetChangeNotificationEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiadapter3_default_RegisterVideoMemoryBudgetChangeNotificationEvent(void *self, HANDLE hEvent, DWORD * pdwCookie)
 {
-    HRESULT _ret = npt_call_IDXGIAdapter3_RegisterVideoMemoryBudgetChangeNotificationEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent,pdwCookie);
-    return _ret;
+    (void)self;
+    (void)hEvent;
+    (void)pdwCookie;
+    npt_com_assert_overridden("IDXGIAdapter3", "RegisterVideoMemoryBudgetChangeNotificationEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 void NPT_STDMETHODCALLTYPE

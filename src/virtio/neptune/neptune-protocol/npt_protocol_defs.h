@@ -82,7 +82,7 @@ struct npt_wire_object_ref {
  * virgl_renderer_capset_neptune.wire_format_version; the guest compares
  * against its own copy and refuses to attach on mismatch.  Bump the
  * JSON's version when an incompatible wire change lands. */
-#define NPT_PROTOCOL_WIRE_VERSION 1u
+#define NPT_PROTOCOL_WIRE_VERSION 2u
 
 /* ================================================================== */
 /* Interface IIDs                                                      */

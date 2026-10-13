@@ -126,6 +126,8 @@ npt_idxgidevice_default_GetAdapter(void *self, IDXGIAdapter ** pAdapter)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgidevice_default_CreateSurface(void *self, const DXGI_SURFACE_DESC * pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE * pSharedResource, IDXGISurface ** ppSurface)
 {
+    if (!ppSurface)
+        return npt_call_IDXGIDevice_CreateSurface(npt_com_self_ring(self), npt_com_self_id(self), pDesc, NumSurfaces, Usage, pSharedResource, ppSurface);
     npt_async_IDXGIDevice_CreateSurface(npt_com_self_ring(self),npt_com_self_id(self),pDesc,NumSurfaces,Usage,pSharedResource,ppSurface);
     /* Wrap output COM handle arrays in-place.  The encoder stashed the
      * guest-allocated ids in each slot before the submit; convert them
@@ -249,15 +251,16 @@ npt_idxgidevice2_default_ReclaimResources(void *self, UINT NumResources, IDXGIRe
     return _ret;
 }
 
+/* skip_default: IDXGIDevice2::EnqueueSetEvent -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgidevice2_default_EnqueueSetEvent(void *self, HANDLE hEvent)
 {
-    npt_async_IDXGIDevice2_EnqueueSetEvent(npt_com_self_ring(self),npt_com_self_id(self),hEvent);
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    (void)self;
+    (void)hEvent;
+    npt_com_assert_overridden("IDXGIDevice2", "EnqueueSetEvent");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 

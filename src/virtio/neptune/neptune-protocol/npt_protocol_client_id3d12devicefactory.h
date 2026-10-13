@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12devicefactory: ID3D12DeviceFactory
+/* Family id3d12devicefactory: ID3D12DeviceFactory */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

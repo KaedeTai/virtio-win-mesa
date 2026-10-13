@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11rendertargetview: ID3D11RenderTargetView, ID3D11RenderTargetView1
+/* Family id3d11rendertargetview: ID3D11RenderTargetView, ID3D11RenderTargetView1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

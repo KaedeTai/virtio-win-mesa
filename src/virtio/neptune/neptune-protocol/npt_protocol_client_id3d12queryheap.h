@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12queryheap: ID3D12QueryHeap
+/* Family id3d12queryheap: ID3D12QueryHeap */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

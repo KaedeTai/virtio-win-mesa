@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12swapchainassistant: ID3D12SwapChainAssistant
+/* Family id3d12swapchainassistant: ID3D12SwapChainAssistant */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

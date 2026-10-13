@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11pixelshader: ID3D11PixelShader
+/* Family id3d11pixelshader: ID3D11PixelShader */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

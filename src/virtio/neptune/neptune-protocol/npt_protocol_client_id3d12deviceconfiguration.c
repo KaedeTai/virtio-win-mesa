@@ -138,6 +138,8 @@ npt_id3d12deviceconfiguration_default_SerializeVersionedRootSignature(void *self
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12deviceconfiguration_default_CreateVersionedRootSignatureDeserializer(void *self, const void * pBlob, SIZE_T Size, const IID * riid, void ** ppvDeserializer)
 {
+    if (!ppvDeserializer)
+        return npt_call_ID3D12DeviceConfiguration_CreateVersionedRootSignatureDeserializer(npt_com_self_ring(self), npt_com_self_id(self), pBlob, Size, riid, ppvDeserializer);
     void *_raw_ppvDeserializer = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -187,6 +189,8 @@ npt_id3d12deviceconfiguration_client_create(struct npt_device *dev, uint64_t hos
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12deviceconfiguration1_default_CreateVersionedRootSignatureDeserializerFromSubobjectInLibrary(void *self, const void * pLibraryBlob, SIZE_T Size, const WCHAR * RootSignatureSubobjectName, const IID * riid, void ** ppvDeserializer)
 {
+    if (!ppvDeserializer)
+        return npt_call_ID3D12DeviceConfiguration1_CreateVersionedRootSignatureDeserializerFromSubobjectInLibrary(npt_com_self_ring(self), npt_com_self_id(self), pLibraryBlob, Size, RootSignatureSubobjectName, riid, ppvDeserializer);
     void *_raw_ppvDeserializer = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

@@ -115,6 +115,8 @@ npt_id3d12device_default_GetNodeCount(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateCommandQueue(void *self, const D3D12_COMMAND_QUEUE_DESC * pDesc, const IID * riid, void ** ppCommandQueue)
 {
+    if (!ppCommandQueue)
+        return npt_call_ID3D12Device_CreateCommandQueue(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppCommandQueue);
     void *_raw_ppCommandQueue = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -144,6 +146,8 @@ npt_id3d12device_default_CreateCommandQueue(void *self, const D3D12_COMMAND_QUEU
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateCommandAllocator(void *self, D3D12_COMMAND_LIST_TYPE type, const IID * riid, void ** ppCommandAllocator)
 {
+    if (!ppCommandAllocator)
+        return npt_call_ID3D12Device_CreateCommandAllocator(npt_com_self_ring(self), npt_com_self_id(self), type, riid, ppCommandAllocator);
     void *_raw_ppCommandAllocator = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -173,6 +177,8 @@ npt_id3d12device_default_CreateCommandAllocator(void *self, D3D12_COMMAND_LIST_T
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateGraphicsPipelineState(void *self, const D3D12_GRAPHICS_PIPELINE_STATE_DESC * pDesc, const IID * riid, void ** ppPipelineState)
 {
+    if (!ppPipelineState)
+        return npt_call_ID3D12Device_CreateGraphicsPipelineState(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppPipelineState);
     void *_raw_ppPipelineState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -202,6 +208,8 @@ npt_id3d12device_default_CreateGraphicsPipelineState(void *self, const D3D12_GRA
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateComputePipelineState(void *self, const D3D12_COMPUTE_PIPELINE_STATE_DESC * pDesc, const IID * riid, void ** ppPipelineState)
 {
+    if (!ppPipelineState)
+        return npt_call_ID3D12Device_CreateComputePipelineState(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppPipelineState);
     void *_raw_ppPipelineState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -231,6 +239,8 @@ npt_id3d12device_default_CreateComputePipelineState(void *self, const D3D12_COMP
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateCommandList(void *self, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator * pCommandAllocator, ID3D12PipelineState * pInitialState, const IID * riid, void ** ppCommandList)
 {
+    if (!ppCommandList)
+        return npt_call_ID3D12Device_CreateCommandList(npt_com_self_ring(self), npt_com_self_id(self), nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
     void *_raw_ppCommandList = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -274,6 +284,8 @@ npt_id3d12device_default_CheckFeatureSupport(void *self, D3D12_FEATURE Feature, 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateDescriptorHeap(void *self, const D3D12_DESCRIPTOR_HEAP_DESC * pDescriptorHeapDesc, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device_CreateDescriptorHeap(npt_com_self_ring(self), npt_com_self_id(self), pDescriptorHeapDesc, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -310,6 +322,8 @@ npt_id3d12device_default_GetDescriptorHandleIncrementSize(void *self, D3D12_DESC
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateRootSignature(void *self, UINT nodeMask, const void * pBlobWithRootSignature, SIZE_T blobLengthInBytes, const IID * riid, void ** ppvRootSignature)
 {
+    if (!ppvRootSignature)
+        return npt_call_ID3D12Device_CreateRootSignature(npt_com_self_ring(self), npt_com_self_id(self), nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
     void *_raw_ppvRootSignature = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -407,6 +421,8 @@ npt_id3d12device_default_GetCustomHeapProperties(void *self, D3D12_HEAP_PROPERTI
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateCommittedResource(void *self, const D3D12_HEAP_PROPERTIES * pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC * pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, const IID * riidResource, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device_CreateCommittedResource(npt_com_self_ring(self), npt_com_self_id(self), pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -436,6 +452,8 @@ npt_id3d12device_default_CreateCommittedResource(void *self, const D3D12_HEAP_PR
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateHeap(void *self, const D3D12_HEAP_DESC * pDesc, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device_CreateHeap(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -465,6 +483,8 @@ npt_id3d12device_default_CreateHeap(void *self, const D3D12_HEAP_DESC * pDesc, c
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreatePlacedResource(void *self, ID3D12Heap * pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC * pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, const IID * riid, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device_CreatePlacedResource(npt_com_self_ring(self), npt_com_self_id(self), pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -494,6 +514,8 @@ npt_id3d12device_default_CreatePlacedResource(void *self, ID3D12Heap * pHeap, UI
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateReservedResource(void *self, const D3D12_RESOURCE_DESC * pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, const IID * riid, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device_CreateReservedResource(npt_com_self_ring(self), npt_com_self_id(self), pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -530,6 +552,8 @@ npt_id3d12device_default_CreateSharedHandle(void *self, ID3D12DeviceChild * pObj
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_OpenSharedHandle(void *self, HANDLE NTHandle, const IID * riid, void ** ppvObj)
 {
+    if (!ppvObj)
+        return npt_call_ID3D12Device_OpenSharedHandle(npt_com_self_ring(self), npt_com_self_id(self), NTHandle, riid, ppvObj);
     void *_raw_ppvObj = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -588,6 +612,8 @@ npt_id3d12device_default_Evict(void *self, UINT NumObjects, ID3D12Pageable ** pp
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateFence(void *self, UINT64 InitialValue, D3D12_FENCE_FLAGS Flags, const IID * riid, void ** ppFence)
 {
+    if (!ppFence)
+        return npt_call_ID3D12Device_CreateFence(npt_com_self_ring(self), npt_com_self_id(self), InitialValue, Flags, riid, ppFence);
     void *_raw_ppFence = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -634,6 +660,8 @@ npt_id3d12device_default_GetCopyableFootprints(void *self, const D3D12_RESOURCE_
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateQueryHeap(void *self, const D3D12_QUERY_HEAP_DESC * pDesc, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device_CreateQueryHeap(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -674,6 +702,8 @@ npt_id3d12device_default_SetStablePowerState(void *self, BOOL Enable)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device_default_CreateCommandSignature(void *self, const D3D12_COMMAND_SIGNATURE_DESC * pDesc, ID3D12RootSignature * pRootSignature, const IID * riid, void ** ppvCommandSignature)
 {
+    if (!ppvCommandSignature)
+        return npt_call_ID3D12Device_CreateCommandSignature(npt_com_self_ring(self), npt_com_self_id(self), pDesc, pRootSignature, riid, ppvCommandSignature);
     void *_raw_ppvCommandSignature = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -739,6 +769,8 @@ npt_id3d12device_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device1_default_CreatePipelineLibrary(void *self, const void * pLibraryBlob, SIZE_T BlobLength, const IID * riid, void ** ppPipelineLibrary)
 {
+    if (!ppPipelineLibrary)
+        return npt_call_ID3D12Device1_CreatePipelineLibrary(npt_com_self_ring(self), npt_com_self_id(self), pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
     void *_raw_ppPipelineLibrary = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -765,15 +797,20 @@ npt_id3d12device1_default_CreatePipelineLibrary(void *self, const void * pLibrar
     return (HRESULT)0 /* S_OK */;
 }
 
+/* skip_default: ID3D12Device1::SetEventOnMultipleFenceCompletion -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device1_default_SetEventOnMultipleFenceCompletion(void *self, ID3D12Fence ** ppFences, const UINT64 * pFenceValues, UINT NumFences, D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags, HANDLE hEvent)
 {
-    npt_async_ID3D12Device1_SetEventOnMultipleFenceCompletion(npt_com_self_ring(self),npt_com_self_id(self),ppFences,pFenceValues,NumFences,Flags,hEvent);
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    (void)self;
+    (void)ppFences;
+    (void)pFenceValues;
+    (void)NumFences;
+    (void)Flags;
+    (void)hEvent;
+    npt_com_assert_overridden("ID3D12Device1", "SetEventOnMultipleFenceCompletion");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
@@ -810,6 +847,8 @@ npt_id3d12device1_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device2_default_CreatePipelineState(void *self, const D3D12_PIPELINE_STATE_STREAM_DESC * pDesc, const IID * riid, void ** ppPipelineState)
 {
+    if (!ppPipelineState)
+        return npt_call_ID3D12Device2_CreatePipelineState(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppPipelineState);
     void *_raw_ppPipelineState = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -859,6 +898,8 @@ npt_id3d12device2_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device3_default_OpenExistingHeapFromAddress(void *self, const void * pAddress, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device3_OpenExistingHeapFromAddress(npt_com_self_ring(self), npt_com_self_id(self), pAddress, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -888,6 +929,8 @@ npt_id3d12device3_default_OpenExistingHeapFromAddress(void *self, const void * p
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device3_default_OpenExistingHeapFromFileMapping(void *self, HANDLE hFileMapping, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device3_OpenExistingHeapFromFileMapping(npt_com_self_ring(self), npt_com_self_id(self), hFileMapping, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -948,6 +991,8 @@ npt_id3d12device3_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device4_default_CreateCommandList1(void *self, UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, D3D12_COMMAND_LIST_FLAGS flags, const IID * riid, void ** ppCommandList)
 {
+    if (!ppCommandList)
+        return npt_call_ID3D12Device4_CreateCommandList1(npt_com_self_ring(self), npt_com_self_id(self), nodeMask, type, flags, riid, ppCommandList);
     void *_raw_ppCommandList = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -977,6 +1022,8 @@ npt_id3d12device4_default_CreateCommandList1(void *self, UINT nodeMask, D3D12_CO
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device4_default_CreateProtectedResourceSession(void *self, const D3D12_PROTECTED_RESOURCE_SESSION_DESC * pDesc, const IID * riid, void ** ppSession)
 {
+    if (!ppSession)
+        return npt_call_ID3D12Device4_CreateProtectedResourceSession(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppSession);
     void *_raw_ppSession = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1006,6 +1053,8 @@ npt_id3d12device4_default_CreateProtectedResourceSession(void *self, const D3D12
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device4_default_CreateCommittedResource1(void *self, const D3D12_HEAP_PROPERTIES * pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC * pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, ID3D12ProtectedResourceSession * pProtectedSession, const IID * riidResource, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device4_CreateCommittedResource1(npt_com_self_ring(self), npt_com_self_id(self), pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1035,6 +1084,8 @@ npt_id3d12device4_default_CreateCommittedResource1(void *self, const D3D12_HEAP_
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device4_default_CreateHeap1(void *self, const D3D12_HEAP_DESC * pDesc, ID3D12ProtectedResourceSession * pProtectedSession, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device4_CreateHeap1(npt_com_self_ring(self), npt_com_self_id(self), pDesc, pProtectedSession, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1064,6 +1115,8 @@ npt_id3d12device4_default_CreateHeap1(void *self, const D3D12_HEAP_DESC * pDesc,
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device4_default_CreateReservedResource1(void *self, const D3D12_RESOURCE_DESC * pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, ID3D12ProtectedResourceSession * pProtectedSession, const IID * riid, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device4_CreateReservedResource1(npt_com_self_ring(self), npt_com_self_id(self), pDesc, InitialState, pOptimizedClearValue, pProtectedSession, riid, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1123,6 +1176,8 @@ npt_id3d12device4_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device5_default_CreateLifetimeTracker(void *self, ID3D12LifetimeOwner * pOwner, const IID * riid, void ** ppvTracker)
 {
+    if (!ppvTracker)
+        return npt_call_ID3D12Device5_CreateLifetimeTracker(npt_com_self_ring(self), npt_com_self_id(self), pOwner, riid, ppvTracker);
     void *_raw_ppvTracker = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1172,6 +1227,8 @@ npt_id3d12device5_default_EnumerateMetaCommandParameters(void *self, const GUID 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device5_default_CreateMetaCommand(void *self, const GUID * CommandId, UINT NodeMask, const void * pCreationParametersData, SIZE_T CreationParametersDataSizeInBytes, const IID * riid, void ** ppMetaCommand)
 {
+    if (!ppMetaCommand)
+        return npt_call_ID3D12Device5_CreateMetaCommand(npt_com_self_ring(self), npt_com_self_id(self), CommandId, NodeMask, pCreationParametersData, CreationParametersDataSizeInBytes, riid, ppMetaCommand);
     void *_raw_ppMetaCommand = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1201,6 +1258,8 @@ npt_id3d12device5_default_CreateMetaCommand(void *self, const GUID * CommandId, 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device5_default_CreateStateObject(void *self, const D3D12_STATE_OBJECT_DESC * pDesc, const IID * riid, void ** ppStateObject)
 {
+    if (!ppStateObject)
+        return npt_call_ID3D12Device5_CreateStateObject(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppStateObject);
     void *_raw_ppStateObject = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1260,11 +1319,19 @@ npt_id3d12device5_client_create(struct npt_device *dev, uint64_t host_id)
 /* ID3D12Device6 (tier 6)                                  */
 /* ================================================================== */
 
+/* skip_default: ID3D12Device6::SetBackgroundProcessingMode -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device6_default_SetBackgroundProcessingMode(void *self, D3D12_BACKGROUND_PROCESSING_MODE Mode, D3D12_MEASUREMENTS_ACTION MeasurementsAction, HANDLE hEventToSignalUponCompletion, BOOL * pbFurtherMeasurementsDesired)
 {
-    HRESULT _ret = npt_call_ID3D12Device6_SetBackgroundProcessingMode(npt_com_self_ring(self),npt_com_self_id(self),Mode,MeasurementsAction,hEventToSignalUponCompletion,pbFurtherMeasurementsDesired);
-    return _ret;
+    (void)self;
+    (void)Mode;
+    (void)MeasurementsAction;
+    (void)hEventToSignalUponCompletion;
+    (void)pbFurtherMeasurementsDesired;
+    npt_com_assert_overridden("ID3D12Device6", "SetBackgroundProcessingMode");
+    return (HRESULT)0x80004005 /* E_FAIL */;
 }
 
 
@@ -1318,6 +1385,8 @@ npt_id3d12device7_default_AddToStateObject(void *self, const D3D12_STATE_OBJECT_
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device7_default_CreateProtectedResourceSession1(void *self, const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 * pDesc, const IID * riid, void ** ppSession)
 {
+    if (!ppSession)
+        return npt_call_ID3D12Device7_CreateProtectedResourceSession1(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppSession);
     void *_raw_ppSession = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1377,6 +1446,8 @@ npt_id3d12device8_default_GetResourceAllocationInfo2(void *self, D3D12_RESOURCE_
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device8_default_CreateCommittedResource2(void *self, const D3D12_HEAP_PROPERTIES * pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1 * pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, ID3D12ProtectedResourceSession * pProtectedSession, const IID * riidResource, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device8_CreateCommittedResource2(npt_com_self_ring(self), npt_com_self_id(self), pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1406,6 +1477,8 @@ npt_id3d12device8_default_CreateCommittedResource2(void *self, const D3D12_HEAP_
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device8_default_CreatePlacedResource1(void *self, ID3D12Heap * pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC1 * pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE * pOptimizedClearValue, const IID * riid, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device8_CreatePlacedResource1(npt_com_self_ring(self), npt_com_self_id(self), pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1467,6 +1540,8 @@ npt_id3d12device8_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device9_default_CreateShaderCacheSession(void *self, const D3D12_SHADER_CACHE_SESSION_DESC * pDesc, const IID * riid, void ** ppvSession)
 {
+    if (!ppvSession)
+        return npt_call_ID3D12Device9_CreateShaderCacheSession(npt_com_self_ring(self), npt_com_self_id(self), pDesc, riid, ppvSession);
     void *_raw_ppvSession = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1507,6 +1582,8 @@ npt_id3d12device9_default_ShaderCacheControl(void *self, D3D12_SHADER_CACHE_KIND
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device9_default_CreateCommandQueue1(void *self, const D3D12_COMMAND_QUEUE_DESC * pDesc, const IID * CreatorID, const IID * riid, void ** ppCommandQueue)
 {
+    if (!ppCommandQueue)
+        return npt_call_ID3D12Device9_CreateCommandQueue1(npt_com_self_ring(self), npt_com_self_id(self), pDesc, CreatorID, riid, ppCommandQueue);
     void *_raw_ppCommandQueue = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1556,6 +1633,8 @@ npt_id3d12device9_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device10_default_CreateCommittedResource3(void *self, const D3D12_HEAP_PROPERTIES * pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1 * pDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE * pOptimizedClearValue, ID3D12ProtectedResourceSession * pProtectedSession, UINT32 NumCastableFormats, const DXGI_FORMAT * pCastableFormats, const IID * riidResource, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device10_CreateCommittedResource3(npt_com_self_ring(self), npt_com_self_id(self), pHeapProperties, HeapFlags, pDesc, InitialLayout, pOptimizedClearValue, pProtectedSession, NumCastableFormats, pCastableFormats, riidResource, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1585,6 +1664,8 @@ npt_id3d12device10_default_CreateCommittedResource3(void *self, const D3D12_HEAP
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device10_default_CreatePlacedResource2(void *self, ID3D12Heap * pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC1 * pDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE * pOptimizedClearValue, UINT32 NumCastableFormats, const DXGI_FORMAT * pCastableFormats, const IID * riid, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device10_CreatePlacedResource2(npt_com_self_ring(self), npt_com_self_id(self), pHeap, HeapOffset, pDesc, InitialLayout, pOptimizedClearValue, NumCastableFormats, pCastableFormats, riid, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1614,6 +1695,8 @@ npt_id3d12device10_default_CreatePlacedResource2(void *self, ID3D12Heap * pHeap,
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device10_default_CreateReservedResource2(void *self, const D3D12_RESOURCE_DESC * pDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE * pOptimizedClearValue, ID3D12ProtectedResourceSession * pProtectedSession, UINT32 NumCastableFormats, const DXGI_FORMAT * pCastableFormats, const IID * riid, void ** ppvResource)
 {
+    if (!ppvResource)
+        return npt_call_ID3D12Device10_CreateReservedResource2(npt_com_self_ring(self), npt_com_self_id(self), pDesc, InitialLayout, pOptimizedClearValue, pProtectedSession, NumCastableFormats, pCastableFormats, riid, ppvResource);
     void *_raw_ppvResource = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1719,6 +1802,8 @@ npt_id3d12device12_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device13_default_OpenExistingHeapFromAddress1(void *self, const void * pAddress, SIZE_T size, const IID * riid, void ** ppvHeap)
 {
+    if (!ppvHeap)
+        return npt_call_ID3D12Device13_OpenExistingHeapFromAddress1(npt_com_self_ring(self), npt_com_self_id(self), pAddress, size, riid, ppvHeap);
     void *_raw_ppvHeap = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -1768,6 +1853,8 @@ npt_id3d12device13_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12device14_default_CreateRootSignatureFromSubobjectInLibrary(void *self, UINT nodeMask, const void * pLibraryBlob, SIZE_T blobLengthInBytes, const WCHAR * subobjectName, const IID * riid, void ** ppvRootSignature)
 {
+    if (!ppvRootSignature)
+        return npt_call_ID3D12Device14_CreateRootSignatureFromSubobjectInLibrary(npt_com_self_ring(self), npt_com_self_id(self), nodeMask, pLibraryBlob, blobLengthInBytes, subobjectName, riid, ppvRootSignature);
     void *_raw_ppvRootSignature = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

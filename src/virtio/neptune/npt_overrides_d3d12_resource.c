@@ -34,7 +34,7 @@
 #include "npt_dispatch.h"
 #include "npt_overrides.h"
 #include "npt_resource.h"
-#include "npt_transport_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 #include "neptune-protocol/npt_protocol_client_id3d12resource.h"
 #include "neptune-protocol/npt_protocol_guest_id3d12resource.h"

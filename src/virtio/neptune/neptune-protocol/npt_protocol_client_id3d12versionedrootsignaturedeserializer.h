@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12versionedrootsignaturedeserializer: ID3D12VersionedRootSignatureDeserializer
+/* Family id3d12versionedrootsignaturedeserializer: ID3D12VersionedRootSignatureDeserializer */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from
@@ -66,7 +66,7 @@ struct npt_id3d12versionedrootsignaturedeserializer_client_vtbl {
     /* slot 3: ID3D12VersionedRootSignatureDeserializer::GetRootSignatureDescAtVersion */
     HRESULT (NPT_STDMETHODCALLTYPE *GetRootSignatureDescAtVersion)(void *self, D3D_ROOT_SIGNATURE_VERSION convertToVersion, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC ** ppDesc);
     /* slot 4: ID3D12VersionedRootSignatureDeserializer::GetUnconvertedRootSignatureDesc */
-    D3D12_VERSIONED_ROOT_SIGNATURE_DESC * (NPT_STDMETHODCALLTYPE *GetUnconvertedRootSignatureDesc)(void *self, D3D12_VERSIONED_ROOT_SIGNATURE_DESC *_ret_out);
+    const D3D12_VERSIONED_ROOT_SIGNATURE_DESC * (NPT_STDMETHODCALLTYPE *GetUnconvertedRootSignatureDesc)(void *self);
 };
 
 /* Default thunk prototypes for the methods OWNED by this interface
@@ -77,8 +77,8 @@ struct npt_id3d12versionedrootsignaturedeserializer_client_vtbl {
  * with a real implementation before the method is called. */
 extern HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d12versionedrootsignaturedeserializer_default_GetRootSignatureDescAtVersion(void *self, D3D_ROOT_SIGNATURE_VERSION convertToVersion, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC ** ppDesc);
-extern D3D12_VERSIONED_ROOT_SIGNATURE_DESC * NPT_STDMETHODCALLTYPE
-npt_id3d12versionedrootsignaturedeserializer_default_GetUnconvertedRootSignatureDesc(void *self, D3D12_VERSIONED_ROOT_SIGNATURE_DESC *_ret_out);
+extern const D3D12_VERSIONED_ROOT_SIGNATURE_DESC * NPT_STDMETHODCALLTYPE
+npt_id3d12versionedrootsignaturedeserializer_default_GetUnconvertedRootSignatureDesc(void *self);
 
 /* Populate `dst` with all default thunks (own + inherited via the
  * extern decls from the parent client header).  Hand-written code can

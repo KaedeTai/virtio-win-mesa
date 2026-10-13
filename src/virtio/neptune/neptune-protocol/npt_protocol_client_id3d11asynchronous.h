@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11asynchronous: ID3D11Asynchronous
+/* Family id3d11asynchronous: ID3D11Asynchronous */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

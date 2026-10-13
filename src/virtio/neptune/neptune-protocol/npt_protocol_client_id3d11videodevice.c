@@ -83,6 +83,8 @@ npt_id3d11videodevice_default_Release(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateVideoDecoder(void *self, const D3D11_VIDEO_DECODER_DESC * pVideoDesc, const D3D11_VIDEO_DECODER_CONFIG * pConfig, ID3D11VideoDecoder ** ppDecoder)
 {
+    if (!ppDecoder)
+        return npt_call_ID3D11VideoDevice_CreateVideoDecoder(npt_com_self_ring(self), npt_com_self_id(self), pVideoDesc, pConfig, ppDecoder);
     ID3D11VideoDecoder *_raw_ppDecoder = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -112,6 +114,8 @@ npt_id3d11videodevice_default_CreateVideoDecoder(void *self, const D3D11_VIDEO_D
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateVideoProcessor(void *self, ID3D11VideoProcessorEnumerator * pEnum, UINT RateConversionIndex, ID3D11VideoProcessor ** ppVideoProcessor)
 {
+    if (!ppVideoProcessor)
+        return npt_call_ID3D11VideoDevice_CreateVideoProcessor(npt_com_self_ring(self), npt_com_self_id(self), pEnum, RateConversionIndex, ppVideoProcessor);
     ID3D11VideoProcessor *_raw_ppVideoProcessor = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -141,6 +145,8 @@ npt_id3d11videodevice_default_CreateVideoProcessor(void *self, ID3D11VideoProces
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateAuthenticatedChannel(void *self, D3D11_AUTHENTICATED_CHANNEL_TYPE ChannelType, ID3D11AuthenticatedChannel ** ppAuthenticatedChannel)
 {
+    if (!ppAuthenticatedChannel)
+        return npt_call_ID3D11VideoDevice_CreateAuthenticatedChannel(npt_com_self_ring(self), npt_com_self_id(self), ChannelType, ppAuthenticatedChannel);
     ID3D11AuthenticatedChannel *_raw_ppAuthenticatedChannel = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -170,6 +176,8 @@ npt_id3d11videodevice_default_CreateAuthenticatedChannel(void *self, D3D11_AUTHE
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateCryptoSession(void *self, const GUID * pCryptoType, const GUID * pDecoderProfile, const GUID * pKeyExchangeType, ID3D11CryptoSession ** ppCryptoSession)
 {
+    if (!ppCryptoSession)
+        return npt_call_ID3D11VideoDevice_CreateCryptoSession(npt_com_self_ring(self), npt_com_self_id(self), pCryptoType, pDecoderProfile, pKeyExchangeType, ppCryptoSession);
     ID3D11CryptoSession *_raw_ppCryptoSession = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -199,6 +207,8 @@ npt_id3d11videodevice_default_CreateCryptoSession(void *self, const GUID * pCryp
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateVideoDecoderOutputView(void *self, ID3D11Resource * pResource, const D3D11_VIDEO_DECODER_OUTPUT_VIEW_DESC * pDesc, ID3D11VideoDecoderOutputView ** ppVDOVView)
 {
+    if (!ppVDOVView)
+        return npt_call_ID3D11VideoDevice_CreateVideoDecoderOutputView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pDesc, ppVDOVView);
     ID3D11VideoDecoderOutputView *_raw_ppVDOVView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -228,6 +238,8 @@ npt_id3d11videodevice_default_CreateVideoDecoderOutputView(void *self, ID3D11Res
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateVideoProcessorInputView(void *self, ID3D11Resource * pResource, ID3D11VideoProcessorEnumerator * pEnum, const D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC * pDesc, ID3D11VideoProcessorInputView ** ppVPIView)
 {
+    if (!ppVPIView)
+        return npt_call_ID3D11VideoDevice_CreateVideoProcessorInputView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pEnum, pDesc, ppVPIView);
     ID3D11VideoProcessorInputView *_raw_ppVPIView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -257,6 +269,8 @@ npt_id3d11videodevice_default_CreateVideoProcessorInputView(void *self, ID3D11Re
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateVideoProcessorOutputView(void *self, ID3D11Resource * pResource, ID3D11VideoProcessorEnumerator * pEnum, const D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC * pDesc, ID3D11VideoProcessorOutputView ** ppVPOView)
 {
+    if (!ppVPOView)
+        return npt_call_ID3D11VideoDevice_CreateVideoProcessorOutputView(npt_com_self_ring(self), npt_com_self_id(self), pResource, pEnum, pDesc, ppVPOView);
     ID3D11VideoProcessorOutputView *_raw_ppVPOView = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -286,6 +300,8 @@ npt_id3d11videodevice_default_CreateVideoProcessorOutputView(void *self, ID3D11R
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videodevice_default_CreateVideoProcessorEnumerator(void *self, const D3D11_VIDEO_PROCESSOR_CONTENT_DESC * pDesc, ID3D11VideoProcessorEnumerator ** ppEnum)
 {
+    if (!ppEnum)
+        return npt_call_ID3D11VideoDevice_CreateVideoProcessorEnumerator(npt_com_self_ring(self), npt_com_self_id(self), pDesc, ppEnum);
     ID3D11VideoProcessorEnumerator *_raw_ppEnum = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

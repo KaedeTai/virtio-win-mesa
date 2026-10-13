@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12rootsignature: ID3D12RootSignature
+/* Family id3d12rootsignature: ID3D12RootSignature */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

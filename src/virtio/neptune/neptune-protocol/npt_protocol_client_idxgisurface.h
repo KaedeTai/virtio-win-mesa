@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgisurface: IDXGISurface, IDXGISurface1, IDXGISurface2
+/* Family idxgisurface: IDXGISurface, IDXGISurface1, IDXGISurface2 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3ddevicecontextstate: ID3DDeviceContextState
+/* Family id3ddevicecontextstate: ID3DDeviceContextState */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

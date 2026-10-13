@@ -26,7 +26,7 @@
 #include "npt_event.h"
 #include "npt_overrides.h"
 #include "npt_ring.h"
-#include "npt_transport_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 #include "neptune-protocol/npt_protocol_client_id3d12device.h"
 #include "neptune-protocol/npt_protocol_client_id3d12fence.h"

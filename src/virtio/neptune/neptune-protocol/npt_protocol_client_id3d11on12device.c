@@ -83,6 +83,8 @@ npt_id3d11on12device_default_Release(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11on12device_default_CreateWrappedResource(void *self, IUnknown * pResource12, const D3D11_RESOURCE_FLAGS * pFlags11, D3D12_RESOURCE_STATES InState, D3D12_RESOURCE_STATES OutState, const IID * riid, void ** ppResource11)
 {
+    if (!ppResource11)
+        return npt_call_ID3D11On12Device_CreateWrappedResource(npt_com_self_ring(self), npt_com_self_id(self), pResource12, pFlags11, InState, OutState, riid, ppResource11);
     void *_raw_ppResource11 = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

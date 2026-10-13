@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgiswapchainmedia: IDXGISwapChainMedia
+/* Family idxgiswapchainmedia: IDXGISwapChainMedia */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

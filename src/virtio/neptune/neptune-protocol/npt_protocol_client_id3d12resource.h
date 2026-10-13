@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12resource: ID3D12Resource, ID3D12Resource1, ID3D12Resource2
+/* Family id3d12resource: ID3D12Resource, ID3D12Resource1, ID3D12Resource2 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

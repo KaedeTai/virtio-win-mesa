@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgidevicesubobject: IDXGIDeviceSubObject
+/* Family idxgidevicesubobject: IDXGIDeviceSubObject */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

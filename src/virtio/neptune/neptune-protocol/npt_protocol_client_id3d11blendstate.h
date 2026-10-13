@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11blendstate: ID3D11BlendState, ID3D11BlendState1
+/* Family id3d11blendstate: ID3D11BlendState, ID3D11BlendState1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

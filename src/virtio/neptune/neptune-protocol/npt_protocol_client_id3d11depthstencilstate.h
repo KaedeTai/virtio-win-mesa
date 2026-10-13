@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11depthstencilstate: ID3D11DepthStencilState
+/* Family id3d11depthstencilstate: ID3D11DepthStencilState */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -2292,10 +2292,16 @@ npt_id3d11devicecontext2_client_create(struct npt_device *dev, uint64_t host_id)
 /* ID3D11DeviceContext3 (tier 3)                                  */
 /* ================================================================== */
 
+/* skip_default: ID3D11DeviceContext3::Flush1 -- override required.
+ * The default body aborts loudly so a missing override is a runtime
+ * failure rather than a silent data drop. */
 void NPT_STDMETHODCALLTYPE
 npt_id3d11devicecontext3_default_Flush1(void *self, D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
 {
-    npt_async_ID3D11DeviceContext3_Flush1(npt_com_self_ring(self),npt_com_self_id(self),ContextType,hEvent);
+    (void)self;
+    (void)ContextType;
+    (void)hEvent;
+    npt_com_assert_overridden("ID3D11DeviceContext3", "Flush1");
 }
 
 void NPT_STDMETHODCALLTYPE

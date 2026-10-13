@@ -18,7 +18,7 @@
 #include "npt_env.h"
 #include "npt_renderer.h"
 #include "npt_shared_texture.h"
-#include "npt_transport_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 #include "neptune-protocol/npt_protocol_defs.h"
 

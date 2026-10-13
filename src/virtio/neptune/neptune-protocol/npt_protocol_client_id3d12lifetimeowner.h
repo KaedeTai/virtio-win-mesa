@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12lifetimeowner: ID3D12LifetimeOwner
+/* Family id3d12lifetimeowner: ID3D12LifetimeOwner */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

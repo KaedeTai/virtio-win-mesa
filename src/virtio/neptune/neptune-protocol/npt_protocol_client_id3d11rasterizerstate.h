@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11rasterizerstate: ID3D11RasterizerState, ID3D11RasterizerState1, ID3D11RasterizerState2
+/* Family id3d11rasterizerstate: ID3D11RasterizerState, ID3D11RasterizerState1, ID3D11RasterizerState2 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

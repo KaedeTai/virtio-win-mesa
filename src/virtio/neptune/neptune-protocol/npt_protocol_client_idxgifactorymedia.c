@@ -79,6 +79,8 @@ npt_idxgifactorymedia_default_Release(void *self)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactorymedia_default_CreateSwapChainForCompositionSurfaceHandle(void *self, IUnknown * pDevice, HANDLE hSurface, const DXGI_SWAP_CHAIN_DESC1 * pDesc, IDXGIOutput * pRestrictToOutput, IDXGISwapChain1 ** ppSwapChain)
 {
+    if (!ppSwapChain)
+        return npt_call_IDXGIFactoryMedia_CreateSwapChainForCompositionSurfaceHandle(npt_com_self_ring(self), npt_com_self_id(self), pDevice, hSurface, pDesc, pRestrictToOutput, ppSwapChain);
     IDXGISwapChain1 *_raw_ppSwapChain = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the
@@ -108,6 +110,8 @@ npt_idxgifactorymedia_default_CreateSwapChainForCompositionSurfaceHandle(void *s
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgifactorymedia_default_CreateDecodeSwapChainForCompositionSurfaceHandle(void *self, IUnknown * pDevice, HANDLE hSurface, DXGI_DECODE_SWAP_CHAIN_DESC * pDesc, IDXGIResource * pYuvDecodeBuffers, IDXGIOutput * pRestrictToOutput, IDXGIDecodeSwapChain ** ppSwapChain)
 {
+    if (!ppSwapChain)
+        return npt_call_IDXGIFactoryMedia_CreateDecodeSwapChainForCompositionSurfaceHandle(npt_com_self_ring(self), npt_com_self_id(self), pDevice, hSurface, pDesc, pYuvDecodeBuffers, pRestrictToOutput, ppSwapChain);
     IDXGIDecodeSwapChain *_raw_ppSwapChain = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

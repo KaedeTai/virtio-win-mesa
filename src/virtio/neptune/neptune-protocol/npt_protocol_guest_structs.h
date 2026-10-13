@@ -2623,18 +2623,17 @@ npt_encode_DXGI_PRESENT_PARAMETERS(struct npt_cs_encoder *enc, const DXGI_PRESEN
 static inline void
 npt_decode_DXGI_PRESENT_PARAMETERS(struct npt_cs_decoder *dec, DXGI_PRESENT_PARAMETERS *val)
 {
+    uint64_t _cnt_pDirtyRects = 0; int _has_cnt_pDirtyRects = -1;
     npt_decode_UINT(dec, &val->DirtyRectsCount);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pDirtyRects = npt_cs_decoder_alloc_temp_array(dec, sizeof(RECT), _count ? _count : 1);
-            if (!val->pDirtyRects) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_RECT(dec, (RECT *)&val->pDirtyRects[_i]);
-        } else {
-            (void)(val->DirtyRectsCount); /* unused: count_expr from registry */
-            val->pDirtyRects = NULL;
-        }
+    _has_cnt_pDirtyRects = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pDirtyRects)) {
+        _has_cnt_pDirtyRects = 1;
+        val->pDirtyRects = npt_cs_decoder_alloc_temp_array(dec, sizeof(RECT), _cnt_pDirtyRects ? _cnt_pDirtyRects : 1);
+        if (!val->pDirtyRects) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pDirtyRects; _i++)
+            npt_decode_RECT(dec, (RECT *)&val->pDirtyRects[_i]);
+    } else {
+        val->pDirtyRects = NULL;
     }
     if (npt_decode_simple_pointer(dec)) {
         val->pScrollRect = npt_cs_decoder_alloc_temp(dec, sizeof(RECT));
@@ -2652,6 +2651,9 @@ npt_decode_DXGI_PRESENT_PARAMETERS(struct npt_cs_decoder *dec, DXGI_PRESENT_PARA
         val->pScrollOffset = NULL;
         npt_cs_decoder_set_fatal(dec); /* non-optional pointer is NULL */
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pDirtyRects > 0 && _cnt_pDirtyRects < (uint64_t)(val->DirtyRectsCount)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* DXGI_ADAPTER_DESC2 (struct) */
@@ -6207,6 +6209,7 @@ npt_encode_D3D11_VIDEO_DECODER_BUFFER_DESC(struct npt_cs_encoder *enc, const D3D
 static inline void
 npt_decode_D3D11_VIDEO_DECODER_BUFFER_DESC(struct npt_cs_decoder *dec, D3D11_VIDEO_DECODER_BUFFER_DESC *val)
 {
+    uint64_t _cnt_pIV = 0; int _has_cnt_pIV = -1;
     npt_decode_D3D11_VIDEO_DECODER_BUFFER_TYPE(dec, &val->BufferType);
     npt_decode_UINT(dec, &val->BufferIndex);
     npt_decode_UINT(dec, &val->DataOffset);
@@ -6217,19 +6220,21 @@ npt_decode_D3D11_VIDEO_DECODER_BUFFER_DESC(struct npt_cs_decoder *dec, D3D11_VID
     npt_decode_UINT(dec, &val->Height);
     npt_decode_UINT(dec, &val->Stride);
     npt_decode_UINT(dec, &val->ReservedBits);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pIV = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pIV) return;
-            npt_decode_blob_array(dec, (void *)val->pIV, _blob_size);
-        } else {
-            val->pIV = NULL;
-        }
+    _cnt_pIV = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pIV = _cnt_pIV != 0;
+    if (_cnt_pIV) {
+        val->pIV = npt_cs_decoder_alloc_temp(dec, _cnt_pIV);
+        if (!val->pIV) return;
+        npt_decode_blob_array(dec, (void *)val->pIV, _cnt_pIV);
+    } else {
+        val->pIV = NULL;
     }
     npt_decode_UINT(dec, &val->IVSize);
     npt_decode_BOOL(dec, &val->PartialEncryption);
     npt_decode_D3D11_ENCRYPTED_BLOCK_INFO(dec, &val->EncryptedBlockInfo);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pIV > 0 && _cnt_pIV < (uint64_t)(val->IVSize)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D11_VIDEO_DECODER_EXTENSION (struct) */
@@ -6290,44 +6295,53 @@ npt_encode_D3D11_VIDEO_DECODER_EXTENSION(struct npt_cs_encoder *enc, const D3D11
 static inline void
 npt_decode_D3D11_VIDEO_DECODER_EXTENSION(struct npt_cs_decoder *dec, D3D11_VIDEO_DECODER_EXTENSION *val)
 {
+    uint64_t _cnt_pPrivateInputData = 0; int _has_cnt_pPrivateInputData = -1;
+    uint64_t _cnt_pPrivateOutputData = 0; int _has_cnt_pPrivateOutputData = -1;
+    uint64_t _cnt_ppResourceList = 0; int _has_cnt_ppResourceList = -1;
     npt_decode_UINT(dec, &val->Function);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pPrivateInputData = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pPrivateInputData) return;
-            npt_decode_blob_array(dec, (void *)val->pPrivateInputData, _blob_size);
-        } else {
-            val->pPrivateInputData = NULL;
-        }
+    _cnt_pPrivateInputData = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pPrivateInputData = _cnt_pPrivateInputData != 0;
+    if (_cnt_pPrivateInputData) {
+        val->pPrivateInputData = npt_cs_decoder_alloc_temp(dec, _cnt_pPrivateInputData);
+        if (!val->pPrivateInputData) return;
+        npt_decode_blob_array(dec, (void *)val->pPrivateInputData, _cnt_pPrivateInputData);
+    } else {
+        val->pPrivateInputData = NULL;
     }
     npt_decode_UINT(dec, &val->PrivateInputDataSize);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pPrivateOutputData = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pPrivateOutputData) return;
-            npt_decode_blob_array(dec, (void *)val->pPrivateOutputData, _blob_size);
-        } else {
-            val->pPrivateOutputData = NULL;
-        }
+    _cnt_pPrivateOutputData = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pPrivateOutputData = _cnt_pPrivateOutputData != 0;
+    if (_cnt_pPrivateOutputData) {
+        val->pPrivateOutputData = npt_cs_decoder_alloc_temp(dec, _cnt_pPrivateOutputData);
+        if (!val->pPrivateOutputData) return;
+        npt_decode_blob_array(dec, (void *)val->pPrivateOutputData, _cnt_pPrivateOutputData);
+    } else {
+        val->pPrivateOutputData = NULL;
     }
     npt_decode_UINT(dec, &val->PrivateOutputDataSize);
     npt_decode_UINT(dec, &val->ResourceCount);
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->ppResourceList = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->ppResourceList) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                npt_object_id _id;
-                npt_decode_uint64_t(dec, &_id);
-                val->ppResourceList[_i] = npt_object_from_id(_id);
-            }
-        } else {
-            val->ppResourceList = NULL;
+    _cnt_ppResourceList = npt_decode_array_count_unchecked(dec);
+    _has_cnt_ppResourceList = _cnt_ppResourceList != 0;
+    if (_cnt_ppResourceList) {
+        val->ppResourceList = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_ppResourceList);
+        if (!val->ppResourceList) return;
+        for (uint64_t _i = 0; _i < _cnt_ppResourceList; _i++) {
+            npt_object_id _id;
+            npt_decode_uint64_t(dec, &_id);
+            val->ppResourceList[_i] = npt_object_from_id(_id);
         }
+    } else {
+        val->ppResourceList = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pPrivateInputData > 0 && _cnt_pPrivateInputData < (uint64_t)(val->PrivateInputDataSize)) ||
+        (_has_cnt_pPrivateInputData == 0 && (uint64_t)(val->PrivateInputDataSize) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pPrivateOutputData > 0 && _cnt_pPrivateOutputData < (uint64_t)(val->PrivateOutputDataSize)) ||
+        (_has_cnt_pPrivateOutputData == 0 && (uint64_t)(val->PrivateOutputDataSize) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_ppResourceList > 0 && _cnt_ppResourceList < (uint64_t)(val->ResourceCount)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D11_VIDEO_PROCESSOR_CAPS (struct) */
@@ -6766,77 +6780,89 @@ npt_encode_D3D11_VIDEO_PROCESSOR_STREAM(struct npt_cs_encoder *enc, const D3D11_
 static inline void
 npt_decode_D3D11_VIDEO_PROCESSOR_STREAM(struct npt_cs_decoder *dec, D3D11_VIDEO_PROCESSOR_STREAM *val)
 {
+    uint64_t _cnt_ppPastSurfaces = 0; int _has_cnt_ppPastSurfaces = -1;
+    uint64_t _cnt_ppFutureSurfaces = 0; int _has_cnt_ppFutureSurfaces = -1;
+    uint64_t _cnt_ppPastSurfacesRight = 0; int _has_cnt_ppPastSurfacesRight = -1;
+    uint64_t _cnt_ppFutureSurfacesRight = 0; int _has_cnt_ppFutureSurfacesRight = -1;
     npt_decode_BOOL(dec, &val->Enable);
     npt_decode_UINT(dec, &val->OutputIndex);
     npt_decode_UINT(dec, &val->InputFrameOrField);
     npt_decode_UINT(dec, &val->PastFrames);
     npt_decode_UINT(dec, &val->FutureFrames);
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->ppPastSurfaces = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->ppPastSurfaces) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                npt_object_id _id;
-                npt_decode_uint64_t(dec, &_id);
-                val->ppPastSurfaces[_i] = npt_object_from_id(_id);
-            }
-        } else {
-            val->ppPastSurfaces = NULL;
+    _cnt_ppPastSurfaces = npt_decode_array_count_unchecked(dec);
+    _has_cnt_ppPastSurfaces = _cnt_ppPastSurfaces != 0;
+    if (_cnt_ppPastSurfaces) {
+        val->ppPastSurfaces = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_ppPastSurfaces);
+        if (!val->ppPastSurfaces) return;
+        for (uint64_t _i = 0; _i < _cnt_ppPastSurfaces; _i++) {
+            npt_object_id _id;
+            npt_decode_uint64_t(dec, &_id);
+            val->ppPastSurfaces[_i] = npt_object_from_id(_id);
         }
+    } else {
+        val->ppPastSurfaces = NULL;
     }
     {
         npt_object_id _id;
         npt_decode_uint64_t(dec, &_id);
         val->pInputSurface = (ID3D11VideoProcessorInputView *)npt_object_from_id(_id);
     }
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->ppFutureSurfaces = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->ppFutureSurfaces) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                npt_object_id _id;
-                npt_decode_uint64_t(dec, &_id);
-                val->ppFutureSurfaces[_i] = npt_object_from_id(_id);
-            }
-        } else {
-            val->ppFutureSurfaces = NULL;
+    _cnt_ppFutureSurfaces = npt_decode_array_count_unchecked(dec);
+    _has_cnt_ppFutureSurfaces = _cnt_ppFutureSurfaces != 0;
+    if (_cnt_ppFutureSurfaces) {
+        val->ppFutureSurfaces = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_ppFutureSurfaces);
+        if (!val->ppFutureSurfaces) return;
+        for (uint64_t _i = 0; _i < _cnt_ppFutureSurfaces; _i++) {
+            npt_object_id _id;
+            npt_decode_uint64_t(dec, &_id);
+            val->ppFutureSurfaces[_i] = npt_object_from_id(_id);
         }
+    } else {
+        val->ppFutureSurfaces = NULL;
     }
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->ppPastSurfacesRight = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->ppPastSurfacesRight) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                npt_object_id _id;
-                npt_decode_uint64_t(dec, &_id);
-                val->ppPastSurfacesRight[_i] = npt_object_from_id(_id);
-            }
-        } else {
-            val->ppPastSurfacesRight = NULL;
+    _cnt_ppPastSurfacesRight = npt_decode_array_count_unchecked(dec);
+    _has_cnt_ppPastSurfacesRight = _cnt_ppPastSurfacesRight != 0;
+    if (_cnt_ppPastSurfacesRight) {
+        val->ppPastSurfacesRight = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_ppPastSurfacesRight);
+        if (!val->ppPastSurfacesRight) return;
+        for (uint64_t _i = 0; _i < _cnt_ppPastSurfacesRight; _i++) {
+            npt_object_id _id;
+            npt_decode_uint64_t(dec, &_id);
+            val->ppPastSurfacesRight[_i] = npt_object_from_id(_id);
         }
+    } else {
+        val->ppPastSurfacesRight = NULL;
     }
     {
         npt_object_id _id;
         npt_decode_uint64_t(dec, &_id);
         val->pInputSurfaceRight = (ID3D11VideoProcessorInputView *)npt_object_from_id(_id);
     }
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->ppFutureSurfacesRight = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->ppFutureSurfacesRight) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                npt_object_id _id;
-                npt_decode_uint64_t(dec, &_id);
-                val->ppFutureSurfacesRight[_i] = npt_object_from_id(_id);
-            }
-        } else {
-            val->ppFutureSurfacesRight = NULL;
+    _cnt_ppFutureSurfacesRight = npt_decode_array_count_unchecked(dec);
+    _has_cnt_ppFutureSurfacesRight = _cnt_ppFutureSurfacesRight != 0;
+    if (_cnt_ppFutureSurfacesRight) {
+        val->ppFutureSurfacesRight = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_ppFutureSurfacesRight);
+        if (!val->ppFutureSurfacesRight) return;
+        for (uint64_t _i = 0; _i < _cnt_ppFutureSurfacesRight; _i++) {
+            npt_object_id _id;
+            npt_decode_uint64_t(dec, &_id);
+            val->ppFutureSurfacesRight[_i] = npt_object_from_id(_id);
         }
+    } else {
+        val->ppFutureSurfacesRight = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_ppPastSurfaces > 0 && _cnt_ppPastSurfaces < (uint64_t)(val->PastFrames)) ||
+        (_has_cnt_ppPastSurfaces == 0 && (uint64_t)(val->PastFrames) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_ppFutureSurfaces > 0 && _cnt_ppFutureSurfaces < (uint64_t)(val->FutureFrames)) ||
+        (_has_cnt_ppFutureSurfaces == 0 && (uint64_t)(val->FutureFrames) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_ppPastSurfacesRight > 0 && _cnt_ppPastSurfacesRight < (uint64_t)(val->PastFrames)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_ppFutureSurfacesRight > 0 && _cnt_ppFutureSurfacesRight < (uint64_t)(val->FutureFrames)) ||
+        (_has_cnt_ppFutureSurfacesRight == 0 && (uint64_t)(val->FutureFrames) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D11_OMAC (struct) */
@@ -8191,33 +8217,37 @@ npt_encode_D3D11_VIDEO_DECODER_BUFFER_DESC1(struct npt_cs_encoder *enc, const D3
 static inline void
 npt_decode_D3D11_VIDEO_DECODER_BUFFER_DESC1(struct npt_cs_decoder *dec, D3D11_VIDEO_DECODER_BUFFER_DESC1 *val)
 {
+    uint64_t _cnt_pIV = 0; int _has_cnt_pIV = -1;
+    uint64_t _cnt_pSubSampleMappingBlock = 0; int _has_cnt_pSubSampleMappingBlock = -1;
     npt_decode_D3D11_VIDEO_DECODER_BUFFER_TYPE(dec, &val->BufferType);
     npt_decode_UINT(dec, &val->DataOffset);
     npt_decode_UINT(dec, &val->DataSize);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pIV = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pIV) return;
-            npt_decode_blob_array(dec, (void *)val->pIV, _blob_size);
-        } else {
-            val->pIV = NULL;
-        }
+    _cnt_pIV = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pIV = _cnt_pIV != 0;
+    if (_cnt_pIV) {
+        val->pIV = npt_cs_decoder_alloc_temp(dec, _cnt_pIV);
+        if (!val->pIV) return;
+        npt_decode_blob_array(dec, (void *)val->pIV, _cnt_pIV);
+    } else {
+        val->pIV = NULL;
     }
     npt_decode_UINT(dec, &val->IVSize);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pSubSampleMappingBlock = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK), _count ? _count : 1);
-            if (!val->pSubSampleMappingBlock) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK(dec, (D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK *)&val->pSubSampleMappingBlock[_i]);
-        } else {
-            (void)(val->SubSampleMappingCount); /* unused: count_expr from registry */
-            val->pSubSampleMappingBlock = NULL;
-        }
+    _has_cnt_pSubSampleMappingBlock = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pSubSampleMappingBlock)) {
+        _has_cnt_pSubSampleMappingBlock = 1;
+        val->pSubSampleMappingBlock = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK), _cnt_pSubSampleMappingBlock ? _cnt_pSubSampleMappingBlock : 1);
+        if (!val->pSubSampleMappingBlock) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pSubSampleMappingBlock; _i++)
+            npt_decode_D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK(dec, (D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK *)&val->pSubSampleMappingBlock[_i]);
+    } else {
+        val->pSubSampleMappingBlock = NULL;
     }
     npt_decode_UINT(dec, &val->SubSampleMappingCount);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pIV > 0 && _cnt_pIV < (uint64_t)(val->IVSize)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pSubSampleMappingBlock > 0 && _cnt_pSubSampleMappingBlock < (uint64_t)(val->SubSampleMappingCount)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D11_VIDEO_DECODER_BEGIN_FRAME_CRYPTO_SESSION (struct) */
@@ -8272,21 +8302,22 @@ npt_encode_D3D11_VIDEO_DECODER_BEGIN_FRAME_CRYPTO_SESSION(struct npt_cs_encoder 
 static inline void
 npt_decode_D3D11_VIDEO_DECODER_BEGIN_FRAME_CRYPTO_SESSION(struct npt_cs_decoder *dec, D3D11_VIDEO_DECODER_BEGIN_FRAME_CRYPTO_SESSION *val)
 {
+    uint64_t _cnt_pBlob = 0; int _has_cnt_pBlob = -1;
+    uint64_t _cnt_pPrivateData = 0; int _has_cnt_pPrivateData = -1;
     {
         npt_object_id _id;
         npt_decode_uint64_t(dec, &_id);
         val->pCryptoSession = (ID3D11CryptoSession *)npt_object_from_id(_id);
     }
     npt_decode_UINT(dec, &val->BlobSize);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pBlob = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pBlob) return;
-            npt_decode_blob_array(dec, (void *)val->pBlob, _blob_size);
-        } else {
-            val->pBlob = NULL;
-        }
+    _cnt_pBlob = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pBlob = _cnt_pBlob != 0;
+    if (_cnt_pBlob) {
+        val->pBlob = npt_cs_decoder_alloc_temp(dec, _cnt_pBlob);
+        if (!val->pBlob) return;
+        npt_decode_blob_array(dec, (void *)val->pBlob, _cnt_pBlob);
+    } else {
+        val->pBlob = NULL;
     }
     if (npt_decode_simple_pointer(dec)) {
         val->pKeyInfoId = npt_cs_decoder_alloc_temp(dec, sizeof(GUID));
@@ -8297,16 +8328,20 @@ npt_decode_D3D11_VIDEO_DECODER_BEGIN_FRAME_CRYPTO_SESSION(struct npt_cs_decoder 
         npt_cs_decoder_set_fatal(dec); /* non-optional pointer is NULL */
     }
     npt_decode_UINT(dec, &val->PrivateDataSize);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pPrivateData = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pPrivateData) return;
-            npt_decode_blob_array(dec, (void *)val->pPrivateData, _blob_size);
-        } else {
-            val->pPrivateData = NULL;
-        }
+    _cnt_pPrivateData = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pPrivateData = _cnt_pPrivateData != 0;
+    if (_cnt_pPrivateData) {
+        val->pPrivateData = npt_cs_decoder_alloc_temp(dec, _cnt_pPrivateData);
+        if (!val->pPrivateData) return;
+        npt_decode_blob_array(dec, (void *)val->pPrivateData, _cnt_pPrivateData);
+    } else {
+        val->pPrivateData = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pBlob > 0 && _cnt_pBlob < (uint64_t)(val->BlobSize)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pPrivateData > 0 && _cnt_pPrivateData < (uint64_t)(val->PrivateDataSize)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D11_VIDEO_PROCESSOR_STREAM_BEHAVIOR_HINT (struct) */
@@ -9480,35 +9515,39 @@ npt_encode_D3D11_VIDEO_DECODER_BUFFER_DESC2(struct npt_cs_encoder *enc, const D3
 static inline void
 npt_decode_D3D11_VIDEO_DECODER_BUFFER_DESC2(struct npt_cs_decoder *dec, D3D11_VIDEO_DECODER_BUFFER_DESC2 *val)
 {
+    uint64_t _cnt_pIV = 0; int _has_cnt_pIV = -1;
+    uint64_t _cnt_pSubSampleMappingBlock = 0; int _has_cnt_pSubSampleMappingBlock = -1;
     npt_decode_D3D11_VIDEO_DECODER_BUFFER_TYPE(dec, &val->BufferType);
     npt_decode_UINT(dec, &val->DataOffset);
     npt_decode_UINT(dec, &val->DataSize);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pIV = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pIV) return;
-            npt_decode_blob_array(dec, (void *)val->pIV, _blob_size);
-        } else {
-            val->pIV = NULL;
-        }
+    _cnt_pIV = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pIV = _cnt_pIV != 0;
+    if (_cnt_pIV) {
+        val->pIV = npt_cs_decoder_alloc_temp(dec, _cnt_pIV);
+        if (!val->pIV) return;
+        npt_decode_blob_array(dec, (void *)val->pIV, _cnt_pIV);
+    } else {
+        val->pIV = NULL;
     }
     npt_decode_UINT(dec, &val->IVSize);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pSubSampleMappingBlock = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK), _count ? _count : 1);
-            if (!val->pSubSampleMappingBlock) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK(dec, (D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK *)&val->pSubSampleMappingBlock[_i]);
-        } else {
-            (void)(val->SubSampleMappingCount); /* unused: count_expr from registry */
-            val->pSubSampleMappingBlock = NULL;
-        }
+    _has_cnt_pSubSampleMappingBlock = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pSubSampleMappingBlock)) {
+        _has_cnt_pSubSampleMappingBlock = 1;
+        val->pSubSampleMappingBlock = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK), _cnt_pSubSampleMappingBlock ? _cnt_pSubSampleMappingBlock : 1);
+        if (!val->pSubSampleMappingBlock) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pSubSampleMappingBlock; _i++)
+            npt_decode_D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK(dec, (D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK *)&val->pSubSampleMappingBlock[_i]);
+    } else {
+        val->pSubSampleMappingBlock = NULL;
     }
     npt_decode_UINT(dec, &val->SubSampleMappingCount);
     npt_decode_UINT(dec, &val->cBlocksStripeEncrypted);
     npt_decode_UINT(dec, &val->cBlocksStripeClear);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pIV > 0 && _cnt_pIV < (uint64_t)(val->IVSize)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pSubSampleMappingBlock > 0 && _cnt_pSubSampleMappingBlock < (uint64_t)(val->SubSampleMappingCount)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D11_FEATURE_DATA_D3D11_OPTIONS4 (struct) */
@@ -10252,17 +10291,21 @@ npt_encode_D3D12_SHADER_BYTECODE(struct npt_cs_encoder *enc, const D3D12_SHADER_
 static inline void
 npt_decode_D3D12_SHADER_BYTECODE(struct npt_cs_decoder *dec, D3D12_SHADER_BYTECODE *val)
 {
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pShaderBytecode = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pShaderBytecode) return;
-            npt_decode_blob_array(dec, (void *)val->pShaderBytecode, _blob_size);
-        } else {
-            val->pShaderBytecode = NULL;
-        }
+    uint64_t _cnt_pShaderBytecode = 0; int _has_cnt_pShaderBytecode = -1;
+    _cnt_pShaderBytecode = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pShaderBytecode = _cnt_pShaderBytecode != 0;
+    if (_cnt_pShaderBytecode) {
+        val->pShaderBytecode = npt_cs_decoder_alloc_temp(dec, _cnt_pShaderBytecode);
+        if (!val->pShaderBytecode) return;
+        npt_decode_blob_array(dec, (void *)val->pShaderBytecode, _cnt_pShaderBytecode);
+    } else {
+        val->pShaderBytecode = NULL;
     }
     npt_decode_SIZE_T(dec, &val->BytecodeLength);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pShaderBytecode > 0 && _cnt_pShaderBytecode < (uint64_t)(val->BytecodeLength)) ||
+        (_has_cnt_pShaderBytecode == 0 && (uint64_t)(val->BytecodeLength) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_STREAM_OUTPUT_DESC (struct) */
@@ -10307,32 +10350,37 @@ npt_encode_D3D12_STREAM_OUTPUT_DESC(struct npt_cs_encoder *enc, const D3D12_STRE
 static inline void
 npt_decode_D3D12_STREAM_OUTPUT_DESC(struct npt_cs_decoder *dec, D3D12_STREAM_OUTPUT_DESC *val)
 {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pSODeclaration = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_SO_DECLARATION_ENTRY), _count ? _count : 1);
-            if (!val->pSODeclaration) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_SO_DECLARATION_ENTRY(dec, (D3D12_SO_DECLARATION_ENTRY *)&val->pSODeclaration[_i]);
-        } else {
-            (void)(val->NumEntries); /* unused: count_expr from registry */
-            val->pSODeclaration = NULL;
-        }
+    uint64_t _cnt_pSODeclaration = 0; int _has_cnt_pSODeclaration = -1;
+    uint64_t _cnt_pBufferStrides = 0; int _has_cnt_pBufferStrides = -1;
+    _has_cnt_pSODeclaration = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pSODeclaration)) {
+        _has_cnt_pSODeclaration = 1;
+        val->pSODeclaration = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_SO_DECLARATION_ENTRY), _cnt_pSODeclaration ? _cnt_pSODeclaration : 1);
+        if (!val->pSODeclaration) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pSODeclaration; _i++)
+            npt_decode_D3D12_SO_DECLARATION_ENTRY(dec, (D3D12_SO_DECLARATION_ENTRY *)&val->pSODeclaration[_i]);
+    } else {
+        val->pSODeclaration = NULL;
     }
     npt_decode_UINT(dec, &val->NumEntries);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pBufferStrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(UINT), _count ? _count : 1);
-            if (!val->pBufferStrides) return;
-            npt_decode_UINT_array(dec, (UINT *)val->pBufferStrides, _count);
-        } else {
-            (void)(val->NumStrides); /* unused: count_expr from registry */
-            val->pBufferStrides = NULL;
-        }
+    _has_cnt_pBufferStrides = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pBufferStrides)) {
+        _has_cnt_pBufferStrides = 1;
+        val->pBufferStrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(UINT), _cnt_pBufferStrides ? _cnt_pBufferStrides : 1);
+        if (!val->pBufferStrides) return;
+        npt_decode_UINT_array(dec, (UINT *)val->pBufferStrides, _cnt_pBufferStrides);
+    } else {
+        val->pBufferStrides = NULL;
     }
     npt_decode_UINT(dec, &val->NumStrides);
     npt_decode_UINT(dec, &val->RasterizedStream);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pSODeclaration > 0 && _cnt_pSODeclaration < (uint64_t)(val->NumEntries)) ||
+        (_has_cnt_pSODeclaration == 0 && (uint64_t)(val->NumEntries) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pBufferStrides > 0 && _cnt_pBufferStrides < (uint64_t)(val->NumStrides)) ||
+        (_has_cnt_pBufferStrides == 0 && (uint64_t)(val->NumStrides) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_INPUT_LAYOUT_DESC (struct) */
@@ -10364,19 +10412,22 @@ npt_encode_D3D12_INPUT_LAYOUT_DESC(struct npt_cs_encoder *enc, const D3D12_INPUT
 static inline void
 npt_decode_D3D12_INPUT_LAYOUT_DESC(struct npt_cs_decoder *dec, D3D12_INPUT_LAYOUT_DESC *val)
 {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pInputElementDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_INPUT_ELEMENT_DESC), _count ? _count : 1);
-            if (!val->pInputElementDescs) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_INPUT_ELEMENT_DESC(dec, (D3D12_INPUT_ELEMENT_DESC *)&val->pInputElementDescs[_i]);
-        } else {
-            (void)(val->NumElements); /* unused: count_expr from registry */
-            val->pInputElementDescs = NULL;
-        }
+    uint64_t _cnt_pInputElementDescs = 0; int _has_cnt_pInputElementDescs = -1;
+    _has_cnt_pInputElementDescs = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pInputElementDescs)) {
+        _has_cnt_pInputElementDescs = 1;
+        val->pInputElementDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_INPUT_ELEMENT_DESC), _cnt_pInputElementDescs ? _cnt_pInputElementDescs : 1);
+        if (!val->pInputElementDescs) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pInputElementDescs; _i++)
+            npt_decode_D3D12_INPUT_ELEMENT_DESC(dec, (D3D12_INPUT_ELEMENT_DESC *)&val->pInputElementDescs[_i]);
+    } else {
+        val->pInputElementDescs = NULL;
     }
     npt_decode_UINT(dec, &val->NumElements);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pInputElementDescs > 0 && _cnt_pInputElementDescs < (uint64_t)(val->NumElements)) ||
+        (_has_cnt_pInputElementDescs == 0 && (uint64_t)(val->NumElements) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_CACHED_PIPELINE_STATE (struct) */
@@ -10410,17 +10461,21 @@ npt_encode_D3D12_CACHED_PIPELINE_STATE(struct npt_cs_encoder *enc, const D3D12_C
 static inline void
 npt_decode_D3D12_CACHED_PIPELINE_STATE(struct npt_cs_decoder *dec, D3D12_CACHED_PIPELINE_STATE *val)
 {
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pCachedBlob = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pCachedBlob) return;
-            npt_decode_blob_array(dec, (void *)val->pCachedBlob, _blob_size);
-        } else {
-            val->pCachedBlob = NULL;
-        }
+    uint64_t _cnt_pCachedBlob = 0; int _has_cnt_pCachedBlob = -1;
+    _cnt_pCachedBlob = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pCachedBlob = _cnt_pCachedBlob != 0;
+    if (_cnt_pCachedBlob) {
+        val->pCachedBlob = npt_cs_decoder_alloc_temp(dec, _cnt_pCachedBlob);
+        if (!val->pCachedBlob) return;
+        npt_decode_blob_array(dec, (void *)val->pCachedBlob, _cnt_pCachedBlob);
+    } else {
+        val->pCachedBlob = NULL;
     }
     npt_decode_SIZE_T(dec, &val->CachedBlobSizeInBytes);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pCachedBlob > 0 && _cnt_pCachedBlob < (uint64_t)(val->CachedBlobSizeInBytes)) ||
+        (_has_cnt_pCachedBlob == 0 && (uint64_t)(val->CachedBlobSizeInBytes) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_GRAPHICS_PIPELINE_STATE_DESC (struct) */
@@ -10821,19 +10876,22 @@ npt_encode_D3D12_FEATURE_DATA_FEATURE_LEVELS(struct npt_cs_encoder *enc, const D
 static inline void
 npt_decode_D3D12_FEATURE_DATA_FEATURE_LEVELS(struct npt_cs_decoder *dec, D3D12_FEATURE_DATA_FEATURE_LEVELS *val)
 {
+    uint64_t _cnt_pFeatureLevelsRequested = 0; int _has_cnt_pFeatureLevelsRequested = -1;
     npt_decode_UINT(dec, &val->NumFeatureLevels);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pFeatureLevelsRequested = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D_FEATURE_LEVEL), _count ? _count : 1);
-            if (!val->pFeatureLevelsRequested) return;
-            npt_decode_D3D_FEATURE_LEVEL_array(dec, (D3D_FEATURE_LEVEL *)val->pFeatureLevelsRequested, _count);
-        } else {
-            (void)(val->NumFeatureLevels); /* unused: count_expr from registry */
-            val->pFeatureLevelsRequested = NULL;
-        }
+    _has_cnt_pFeatureLevelsRequested = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pFeatureLevelsRequested)) {
+        _has_cnt_pFeatureLevelsRequested = 1;
+        val->pFeatureLevelsRequested = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D_FEATURE_LEVEL), _cnt_pFeatureLevelsRequested ? _cnt_pFeatureLevelsRequested : 1);
+        if (!val->pFeatureLevelsRequested) return;
+        npt_decode_D3D_FEATURE_LEVEL_array(dec, (D3D_FEATURE_LEVEL *)val->pFeatureLevelsRequested, _cnt_pFeatureLevelsRequested);
+    } else {
+        val->pFeatureLevelsRequested = NULL;
     }
     npt_decode_D3D_FEATURE_LEVEL(dec, &val->MaxSupportedFeatureLevel);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pFeatureLevelsRequested > 0 && _cnt_pFeatureLevelsRequested < (uint64_t)(val->NumFeatureLevels)) ||
+        (_has_cnt_pFeatureLevelsRequested == 0 && (uint64_t)(val->NumFeatureLevels) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_FEATURE_DATA_SHADER_MODEL (struct) */
@@ -11312,30 +11370,36 @@ npt_encode_D3D12_FEATURE_DATA_QUERY_META_COMMAND(struct npt_cs_encoder *enc, con
 static inline void
 npt_decode_D3D12_FEATURE_DATA_QUERY_META_COMMAND(struct npt_cs_decoder *dec, D3D12_FEATURE_DATA_QUERY_META_COMMAND *val)
 {
+    uint64_t _cnt_pQueryInputData = 0; int _has_cnt_pQueryInputData = -1;
+    uint64_t _cnt_pQueryOutputData = 0; int _has_cnt_pQueryOutputData = -1;
     npt_decode_GUID(dec, &val->CommandId);
     npt_decode_UINT(dec, &val->NodeMask);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pQueryInputData = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pQueryInputData) return;
-            npt_decode_blob_array(dec, (void *)val->pQueryInputData, _blob_size);
-        } else {
-            val->pQueryInputData = NULL;
-        }
+    _cnt_pQueryInputData = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pQueryInputData = _cnt_pQueryInputData != 0;
+    if (_cnt_pQueryInputData) {
+        val->pQueryInputData = npt_cs_decoder_alloc_temp(dec, _cnt_pQueryInputData);
+        if (!val->pQueryInputData) return;
+        npt_decode_blob_array(dec, (void *)val->pQueryInputData, _cnt_pQueryInputData);
+    } else {
+        val->pQueryInputData = NULL;
     }
     npt_decode_SIZE_T(dec, &val->QueryInputDataSizeInBytes);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pQueryOutputData = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pQueryOutputData) return;
-            npt_decode_blob_array(dec, (void *)val->pQueryOutputData, _blob_size);
-        } else {
-            val->pQueryOutputData = NULL;
-        }
+    _cnt_pQueryOutputData = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pQueryOutputData = _cnt_pQueryOutputData != 0;
+    if (_cnt_pQueryOutputData) {
+        val->pQueryOutputData = npt_cs_decoder_alloc_temp(dec, _cnt_pQueryOutputData);
+        if (!val->pQueryOutputData) return;
+        npt_decode_blob_array(dec, (void *)val->pQueryOutputData, _cnt_pQueryOutputData);
+    } else {
+        val->pQueryOutputData = NULL;
     }
     npt_decode_SIZE_T(dec, &val->QueryOutputDataSizeInBytes);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pQueryInputData > 0 && _cnt_pQueryInputData < (uint64_t)(val->QueryInputDataSizeInBytes)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pQueryOutputData > 0 && _cnt_pQueryOutputData < (uint64_t)(val->QueryOutputDataSizeInBytes)) ||
+        (_has_cnt_pQueryOutputData == 0 && (uint64_t)(val->QueryOutputDataSizeInBytes) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_FEATURE_DATA_D3D12_OPTIONS8 (struct) */
@@ -12757,20 +12821,23 @@ npt_encode_D3D12_VIEW_INSTANCING_DESC(struct npt_cs_encoder *enc, const D3D12_VI
 static inline void
 npt_decode_D3D12_VIEW_INSTANCING_DESC(struct npt_cs_decoder *dec, D3D12_VIEW_INSTANCING_DESC *val)
 {
+    uint64_t _cnt_pViewInstanceLocations = 0; int _has_cnt_pViewInstanceLocations = -1;
     npt_decode_UINT(dec, &val->ViewInstanceCount);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pViewInstanceLocations = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_VIEW_INSTANCE_LOCATION), _count ? _count : 1);
-            if (!val->pViewInstanceLocations) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_VIEW_INSTANCE_LOCATION(dec, (D3D12_VIEW_INSTANCE_LOCATION *)&val->pViewInstanceLocations[_i]);
-        } else {
-            (void)(val->ViewInstanceCount); /* unused: count_expr from registry */
-            val->pViewInstanceLocations = NULL;
-        }
+    _has_cnt_pViewInstanceLocations = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pViewInstanceLocations)) {
+        _has_cnt_pViewInstanceLocations = 1;
+        val->pViewInstanceLocations = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_VIEW_INSTANCE_LOCATION), _cnt_pViewInstanceLocations ? _cnt_pViewInstanceLocations : 1);
+        if (!val->pViewInstanceLocations) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pViewInstanceLocations; _i++)
+            npt_decode_D3D12_VIEW_INSTANCE_LOCATION(dec, (D3D12_VIEW_INSTANCE_LOCATION *)&val->pViewInstanceLocations[_i]);
+    } else {
+        val->pViewInstanceLocations = NULL;
     }
     npt_decode_D3D12_VIEW_INSTANCING_FLAGS(dec, &val->Flags);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pViewInstanceLocations > 0 && _cnt_pViewInstanceLocations < (uint64_t)(val->ViewInstanceCount)) ||
+        (_has_cnt_pViewInstanceLocations == 0 && (uint64_t)(val->ViewInstanceCount) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_BUFFER_SRV (struct) */
@@ -14428,19 +14495,22 @@ npt_encode_D3D12_ROOT_DESCRIPTOR_TABLE(struct npt_cs_encoder *enc, const D3D12_R
 static inline void
 npt_decode_D3D12_ROOT_DESCRIPTOR_TABLE(struct npt_cs_decoder *dec, D3D12_ROOT_DESCRIPTOR_TABLE *val)
 {
+    uint64_t _cnt_pDescriptorRanges = 0; int _has_cnt_pDescriptorRanges = -1;
     npt_decode_UINT(dec, &val->NumDescriptorRanges);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pDescriptorRanges = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_DESCRIPTOR_RANGE), _count ? _count : 1);
-            if (!val->pDescriptorRanges) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_DESCRIPTOR_RANGE(dec, (D3D12_DESCRIPTOR_RANGE *)&val->pDescriptorRanges[_i]);
-        } else {
-            (void)(val->NumDescriptorRanges); /* unused: count_expr from registry */
-            val->pDescriptorRanges = NULL;
-        }
+    _has_cnt_pDescriptorRanges = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pDescriptorRanges)) {
+        _has_cnt_pDescriptorRanges = 1;
+        val->pDescriptorRanges = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_DESCRIPTOR_RANGE), _cnt_pDescriptorRanges ? _cnt_pDescriptorRanges : 1);
+        if (!val->pDescriptorRanges) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pDescriptorRanges; _i++)
+            npt_decode_D3D12_DESCRIPTOR_RANGE(dec, (D3D12_DESCRIPTOR_RANGE *)&val->pDescriptorRanges[_i]);
+    } else {
+        val->pDescriptorRanges = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pDescriptorRanges > 0 && _cnt_pDescriptorRanges < (uint64_t)(val->NumDescriptorRanges)) ||
+        (_has_cnt_pDescriptorRanges == 0 && (uint64_t)(val->NumDescriptorRanges) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_ROOT_CONSTANTS (struct) */
@@ -14724,33 +14794,38 @@ npt_encode_D3D12_ROOT_SIGNATURE_DESC(struct npt_cs_encoder *enc, const D3D12_ROO
 static inline void
 npt_decode_D3D12_ROOT_SIGNATURE_DESC(struct npt_cs_decoder *dec, D3D12_ROOT_SIGNATURE_DESC *val)
 {
+    uint64_t _cnt_pParameters = 0; int _has_cnt_pParameters = -1;
+    uint64_t _cnt_pStaticSamplers = 0; int _has_cnt_pStaticSamplers = -1;
     npt_decode_UINT(dec, &val->NumParameters);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_ROOT_PARAMETER), _count ? _count : 1);
-            if (!val->pParameters) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_ROOT_PARAMETER(dec, (D3D12_ROOT_PARAMETER *)&val->pParameters[_i]);
-        } else {
-            (void)(val->NumParameters); /* unused: count_expr from registry */
-            val->pParameters = NULL;
-        }
+    _has_cnt_pParameters = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pParameters)) {
+        _has_cnt_pParameters = 1;
+        val->pParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_ROOT_PARAMETER), _cnt_pParameters ? _cnt_pParameters : 1);
+        if (!val->pParameters) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pParameters; _i++)
+            npt_decode_D3D12_ROOT_PARAMETER(dec, (D3D12_ROOT_PARAMETER *)&val->pParameters[_i]);
+    } else {
+        val->pParameters = NULL;
     }
     npt_decode_UINT(dec, &val->NumStaticSamplers);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pStaticSamplers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATIC_SAMPLER_DESC), _count ? _count : 1);
-            if (!val->pStaticSamplers) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_STATIC_SAMPLER_DESC(dec, (D3D12_STATIC_SAMPLER_DESC *)&val->pStaticSamplers[_i]);
-        } else {
-            (void)(val->NumStaticSamplers); /* unused: count_expr from registry */
-            val->pStaticSamplers = NULL;
-        }
+    _has_cnt_pStaticSamplers = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pStaticSamplers)) {
+        _has_cnt_pStaticSamplers = 1;
+        val->pStaticSamplers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATIC_SAMPLER_DESC), _cnt_pStaticSamplers ? _cnt_pStaticSamplers : 1);
+        if (!val->pStaticSamplers) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pStaticSamplers; _i++)
+            npt_decode_D3D12_STATIC_SAMPLER_DESC(dec, (D3D12_STATIC_SAMPLER_DESC *)&val->pStaticSamplers[_i]);
+    } else {
+        val->pStaticSamplers = NULL;
     }
     npt_decode_D3D12_ROOT_SIGNATURE_FLAGS(dec, &val->Flags);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pParameters > 0 && _cnt_pParameters < (uint64_t)(val->NumParameters)) ||
+        (_has_cnt_pParameters == 0 && (uint64_t)(val->NumParameters) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pStaticSamplers > 0 && _cnt_pStaticSamplers < (uint64_t)(val->NumStaticSamplers)) ||
+        (_has_cnt_pStaticSamplers == 0 && (uint64_t)(val->NumStaticSamplers) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_DESCRIPTOR_RANGE1 (struct) */
@@ -14819,19 +14894,22 @@ npt_encode_D3D12_ROOT_DESCRIPTOR_TABLE1(struct npt_cs_encoder *enc, const D3D12_
 static inline void
 npt_decode_D3D12_ROOT_DESCRIPTOR_TABLE1(struct npt_cs_decoder *dec, D3D12_ROOT_DESCRIPTOR_TABLE1 *val)
 {
+    uint64_t _cnt_pDescriptorRanges = 0; int _has_cnt_pDescriptorRanges = -1;
     npt_decode_UINT(dec, &val->NumDescriptorRanges);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pDescriptorRanges = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_DESCRIPTOR_RANGE1), _count ? _count : 1);
-            if (!val->pDescriptorRanges) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_DESCRIPTOR_RANGE1(dec, (D3D12_DESCRIPTOR_RANGE1 *)&val->pDescriptorRanges[_i]);
-        } else {
-            (void)(val->NumDescriptorRanges); /* unused: count_expr from registry */
-            val->pDescriptorRanges = NULL;
-        }
+    _has_cnt_pDescriptorRanges = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pDescriptorRanges)) {
+        _has_cnt_pDescriptorRanges = 1;
+        val->pDescriptorRanges = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_DESCRIPTOR_RANGE1), _cnt_pDescriptorRanges ? _cnt_pDescriptorRanges : 1);
+        if (!val->pDescriptorRanges) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pDescriptorRanges; _i++)
+            npt_decode_D3D12_DESCRIPTOR_RANGE1(dec, (D3D12_DESCRIPTOR_RANGE1 *)&val->pDescriptorRanges[_i]);
+    } else {
+        val->pDescriptorRanges = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pDescriptorRanges > 0 && _cnt_pDescriptorRanges < (uint64_t)(val->NumDescriptorRanges)) ||
+        (_has_cnt_pDescriptorRanges == 0 && (uint64_t)(val->NumDescriptorRanges) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_ROOT_DESCRIPTOR1 (struct) */
@@ -14971,33 +15049,38 @@ npt_encode_D3D12_ROOT_SIGNATURE_DESC1(struct npt_cs_encoder *enc, const D3D12_RO
 static inline void
 npt_decode_D3D12_ROOT_SIGNATURE_DESC1(struct npt_cs_decoder *dec, D3D12_ROOT_SIGNATURE_DESC1 *val)
 {
+    uint64_t _cnt_pParameters = 0; int _has_cnt_pParameters = -1;
+    uint64_t _cnt_pStaticSamplers = 0; int _has_cnt_pStaticSamplers = -1;
     npt_decode_UINT(dec, &val->NumParameters);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_ROOT_PARAMETER1), _count ? _count : 1);
-            if (!val->pParameters) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_ROOT_PARAMETER1(dec, (D3D12_ROOT_PARAMETER1 *)&val->pParameters[_i]);
-        } else {
-            (void)(val->NumParameters); /* unused: count_expr from registry */
-            val->pParameters = NULL;
-        }
+    _has_cnt_pParameters = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pParameters)) {
+        _has_cnt_pParameters = 1;
+        val->pParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_ROOT_PARAMETER1), _cnt_pParameters ? _cnt_pParameters : 1);
+        if (!val->pParameters) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pParameters; _i++)
+            npt_decode_D3D12_ROOT_PARAMETER1(dec, (D3D12_ROOT_PARAMETER1 *)&val->pParameters[_i]);
+    } else {
+        val->pParameters = NULL;
     }
     npt_decode_UINT(dec, &val->NumStaticSamplers);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pStaticSamplers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATIC_SAMPLER_DESC), _count ? _count : 1);
-            if (!val->pStaticSamplers) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_STATIC_SAMPLER_DESC(dec, (D3D12_STATIC_SAMPLER_DESC *)&val->pStaticSamplers[_i]);
-        } else {
-            (void)(val->NumStaticSamplers); /* unused: count_expr from registry */
-            val->pStaticSamplers = NULL;
-        }
+    _has_cnt_pStaticSamplers = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pStaticSamplers)) {
+        _has_cnt_pStaticSamplers = 1;
+        val->pStaticSamplers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATIC_SAMPLER_DESC), _cnt_pStaticSamplers ? _cnt_pStaticSamplers : 1);
+        if (!val->pStaticSamplers) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pStaticSamplers; _i++)
+            npt_decode_D3D12_STATIC_SAMPLER_DESC(dec, (D3D12_STATIC_SAMPLER_DESC *)&val->pStaticSamplers[_i]);
+    } else {
+        val->pStaticSamplers = NULL;
     }
     npt_decode_D3D12_ROOT_SIGNATURE_FLAGS(dec, &val->Flags);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pParameters > 0 && _cnt_pParameters < (uint64_t)(val->NumParameters)) ||
+        (_has_cnt_pParameters == 0 && (uint64_t)(val->NumParameters) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pStaticSamplers > 0 && _cnt_pStaticSamplers < (uint64_t)(val->NumStaticSamplers)) ||
+        (_has_cnt_pStaticSamplers == 0 && (uint64_t)(val->NumStaticSamplers) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_ROOT_SIGNATURE_DESC2 (struct) */
@@ -15043,33 +15126,38 @@ npt_encode_D3D12_ROOT_SIGNATURE_DESC2(struct npt_cs_encoder *enc, const D3D12_RO
 static inline void
 npt_decode_D3D12_ROOT_SIGNATURE_DESC2(struct npt_cs_decoder *dec, D3D12_ROOT_SIGNATURE_DESC2 *val)
 {
+    uint64_t _cnt_pParameters = 0; int _has_cnt_pParameters = -1;
+    uint64_t _cnt_pStaticSamplers = 0; int _has_cnt_pStaticSamplers = -1;
     npt_decode_UINT(dec, &val->NumParameters);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_ROOT_PARAMETER1), _count ? _count : 1);
-            if (!val->pParameters) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_ROOT_PARAMETER1(dec, (D3D12_ROOT_PARAMETER1 *)&val->pParameters[_i]);
-        } else {
-            (void)(val->NumParameters); /* unused: count_expr from registry */
-            val->pParameters = NULL;
-        }
+    _has_cnt_pParameters = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pParameters)) {
+        _has_cnt_pParameters = 1;
+        val->pParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_ROOT_PARAMETER1), _cnt_pParameters ? _cnt_pParameters : 1);
+        if (!val->pParameters) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pParameters; _i++)
+            npt_decode_D3D12_ROOT_PARAMETER1(dec, (D3D12_ROOT_PARAMETER1 *)&val->pParameters[_i]);
+    } else {
+        val->pParameters = NULL;
     }
     npt_decode_UINT(dec, &val->NumStaticSamplers);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pStaticSamplers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATIC_SAMPLER_DESC1), _count ? _count : 1);
-            if (!val->pStaticSamplers) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_STATIC_SAMPLER_DESC1(dec, (D3D12_STATIC_SAMPLER_DESC1 *)&val->pStaticSamplers[_i]);
-        } else {
-            (void)(val->NumStaticSamplers); /* unused: count_expr from registry */
-            val->pStaticSamplers = NULL;
-        }
+    _has_cnt_pStaticSamplers = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pStaticSamplers)) {
+        _has_cnt_pStaticSamplers = 1;
+        val->pStaticSamplers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATIC_SAMPLER_DESC1), _cnt_pStaticSamplers ? _cnt_pStaticSamplers : 1);
+        if (!val->pStaticSamplers) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pStaticSamplers; _i++)
+            npt_decode_D3D12_STATIC_SAMPLER_DESC1(dec, (D3D12_STATIC_SAMPLER_DESC1 *)&val->pStaticSamplers[_i]);
+    } else {
+        val->pStaticSamplers = NULL;
     }
     npt_decode_D3D12_ROOT_SIGNATURE_FLAGS(dec, &val->Flags);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pParameters > 0 && _cnt_pParameters < (uint64_t)(val->NumParameters)) ||
+        (_has_cnt_pParameters == 0 && (uint64_t)(val->NumParameters) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pStaticSamplers > 0 && _cnt_pStaticSamplers < (uint64_t)(val->NumStaticSamplers)) ||
+        (_has_cnt_pStaticSamplers == 0 && (uint64_t)(val->NumStaticSamplers) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_VERSIONED_ROOT_SIGNATURE_DESC (struct) */
@@ -15212,21 +15300,24 @@ npt_encode_D3D12_DISCARD_REGION(struct npt_cs_encoder *enc, const D3D12_DISCARD_
 static inline void
 npt_decode_D3D12_DISCARD_REGION(struct npt_cs_decoder *dec, D3D12_DISCARD_REGION *val)
 {
+    uint64_t _cnt_pRects = 0; int _has_cnt_pRects = -1;
     npt_decode_UINT(dec, &val->NumRects);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pRects = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RECT), _count ? _count : 1);
-            if (!val->pRects) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_RECT(dec, (D3D12_RECT *)&val->pRects[_i]);
-        } else {
-            (void)(val->NumRects); /* unused: count_expr from registry */
-            val->pRects = NULL;
-        }
+    _has_cnt_pRects = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pRects)) {
+        _has_cnt_pRects = 1;
+        val->pRects = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RECT), _cnt_pRects ? _cnt_pRects : 1);
+        if (!val->pRects) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pRects; _i++)
+            npt_decode_D3D12_RECT(dec, (D3D12_RECT *)&val->pRects[_i]);
+    } else {
+        val->pRects = NULL;
     }
     npt_decode_UINT(dec, &val->FirstSubresource);
     npt_decode_UINT(dec, &val->NumSubresources);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pRects > 0 && _cnt_pRects < (uint64_t)(val->NumRects)) ||
+        (_has_cnt_pRects == 0 && (uint64_t)(val->NumRects) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_QUERY_HEAP_DESC (struct) */
@@ -15704,21 +15795,24 @@ npt_encode_D3D12_COMMAND_SIGNATURE_DESC(struct npt_cs_encoder *enc, const D3D12_
 static inline void
 npt_decode_D3D12_COMMAND_SIGNATURE_DESC(struct npt_cs_decoder *dec, D3D12_COMMAND_SIGNATURE_DESC *val)
 {
+    uint64_t _cnt_pArgumentDescs = 0; int _has_cnt_pArgumentDescs = -1;
     npt_decode_UINT(dec, &val->ByteStride);
     npt_decode_UINT(dec, &val->NumArgumentDescs);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pArgumentDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_INDIRECT_ARGUMENT_DESC), _count ? _count : 1);
-            if (!val->pArgumentDescs) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_INDIRECT_ARGUMENT_DESC(dec, (D3D12_INDIRECT_ARGUMENT_DESC *)&val->pArgumentDescs[_i]);
-        } else {
-            (void)(val->NumArgumentDescs); /* unused: count_expr from registry */
-            val->pArgumentDescs = NULL;
-        }
+    _has_cnt_pArgumentDescs = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pArgumentDescs)) {
+        _has_cnt_pArgumentDescs = 1;
+        val->pArgumentDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_INDIRECT_ARGUMENT_DESC), _cnt_pArgumentDescs ? _cnt_pArgumentDescs : 1);
+        if (!val->pArgumentDescs) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pArgumentDescs; _i++)
+            npt_decode_D3D12_INDIRECT_ARGUMENT_DESC(dec, (D3D12_INDIRECT_ARGUMENT_DESC *)&val->pArgumentDescs[_i]);
+    } else {
+        val->pArgumentDescs = NULL;
     }
     npt_decode_UINT(dec, &val->NodeMask);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pArgumentDescs > 0 && _cnt_pArgumentDescs < (uint64_t)(val->NumArgumentDescs)) ||
+        (_has_cnt_pArgumentDescs == 0 && (uint64_t)(val->NumArgumentDescs) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_WRITEBUFFERIMMEDIATE_PARAMETER (struct) */
@@ -16199,20 +16293,23 @@ npt_encode_D3D12_DXIL_LIBRARY_DESC(struct npt_cs_encoder *enc, const D3D12_DXIL_
 static inline void
 npt_decode_D3D12_DXIL_LIBRARY_DESC(struct npt_cs_decoder *dec, D3D12_DXIL_LIBRARY_DESC *val)
 {
+    uint64_t _cnt_pExports = 0; int _has_cnt_pExports = -1;
     npt_decode_D3D12_SHADER_BYTECODE(dec, &val->DXILLibrary);
     npt_decode_UINT(dec, &val->NumExports);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_EXPORT_DESC), _count ? _count : 1);
-            if (!val->pExports) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_EXPORT_DESC(dec, (D3D12_EXPORT_DESC *)&val->pExports[_i]);
-        } else {
-            (void)(val->NumExports); /* unused: count_expr from registry */
-            val->pExports = NULL;
-        }
+    _has_cnt_pExports = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pExports)) {
+        _has_cnt_pExports = 1;
+        val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_EXPORT_DESC), _cnt_pExports ? _cnt_pExports : 1);
+        if (!val->pExports) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pExports; _i++)
+            npt_decode_D3D12_EXPORT_DESC(dec, (D3D12_EXPORT_DESC *)&val->pExports[_i]);
+    } else {
+        val->pExports = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pExports > 0 && _cnt_pExports < (uint64_t)(val->NumExports)) ||
+        (_has_cnt_pExports == 0 && (uint64_t)(val->NumExports) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_EXISTING_COLLECTION_DESC (struct) */
@@ -16246,24 +16343,27 @@ npt_encode_D3D12_EXISTING_COLLECTION_DESC(struct npt_cs_encoder *enc, const D3D1
 static inline void
 npt_decode_D3D12_EXISTING_COLLECTION_DESC(struct npt_cs_decoder *dec, D3D12_EXISTING_COLLECTION_DESC *val)
 {
+    uint64_t _cnt_pExports = 0; int _has_cnt_pExports = -1;
     {
         npt_object_id _id;
         npt_decode_uint64_t(dec, &_id);
         val->pExistingCollection = (ID3D12StateObject *)npt_object_from_id(_id);
     }
     npt_decode_UINT(dec, &val->NumExports);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_EXPORT_DESC), _count ? _count : 1);
-            if (!val->pExports) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_EXPORT_DESC(dec, (D3D12_EXPORT_DESC *)&val->pExports[_i]);
-        } else {
-            (void)(val->NumExports); /* unused: count_expr from registry */
-            val->pExports = NULL;
-        }
+    _has_cnt_pExports = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pExports)) {
+        _has_cnt_pExports = 1;
+        val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_EXPORT_DESC), _cnt_pExports ? _cnt_pExports : 1);
+        if (!val->pExports) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pExports; _i++)
+            npt_decode_D3D12_EXPORT_DESC(dec, (D3D12_EXPORT_DESC *)&val->pExports[_i]);
+    } else {
+        val->pExports = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pExports > 0 && _cnt_pExports < (uint64_t)(val->NumExports)) ||
+        (_has_cnt_pExports == 0 && (uint64_t)(val->NumExports) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION (struct) */
@@ -16306,6 +16406,7 @@ npt_encode_D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION(struct npt_cs_encoder *enc, co
 static inline void
 npt_decode_D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION(struct npt_cs_decoder *dec, D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION *val)
 {
+    uint64_t _cnt_pExports = 0; int _has_cnt_pExports = -1;
     if (npt_decode_simple_pointer(dec)) {
         val->pSubobjectToAssociate = npt_cs_decoder_alloc_temp(dec, sizeof(D3D12_STATE_SUBOBJECT));
         if (!val->pSubobjectToAssociate) return;
@@ -16315,25 +16416,28 @@ npt_decode_D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION(struct npt_cs_decoder *dec, D3
         npt_cs_decoder_set_fatal(dec); /* non-optional pointer is NULL */
     }
     npt_decode_UINT(dec, &val->NumExports);
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->pExports) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                const uint64_t _slen = npt_decode_array_count_unchecked(dec);
-                if (_slen) {
-                    val->pExports[_i] = npt_cs_decoder_alloc_temp(dec, _slen);
-                    if (!val->pExports[_i]) return;
-                    npt_decode_wchar_array(dec, (WCHAR *)val->pExports[_i], _slen);
-                } else {
-                    val->pExports[_i] = NULL;
-                }
+    _cnt_pExports = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pExports = _cnt_pExports != 0;
+    if (_cnt_pExports) {
+        val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_pExports);
+        if (!val->pExports) return;
+        for (uint64_t _i = 0; _i < _cnt_pExports; _i++) {
+            const uint64_t _slen = npt_decode_array_count_unchecked(dec);
+            if (_slen) {
+                val->pExports[_i] = npt_cs_decoder_alloc_temp(dec, _slen);
+                if (!val->pExports[_i]) return;
+                npt_decode_wchar_array(dec, (WCHAR *)val->pExports[_i], _slen);
+            } else {
+                val->pExports[_i] = NULL;
             }
-        } else {
-            val->pExports = NULL;
         }
+    } else {
+        val->pExports = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pExports > 0 && _cnt_pExports < (uint64_t)(val->NumExports)) ||
+        (_has_cnt_pExports == 0 && (uint64_t)(val->NumExports) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION (struct) */
@@ -16385,6 +16489,7 @@ npt_encode_D3D12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION(struct npt_cs_encoder *en
 static inline void
 npt_decode_D3D12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION(struct npt_cs_decoder *dec, D3D12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION *val)
 {
+    uint64_t _cnt_pExports = 0; int _has_cnt_pExports = -1;
     {
         const uint64_t _wstr_size = npt_decode_array_count_unchecked(dec);
         if (_wstr_size) {
@@ -16396,25 +16501,28 @@ npt_decode_D3D12_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION(struct npt_cs_decoder *de
         }
     }
     npt_decode_UINT(dec, &val->NumExports);
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->pExports) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                const uint64_t _slen = npt_decode_array_count_unchecked(dec);
-                if (_slen) {
-                    val->pExports[_i] = npt_cs_decoder_alloc_temp(dec, _slen);
-                    if (!val->pExports[_i]) return;
-                    npt_decode_wchar_array(dec, (WCHAR *)val->pExports[_i], _slen);
-                } else {
-                    val->pExports[_i] = NULL;
-                }
+    _cnt_pExports = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pExports = _cnt_pExports != 0;
+    if (_cnt_pExports) {
+        val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_pExports);
+        if (!val->pExports) return;
+        for (uint64_t _i = 0; _i < _cnt_pExports; _i++) {
+            const uint64_t _slen = npt_decode_array_count_unchecked(dec);
+            if (_slen) {
+                val->pExports[_i] = npt_cs_decoder_alloc_temp(dec, _slen);
+                if (!val->pExports[_i]) return;
+                npt_decode_wchar_array(dec, (WCHAR *)val->pExports[_i], _slen);
+            } else {
+                val->pExports[_i] = NULL;
             }
-        } else {
-            val->pExports = NULL;
         }
+    } else {
+        val->pExports = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pExports > 0 && _cnt_pExports < (uint64_t)(val->NumExports)) ||
+        (_has_cnt_pExports == 0 && (uint64_t)(val->NumExports) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_RAYTRACING_SHADER_CONFIG (struct) */
@@ -16744,6 +16852,9 @@ npt_encode_D3D12_BROADCASTING_LAUNCH_OVERRIDES(struct npt_cs_encoder *enc, const
 static inline void
 npt_decode_D3D12_BROADCASTING_LAUNCH_OVERRIDES(struct npt_cs_decoder *dec, D3D12_BROADCASTING_LAUNCH_OVERRIDES *val)
 {
+    uint64_t _cnt_pDispatchGrid = 0; int _has_cnt_pDispatchGrid = -1;
+    uint64_t _cnt_pMaxDispatchGrid = 0; int _has_cnt_pMaxDispatchGrid = -1;
+    uint64_t _cnt_pOutputOverrides = 0; int _has_cnt_pOutputOverrides = -1;
     if (npt_decode_simple_pointer(dec)) {
         val->pLocalRootArgumentsTableIndex = npt_cs_decoder_alloc_temp(dec, sizeof(UINT));
         if (!val->pLocalRootArgumentsTableIndex) return;
@@ -16772,41 +16883,42 @@ npt_decode_D3D12_BROADCASTING_LAUNCH_OVERRIDES(struct npt_cs_decoder *dec, D3D12
     } else {
         val->pShareInputOf = NULL;
     }
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pDispatchGrid = npt_cs_decoder_alloc_temp_array(dec, sizeof(UINT), _count ? _count : 1);
-            if (!val->pDispatchGrid) return;
-            npt_decode_UINT_array(dec, (UINT *)val->pDispatchGrid, _count);
-        } else {
-            (void)(3); /* unused: count_expr from registry */
-            val->pDispatchGrid = NULL;
-        }
+    _has_cnt_pDispatchGrid = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pDispatchGrid)) {
+        _has_cnt_pDispatchGrid = 1;
+        val->pDispatchGrid = npt_cs_decoder_alloc_temp_array(dec, sizeof(UINT), _cnt_pDispatchGrid ? _cnt_pDispatchGrid : 1);
+        if (!val->pDispatchGrid) return;
+        npt_decode_UINT_array(dec, (UINT *)val->pDispatchGrid, _cnt_pDispatchGrid);
+    } else {
+        val->pDispatchGrid = NULL;
     }
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pMaxDispatchGrid = npt_cs_decoder_alloc_temp_array(dec, sizeof(UINT), _count ? _count : 1);
-            if (!val->pMaxDispatchGrid) return;
-            npt_decode_UINT_array(dec, (UINT *)val->pMaxDispatchGrid, _count);
-        } else {
-            (void)(3); /* unused: count_expr from registry */
-            val->pMaxDispatchGrid = NULL;
-        }
+    _has_cnt_pMaxDispatchGrid = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pMaxDispatchGrid)) {
+        _has_cnt_pMaxDispatchGrid = 1;
+        val->pMaxDispatchGrid = npt_cs_decoder_alloc_temp_array(dec, sizeof(UINT), _cnt_pMaxDispatchGrid ? _cnt_pMaxDispatchGrid : 1);
+        if (!val->pMaxDispatchGrid) return;
+        npt_decode_UINT_array(dec, (UINT *)val->pMaxDispatchGrid, _cnt_pMaxDispatchGrid);
+    } else {
+        val->pMaxDispatchGrid = NULL;
     }
     npt_decode_UINT(dec, &val->NumOutputOverrides);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _count ? _count : 1);
-            if (!val->pOutputOverrides) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
-        } else {
-            (void)(val->NumOutputOverrides); /* unused: count_expr from registry */
-            val->pOutputOverrides = NULL;
-        }
+    _has_cnt_pOutputOverrides = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pOutputOverrides)) {
+        _has_cnt_pOutputOverrides = 1;
+        val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _cnt_pOutputOverrides ? _cnt_pOutputOverrides : 1);
+        if (!val->pOutputOverrides) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pOutputOverrides; _i++)
+            npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
+    } else {
+        val->pOutputOverrides = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pDispatchGrid > 0 && _cnt_pDispatchGrid < (uint64_t)(3)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pMaxDispatchGrid > 0 && _cnt_pMaxDispatchGrid < (uint64_t)(3)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pOutputOverrides > 0 && _cnt_pOutputOverrides < (uint64_t)(val->NumOutputOverrides)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_COALESCING_LAUNCH_OVERRIDES (struct) */
@@ -16858,6 +16970,7 @@ npt_encode_D3D12_COALESCING_LAUNCH_OVERRIDES(struct npt_cs_encoder *enc, const D
 static inline void
 npt_decode_D3D12_COALESCING_LAUNCH_OVERRIDES(struct npt_cs_decoder *dec, D3D12_COALESCING_LAUNCH_OVERRIDES *val)
 {
+    uint64_t _cnt_pOutputOverrides = 0; int _has_cnt_pOutputOverrides = -1;
     if (npt_decode_simple_pointer(dec)) {
         val->pLocalRootArgumentsTableIndex = npt_cs_decoder_alloc_temp(dec, sizeof(UINT));
         if (!val->pLocalRootArgumentsTableIndex) return;
@@ -16887,18 +17000,19 @@ npt_decode_D3D12_COALESCING_LAUNCH_OVERRIDES(struct npt_cs_decoder *dec, D3D12_C
         val->pShareInputOf = NULL;
     }
     npt_decode_UINT(dec, &val->NumOutputOverrides);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _count ? _count : 1);
-            if (!val->pOutputOverrides) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
-        } else {
-            (void)(val->NumOutputOverrides); /* unused: count_expr from registry */
-            val->pOutputOverrides = NULL;
-        }
+    _has_cnt_pOutputOverrides = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pOutputOverrides)) {
+        _has_cnt_pOutputOverrides = 1;
+        val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _cnt_pOutputOverrides ? _cnt_pOutputOverrides : 1);
+        if (!val->pOutputOverrides) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pOutputOverrides; _i++)
+            npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
+    } else {
+        val->pOutputOverrides = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pOutputOverrides > 0 && _cnt_pOutputOverrides < (uint64_t)(val->NumOutputOverrides)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_THREAD_LAUNCH_OVERRIDES (struct) */
@@ -16950,6 +17064,7 @@ npt_encode_D3D12_THREAD_LAUNCH_OVERRIDES(struct npt_cs_encoder *enc, const D3D12
 static inline void
 npt_decode_D3D12_THREAD_LAUNCH_OVERRIDES(struct npt_cs_decoder *dec, D3D12_THREAD_LAUNCH_OVERRIDES *val)
 {
+    uint64_t _cnt_pOutputOverrides = 0; int _has_cnt_pOutputOverrides = -1;
     if (npt_decode_simple_pointer(dec)) {
         val->pLocalRootArgumentsTableIndex = npt_cs_decoder_alloc_temp(dec, sizeof(UINT));
         if (!val->pLocalRootArgumentsTableIndex) return;
@@ -16979,18 +17094,19 @@ npt_decode_D3D12_THREAD_LAUNCH_OVERRIDES(struct npt_cs_decoder *dec, D3D12_THREA
         val->pShareInputOf = NULL;
     }
     npt_decode_UINT(dec, &val->NumOutputOverrides);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _count ? _count : 1);
-            if (!val->pOutputOverrides) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
-        } else {
-            (void)(val->NumOutputOverrides); /* unused: count_expr from registry */
-            val->pOutputOverrides = NULL;
-        }
+    _has_cnt_pOutputOverrides = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pOutputOverrides)) {
+        _has_cnt_pOutputOverrides = 1;
+        val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _cnt_pOutputOverrides ? _cnt_pOutputOverrides : 1);
+        if (!val->pOutputOverrides) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pOutputOverrides; _i++)
+            npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
+    } else {
+        val->pOutputOverrides = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pOutputOverrides > 0 && _cnt_pOutputOverrides < (uint64_t)(val->NumOutputOverrides)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_COMMON_COMPUTE_NODE_OVERRIDES (struct) */
@@ -17042,6 +17158,7 @@ npt_encode_D3D12_COMMON_COMPUTE_NODE_OVERRIDES(struct npt_cs_encoder *enc, const
 static inline void
 npt_decode_D3D12_COMMON_COMPUTE_NODE_OVERRIDES(struct npt_cs_decoder *dec, D3D12_COMMON_COMPUTE_NODE_OVERRIDES *val)
 {
+    uint64_t _cnt_pOutputOverrides = 0; int _has_cnt_pOutputOverrides = -1;
     if (npt_decode_simple_pointer(dec)) {
         val->pLocalRootArgumentsTableIndex = npt_cs_decoder_alloc_temp(dec, sizeof(UINT));
         if (!val->pLocalRootArgumentsTableIndex) return;
@@ -17071,18 +17188,19 @@ npt_decode_D3D12_COMMON_COMPUTE_NODE_OVERRIDES(struct npt_cs_decoder *dec, D3D12
         val->pShareInputOf = NULL;
     }
     npt_decode_UINT(dec, &val->NumOutputOverrides);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _count ? _count : 1);
-            if (!val->pOutputOverrides) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
-        } else {
-            (void)(val->NumOutputOverrides); /* unused: count_expr from registry */
-            val->pOutputOverrides = NULL;
-        }
+    _has_cnt_pOutputOverrides = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pOutputOverrides)) {
+        _has_cnt_pOutputOverrides = 1;
+        val->pOutputOverrides = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_OUTPUT_OVERRIDES), _cnt_pOutputOverrides ? _cnt_pOutputOverrides : 1);
+        if (!val->pOutputOverrides) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pOutputOverrides; _i++)
+            npt_decode_D3D12_NODE_OUTPUT_OVERRIDES(dec, (D3D12_NODE_OUTPUT_OVERRIDES *)&val->pOutputOverrides[_i]);
+    } else {
+        val->pOutputOverrides = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pOutputOverrides > 0 && _cnt_pOutputOverrides < (uint64_t)(val->NumOutputOverrides)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_SHADER_NODE (struct) */
@@ -17328,6 +17446,8 @@ npt_encode_D3D12_WORK_GRAPH_DESC(struct npt_cs_encoder *enc, const D3D12_WORK_GR
 static inline void
 npt_decode_D3D12_WORK_GRAPH_DESC(struct npt_cs_decoder *dec, D3D12_WORK_GRAPH_DESC *val)
 {
+    uint64_t _cnt_pEntrypoints = 0; int _has_cnt_pEntrypoints = -1;
+    uint64_t _cnt_pExplicitlyDefinedNodes = 0; int _has_cnt_pExplicitlyDefinedNodes = -1;
     {
         const uint64_t _wstr_size = npt_decode_array_count_unchecked(dec);
         if (_wstr_size) {
@@ -17340,31 +17460,32 @@ npt_decode_D3D12_WORK_GRAPH_DESC(struct npt_cs_decoder *dec, D3D12_WORK_GRAPH_DE
     }
     npt_decode_D3D12_WORK_GRAPH_FLAGS(dec, &val->Flags);
     npt_decode_UINT(dec, &val->NumEntrypoints);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pEntrypoints = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_ID), _count ? _count : 1);
-            if (!val->pEntrypoints) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_NODE_ID(dec, (D3D12_NODE_ID *)&val->pEntrypoints[_i]);
-        } else {
-            (void)(val->NumEntrypoints); /* unused: count_expr from registry */
-            val->pEntrypoints = NULL;
-        }
+    _has_cnt_pEntrypoints = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pEntrypoints)) {
+        _has_cnt_pEntrypoints = 1;
+        val->pEntrypoints = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE_ID), _cnt_pEntrypoints ? _cnt_pEntrypoints : 1);
+        if (!val->pEntrypoints) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pEntrypoints; _i++)
+            npt_decode_D3D12_NODE_ID(dec, (D3D12_NODE_ID *)&val->pEntrypoints[_i]);
+    } else {
+        val->pEntrypoints = NULL;
     }
     npt_decode_UINT(dec, &val->NumExplicitlyDefinedNodes);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pExplicitlyDefinedNodes = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE), _count ? _count : 1);
-            if (!val->pExplicitlyDefinedNodes) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_NODE(dec, (D3D12_NODE *)&val->pExplicitlyDefinedNodes[_i]);
-        } else {
-            (void)(val->NumExplicitlyDefinedNodes); /* unused: count_expr from registry */
-            val->pExplicitlyDefinedNodes = NULL;
-        }
+    _has_cnt_pExplicitlyDefinedNodes = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pExplicitlyDefinedNodes)) {
+        _has_cnt_pExplicitlyDefinedNodes = 1;
+        val->pExplicitlyDefinedNodes = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_NODE), _cnt_pExplicitlyDefinedNodes ? _cnt_pExplicitlyDefinedNodes : 1);
+        if (!val->pExplicitlyDefinedNodes) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pExplicitlyDefinedNodes; _i++)
+            npt_decode_D3D12_NODE(dec, (D3D12_NODE *)&val->pExplicitlyDefinedNodes[_i]);
+    } else {
+        val->pExplicitlyDefinedNodes = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pEntrypoints > 0 && _cnt_pEntrypoints < (uint64_t)(val->NumEntrypoints)))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pExplicitlyDefinedNodes > 0 && _cnt_pExplicitlyDefinedNodes < (uint64_t)(val->NumExplicitlyDefinedNodes)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_GENERIC_PROGRAM_DESC (struct) */
@@ -17428,6 +17549,8 @@ npt_encode_D3D12_GENERIC_PROGRAM_DESC(struct npt_cs_encoder *enc, const D3D12_GE
 static inline void
 npt_decode_D3D12_GENERIC_PROGRAM_DESC(struct npt_cs_decoder *dec, D3D12_GENERIC_PROGRAM_DESC *val)
 {
+    uint64_t _cnt_pExports = 0; int _has_cnt_pExports = -1;
+    uint64_t _cnt_ppSubobjects = 0; int _has_cnt_ppSubobjects = -1;
     {
         const uint64_t _wstr_size = npt_decode_array_count_unchecked(dec);
         if (_wstr_size) {
@@ -17439,42 +17562,45 @@ npt_decode_D3D12_GENERIC_PROGRAM_DESC(struct npt_cs_decoder *dec, D3D12_GENERIC_
         }
     }
     npt_decode_UINT(dec, &val->NumExports);
-    {
-        const uint64_t _count = npt_decode_array_count_unchecked(dec);
-        if (_count) {
-            val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _count);
-            if (!val->pExports) return;
-            for (uint64_t _i = 0; _i < _count; _i++) {
-                const uint64_t _slen = npt_decode_array_count_unchecked(dec);
-                if (_slen) {
-                    val->pExports[_i] = npt_cs_decoder_alloc_temp(dec, _slen);
-                    if (!val->pExports[_i]) return;
-                    npt_decode_wchar_array(dec, (WCHAR *)val->pExports[_i], _slen);
-                } else {
-                    val->pExports[_i] = NULL;
-                }
+    _cnt_pExports = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pExports = _cnt_pExports != 0;
+    if (_cnt_pExports) {
+        val->pExports = npt_cs_decoder_alloc_temp_array(dec, sizeof(void *), _cnt_pExports);
+        if (!val->pExports) return;
+        for (uint64_t _i = 0; _i < _cnt_pExports; _i++) {
+            const uint64_t _slen = npt_decode_array_count_unchecked(dec);
+            if (_slen) {
+                val->pExports[_i] = npt_cs_decoder_alloc_temp(dec, _slen);
+                if (!val->pExports[_i]) return;
+                npt_decode_wchar_array(dec, (WCHAR *)val->pExports[_i], _slen);
+            } else {
+                val->pExports[_i] = NULL;
             }
-        } else {
-            val->pExports = NULL;
         }
+    } else {
+        val->pExports = NULL;
     }
     npt_decode_UINT(dec, &val->NumSubobjects);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->ppSubobjects = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATE_SUBOBJECT *), _count ? _count : 1);
-            if (!val->ppSubobjects) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++) {
-                D3D12_STATE_SUBOBJECT *_elem = npt_cs_decoder_alloc_temp(dec, sizeof(D3D12_STATE_SUBOBJECT));
-                if (!_elem) return;
-                npt_decode_D3D12_STATE_SUBOBJECT(dec, _elem);
-                ((D3D12_STATE_SUBOBJECT **)val->ppSubobjects)[_i] = _elem;
-            }
-        } else {
-            (void)(val->NumSubobjects); /* unused: count_expr from registry */
-            val->ppSubobjects = NULL;
+    _has_cnt_ppSubobjects = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_ppSubobjects)) {
+        _has_cnt_ppSubobjects = 1;
+        val->ppSubobjects = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATE_SUBOBJECT *), _cnt_ppSubobjects ? _cnt_ppSubobjects : 1);
+        if (!val->ppSubobjects) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_ppSubobjects; _i++) {
+            D3D12_STATE_SUBOBJECT *_elem = npt_cs_decoder_alloc_temp(dec, sizeof(D3D12_STATE_SUBOBJECT));
+            if (!_elem) return;
+            npt_decode_D3D12_STATE_SUBOBJECT(dec, _elem);
+            ((D3D12_STATE_SUBOBJECT **)val->ppSubobjects)[_i] = _elem;
         }
+    } else {
+        val->ppSubobjects = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pExports > 0 && _cnt_pExports < (uint64_t)(val->NumExports)) ||
+        (_has_cnt_pExports == 0 && (uint64_t)(val->NumExports) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_ppSubobjects > 0 && _cnt_ppSubobjects < (uint64_t)(val->NumSubobjects)))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_STATE_SUBOBJECT (struct) */
@@ -18326,20 +18452,23 @@ npt_encode_D3D12_STATE_OBJECT_DESC(struct npt_cs_encoder *enc, const D3D12_STATE
 static inline void
 npt_decode_D3D12_STATE_OBJECT_DESC(struct npt_cs_decoder *dec, D3D12_STATE_OBJECT_DESC *val)
 {
+    uint64_t _cnt_pSubobjects = 0; int _has_cnt_pSubobjects = -1;
     npt_decode_D3D12_STATE_OBJECT_TYPE(dec, &val->Type);
     npt_decode_UINT(dec, &val->NumSubobjects);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pSubobjects = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATE_SUBOBJECT), _count ? _count : 1);
-            if (!val->pSubobjects) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_STATE_SUBOBJECT(dec, (D3D12_STATE_SUBOBJECT *)&val->pSubobjects[_i]);
-        } else {
-            (void)(val->NumSubobjects); /* unused: count_expr from registry */
-            val->pSubobjects = NULL;
-        }
+    _has_cnt_pSubobjects = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pSubobjects)) {
+        _has_cnt_pSubobjects = 1;
+        val->pSubobjects = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_STATE_SUBOBJECT), _cnt_pSubobjects ? _cnt_pSubobjects : 1);
+        if (!val->pSubobjects) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pSubobjects; _i++)
+            npt_decode_D3D12_STATE_SUBOBJECT(dec, (D3D12_STATE_SUBOBJECT *)&val->pSubobjects[_i]);
+    } else {
+        val->pSubobjects = NULL;
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pSubobjects > 0 && _cnt_pSubobjects < (uint64_t)(val->NumSubobjects)) ||
+        (_has_cnt_pSubobjects == 0 && (uint64_t)(val->NumSubobjects) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE (struct) */
@@ -18905,6 +19034,8 @@ npt_encode_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS(struct npt_cs_en
 static inline void
 npt_decode_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS(struct npt_cs_decoder *dec, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *val)
 {
+    uint64_t _cnt_pGeometryDescs = 0; int _has_cnt_pGeometryDescs = -1;
+    uint64_t _cnt_ppGeometryDescs = 0; int _has_cnt_ppGeometryDescs = -1;
     npt_decode_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE(dec, &val->Type);
     npt_decode_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS(dec, &val->Flags);
     npt_decode_UINT(dec, &val->NumDescs);
@@ -18913,37 +19044,40 @@ npt_decode_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS(struct npt_cs_de
     npt_decode_D3D12_GPU_VIRTUAL_ADDRESS(dec, &val->InstanceDescs);
     }
     if (val->Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL && val->DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY) {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pGeometryDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RAYTRACING_GEOMETRY_DESC), _count ? _count : 1);
-            if (!val->pGeometryDescs) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_RAYTRACING_GEOMETRY_DESC(dec, (D3D12_RAYTRACING_GEOMETRY_DESC *)&val->pGeometryDescs[_i]);
-        } else {
-            (void)(val->NumDescs); /* unused: count_expr from registry */
-            val->pGeometryDescs = NULL;
-        }
+    _has_cnt_pGeometryDescs = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pGeometryDescs)) {
+        _has_cnt_pGeometryDescs = 1;
+        val->pGeometryDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RAYTRACING_GEOMETRY_DESC), _cnt_pGeometryDescs ? _cnt_pGeometryDescs : 1);
+        if (!val->pGeometryDescs) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pGeometryDescs; _i++)
+            npt_decode_D3D12_RAYTRACING_GEOMETRY_DESC(dec, (D3D12_RAYTRACING_GEOMETRY_DESC *)&val->pGeometryDescs[_i]);
+    } else {
+        val->pGeometryDescs = NULL;
     }
     }
     if (val->Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL && val->DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS) {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->ppGeometryDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RAYTRACING_GEOMETRY_DESC *), _count ? _count : 1);
-            if (!val->ppGeometryDescs) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++) {
-                D3D12_RAYTRACING_GEOMETRY_DESC *_elem = npt_cs_decoder_alloc_temp(dec, sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
-                if (!_elem) return;
-                npt_decode_D3D12_RAYTRACING_GEOMETRY_DESC(dec, _elem);
-                ((D3D12_RAYTRACING_GEOMETRY_DESC **)val->ppGeometryDescs)[_i] = _elem;
-            }
-        } else {
-            (void)(val->NumDescs); /* unused: count_expr from registry */
-            val->ppGeometryDescs = NULL;
+    _has_cnt_ppGeometryDescs = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_ppGeometryDescs)) {
+        _has_cnt_ppGeometryDescs = 1;
+        val->ppGeometryDescs = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RAYTRACING_GEOMETRY_DESC *), _cnt_ppGeometryDescs ? _cnt_ppGeometryDescs : 1);
+        if (!val->ppGeometryDescs) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_ppGeometryDescs; _i++) {
+            D3D12_RAYTRACING_GEOMETRY_DESC *_elem = npt_cs_decoder_alloc_temp(dec, sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
+            if (!_elem) return;
+            npt_decode_D3D12_RAYTRACING_GEOMETRY_DESC(dec, _elem);
+            ((D3D12_RAYTRACING_GEOMETRY_DESC **)val->ppGeometryDescs)[_i] = _elem;
         }
+    } else {
+        val->ppGeometryDescs = NULL;
     }
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pGeometryDescs > 0 && _cnt_pGeometryDescs < (uint64_t)(val->NumDescs)) ||
+        (_has_cnt_pGeometryDescs == 0 && (uint64_t)(val->NumDescs) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_ppGeometryDescs > 0 && _cnt_ppGeometryDescs < (uint64_t)(val->NumDescs)) ||
+        (_has_cnt_ppGeometryDescs == 0 && (uint64_t)(val->NumDescs) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC (struct) */
@@ -20252,6 +20386,7 @@ npt_encode_D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_PARAMETERS(struct npt_cs_enco
 static inline void
 npt_decode_D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_PARAMETERS(struct npt_cs_decoder *dec, D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_PARAMETERS *val)
 {
+    uint64_t _cnt_pSubresourceParameters = 0; int _has_cnt_pSubresourceParameters = -1;
     {
         npt_object_id _id;
         npt_decode_uint64_t(dec, &_id);
@@ -20263,21 +20398,23 @@ npt_decode_D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_PARAMETERS(struct npt_cs_deco
         val->pDstResource = (ID3D12Resource *)npt_object_from_id(_id);
     }
     npt_decode_UINT(dec, &val->SubresourceCount);
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pSubresourceParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS), _count ? _count : 1);
-            if (!val->pSubresourceParameters) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS(dec, (D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS *)&val->pSubresourceParameters[_i]);
-        } else {
-            (void)(val->SubresourceCount); /* unused: count_expr from registry */
-            val->pSubresourceParameters = NULL;
-        }
+    _has_cnt_pSubresourceParameters = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pSubresourceParameters)) {
+        _has_cnt_pSubresourceParameters = 1;
+        val->pSubresourceParameters = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS), _cnt_pSubresourceParameters ? _cnt_pSubresourceParameters : 1);
+        if (!val->pSubresourceParameters) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pSubresourceParameters; _i++)
+            npt_decode_D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS(dec, (D3D12_RENDER_PASS_ENDING_ACCESS_RESOLVE_SUBRESOURCE_PARAMETERS *)&val->pSubresourceParameters[_i]);
+    } else {
+        val->pSubresourceParameters = NULL;
     }
     npt_decode_DXGI_FORMAT(dec, &val->Format);
     npt_decode_D3D12_RESOLVE_MODE(dec, &val->ResolveMode);
     npt_decode_BOOL(dec, &val->PreserveResolveSource);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pSubresourceParameters > 0 && _cnt_pSubresourceParameters < (uint64_t)(val->SubresourceCount)) ||
+        (_has_cnt_pSubresourceParameters == 0 && (uint64_t)(val->SubresourceCount) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_RENDER_PASS_ENDING_ACCESS_PRESERVE_LOCAL_PARAMETERS (struct) */
@@ -20631,19 +20768,23 @@ npt_encode_D3D12_NODE_CPU_INPUT(struct npt_cs_encoder *enc, const D3D12_NODE_CPU
 static inline void
 npt_decode_D3D12_NODE_CPU_INPUT(struct npt_cs_decoder *dec, D3D12_NODE_CPU_INPUT *val)
 {
+    uint64_t _cnt_pRecords = 0; int _has_cnt_pRecords = -1;
     npt_decode_UINT(dec, &val->EntrypointIndex);
     npt_decode_UINT(dec, &val->NumRecords);
-    {
-        const uint64_t _blob_size = npt_decode_array_count_unchecked(dec);
-        if (_blob_size) {
-            val->pRecords = npt_cs_decoder_alloc_temp(dec, _blob_size);
-            if (!val->pRecords) return;
-            npt_decode_blob_array(dec, (void *)val->pRecords, _blob_size);
-        } else {
-            val->pRecords = NULL;
-        }
+    _cnt_pRecords = npt_decode_array_count_unchecked(dec);
+    _has_cnt_pRecords = _cnt_pRecords != 0;
+    if (_cnt_pRecords) {
+        val->pRecords = npt_cs_decoder_alloc_temp(dec, _cnt_pRecords);
+        if (!val->pRecords) return;
+        npt_decode_blob_array(dec, (void *)val->pRecords, _cnt_pRecords);
+    } else {
+        val->pRecords = NULL;
     }
     npt_decode_UINT64(dec, &val->RecordStrideInBytes);
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pRecords > 0 && _cnt_pRecords < (uint64_t)(val->NumRecords * val->RecordStrideInBytes)) ||
+        (_has_cnt_pRecords == 0 && (uint64_t)(val->NumRecords * val->RecordStrideInBytes) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_NODE_GPU_INPUT (struct) */
@@ -21097,50 +21238,57 @@ npt_encode_D3D12_BARRIER_GROUP(struct npt_cs_encoder *enc, const D3D12_BARRIER_G
 static inline void
 npt_decode_D3D12_BARRIER_GROUP(struct npt_cs_decoder *dec, D3D12_BARRIER_GROUP *val)
 {
+    uint64_t _cnt_pGlobalBarriers = 0; int _has_cnt_pGlobalBarriers = -1;
+    uint64_t _cnt_pTextureBarriers = 0; int _has_cnt_pTextureBarriers = -1;
+    uint64_t _cnt_pBufferBarriers = 0; int _has_cnt_pBufferBarriers = -1;
     npt_decode_D3D12_BARRIER_TYPE(dec, &val->Type);
     npt_decode_UINT32(dec, &val->NumBarriers);
     if (val->Type == D3D12_BARRIER_TYPE_GLOBAL) {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pGlobalBarriers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_GLOBAL_BARRIER), _count ? _count : 1);
-            if (!val->pGlobalBarriers) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_GLOBAL_BARRIER(dec, (D3D12_GLOBAL_BARRIER *)&val->pGlobalBarriers[_i]);
-        } else {
-            (void)(val->NumBarriers); /* unused: count_expr from registry */
-            val->pGlobalBarriers = NULL;
-        }
+    _has_cnt_pGlobalBarriers = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pGlobalBarriers)) {
+        _has_cnt_pGlobalBarriers = 1;
+        val->pGlobalBarriers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_GLOBAL_BARRIER), _cnt_pGlobalBarriers ? _cnt_pGlobalBarriers : 1);
+        if (!val->pGlobalBarriers) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pGlobalBarriers; _i++)
+            npt_decode_D3D12_GLOBAL_BARRIER(dec, (D3D12_GLOBAL_BARRIER *)&val->pGlobalBarriers[_i]);
+    } else {
+        val->pGlobalBarriers = NULL;
     }
     }
     if (val->Type == D3D12_BARRIER_TYPE_TEXTURE) {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pTextureBarriers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_TEXTURE_BARRIER), _count ? _count : 1);
-            if (!val->pTextureBarriers) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_TEXTURE_BARRIER(dec, (D3D12_TEXTURE_BARRIER *)&val->pTextureBarriers[_i]);
-        } else {
-            (void)(val->NumBarriers); /* unused: count_expr from registry */
-            val->pTextureBarriers = NULL;
-        }
+    _has_cnt_pTextureBarriers = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pTextureBarriers)) {
+        _has_cnt_pTextureBarriers = 1;
+        val->pTextureBarriers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_TEXTURE_BARRIER), _cnt_pTextureBarriers ? _cnt_pTextureBarriers : 1);
+        if (!val->pTextureBarriers) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pTextureBarriers; _i++)
+            npt_decode_D3D12_TEXTURE_BARRIER(dec, (D3D12_TEXTURE_BARRIER *)&val->pTextureBarriers[_i]);
+    } else {
+        val->pTextureBarriers = NULL;
     }
     }
     if (val->Type == D3D12_BARRIER_TYPE_BUFFER) {
-    {
-        uint64_t _count = 0;
-        if (npt_decode_counted_pointer_count(dec, &_count)) {
-            val->pBufferBarriers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_BUFFER_BARRIER), _count ? _count : 1);
-            if (!val->pBufferBarriers) return;
-            for (uint32_t _i = 0; _i < (uint32_t)_count; _i++)
-                npt_decode_D3D12_BUFFER_BARRIER(dec, (D3D12_BUFFER_BARRIER *)&val->pBufferBarriers[_i]);
-        } else {
-            (void)(val->NumBarriers); /* unused: count_expr from registry */
-            val->pBufferBarriers = NULL;
-        }
+    _has_cnt_pBufferBarriers = 0;
+    if (npt_decode_counted_pointer_count(dec, &_cnt_pBufferBarriers)) {
+        _has_cnt_pBufferBarriers = 1;
+        val->pBufferBarriers = npt_cs_decoder_alloc_temp_array(dec, sizeof(D3D12_BUFFER_BARRIER), _cnt_pBufferBarriers ? _cnt_pBufferBarriers : 1);
+        if (!val->pBufferBarriers) return;
+        for (uint32_t _i = 0; _i < (uint32_t)_cnt_pBufferBarriers; _i++)
+            npt_decode_D3D12_BUFFER_BARRIER(dec, (D3D12_BUFFER_BARRIER *)&val->pBufferBarriers[_i]);
+    } else {
+        val->pBufferBarriers = NULL;
     }
     }
+    /* A counted array must hold every element the callee walks. */
+    if ((_has_cnt_pGlobalBarriers > 0 && _cnt_pGlobalBarriers < (uint64_t)(val->NumBarriers)) ||
+        (_has_cnt_pGlobalBarriers == 0 && (uint64_t)(val->NumBarriers) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pTextureBarriers > 0 && _cnt_pTextureBarriers < (uint64_t)(val->NumBarriers)) ||
+        (_has_cnt_pTextureBarriers == 0 && (uint64_t)(val->NumBarriers) != 0))
+        npt_cs_decoder_set_fatal(dec);
+    if ((_has_cnt_pBufferBarriers > 0 && _cnt_pBufferBarriers < (uint64_t)(val->NumBarriers)) ||
+        (_has_cnt_pBufferBarriers == 0 && (uint64_t)(val->NumBarriers) != 0))
+        npt_cs_decoder_set_fatal(dec);
 }
 
 /* D3D12_SUBRESOURCE_DATA (struct) */

@@ -108,6 +108,8 @@ npt_id3d11classlinkage_default_GetClassInstance(void *self, const CHAR * pClassI
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11classlinkage_default_CreateClassInstance(void *self, const CHAR * pClassTypeName, UINT ConstantBufferOffset, UINT ConstantVectorOffset, UINT TextureOffset, UINT SamplerOffset, ID3D11ClassInstance ** ppInstance)
 {
+    if (!ppInstance)
+        return npt_call_ID3D11ClassLinkage_CreateClassInstance(npt_com_self_ring(self), npt_com_self_id(self), pClassTypeName, ConstantBufferOffset, ConstantVectorOffset, TextureOffset, SamplerOffset, ppInstance);
     ID3D11ClassInstance *_raw_ppInstance = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

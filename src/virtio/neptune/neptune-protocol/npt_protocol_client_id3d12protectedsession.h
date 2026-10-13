@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12protectedsession: ID3D12ProtectedSession
+/* Family id3d12protectedsession: ID3D12ProtectedSession */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11videocontext: ID3D11VideoContext, ID3D11VideoContext1, ID3D11VideoContext2, ID3D11VideoContext3
+/* Family id3d11videocontext: ID3D11VideoContext, ID3D11VideoContext1, ID3D11VideoContext2, ID3D11VideoContext3 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

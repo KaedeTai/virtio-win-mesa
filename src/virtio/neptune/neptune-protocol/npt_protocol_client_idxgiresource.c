@@ -135,6 +135,8 @@ npt_idxgiresource_client_create(struct npt_device *dev, uint64_t host_id)
 HRESULT NPT_STDMETHODCALLTYPE
 npt_idxgiresource1_default_CreateSubresourceSurface(void *self, UINT index, IDXGISurface2 ** ppSurface)
 {
+    if (!ppSurface)
+        return npt_call_IDXGIResource1_CreateSubresourceSurface(npt_com_self_ring(self), npt_com_self_id(self), index, ppSurface);
     IDXGISurface2 *_raw_ppSurface = NULL;
     /* Redirect each single-output pointer to a local _raw_ slot so the
      * encoder's stashed guest_id lands somewhere we can read after the

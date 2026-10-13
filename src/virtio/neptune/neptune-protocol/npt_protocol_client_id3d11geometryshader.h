@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11geometryshader: ID3D11GeometryShader
+/* Family id3d11geometryshader: ID3D11GeometryShader */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

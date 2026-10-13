@@ -7,7 +7,7 @@
 
 #include "npt_renderer.h"
 #include "npt_ring.h"
-#include "npt_transport_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 #include "neptune-protocol/npt_protocol_defs.h"
 

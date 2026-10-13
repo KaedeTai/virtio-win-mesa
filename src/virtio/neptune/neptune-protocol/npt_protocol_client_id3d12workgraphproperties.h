@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12workgraphproperties: ID3D12WorkGraphProperties
+/* Family id3d12workgraphproperties: ID3D12WorkGraphProperties */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from
@@ -66,7 +66,7 @@ struct npt_id3d12workgraphproperties_client_vtbl {
     /* slot 3: ID3D12WorkGraphProperties::GetNumWorkGraphs */
     UINT (NPT_STDMETHODCALLTYPE *GetNumWorkGraphs)(void *self);
     /* slot 4: ID3D12WorkGraphProperties::GetProgramName */
-    WCHAR (NPT_STDMETHODCALLTYPE *GetProgramName)(void *self, UINT WorkGraphIndex);
+    const WCHAR * (NPT_STDMETHODCALLTYPE *GetProgramName)(void *self, UINT WorkGraphIndex);
     /* slot 5: ID3D12WorkGraphProperties::GetWorkGraphIndex */
     UINT (NPT_STDMETHODCALLTYPE *GetWorkGraphIndex)(void *self, const WCHAR * pProgramName);
     /* slot 6: ID3D12WorkGraphProperties::GetNumNodes */
@@ -97,7 +97,7 @@ struct npt_id3d12workgraphproperties_client_vtbl {
  * with a real implementation before the method is called. */
 extern UINT NPT_STDMETHODCALLTYPE
 npt_id3d12workgraphproperties_default_GetNumWorkGraphs(void *self);
-extern WCHAR NPT_STDMETHODCALLTYPE
+extern const WCHAR * NPT_STDMETHODCALLTYPE
 npt_id3d12workgraphproperties_default_GetProgramName(void *self, UINT WorkGraphIndex);
 extern UINT NPT_STDMETHODCALLTYPE
 npt_id3d12workgraphproperties_default_GetWorkGraphIndex(void *self, const WCHAR * pProgramName);

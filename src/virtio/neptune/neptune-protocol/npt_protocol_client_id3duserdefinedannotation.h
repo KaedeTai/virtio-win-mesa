@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3duserdefinedannotation: ID3DUserDefinedAnnotation
+/* Family id3duserdefinedannotation: ID3DUserDefinedAnnotation */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

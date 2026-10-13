@@ -16,7 +16,7 @@
 #include "npt_profile.h"
 #include "npt_renderer.h"
 #include "npt_shmem_pool.h"
-#include "npt_transport_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 #include "util/futex.h"
 

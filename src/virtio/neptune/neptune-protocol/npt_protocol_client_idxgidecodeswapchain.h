@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family idxgidecodeswapchain: IDXGIDecodeSwapChain
+/* Family idxgidecodeswapchain: IDXGIDecodeSwapChain */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12pageable: ID3D12Pageable
+/* Family id3d12pageable: ID3D12Pageable */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

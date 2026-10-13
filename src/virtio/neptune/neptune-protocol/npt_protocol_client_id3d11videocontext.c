@@ -83,22 +83,40 @@ npt_id3d11videocontext_default_Release(void *self)
 /* ID3D11VideoContext (tier 0)                                  */
 /* ================================================================== */
 
+/* ID3D11VideoContext::GetDecoderBuffer has no transport (unsupported): fail the
+ * call without touching the wire. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext_default_GetDecoderBuffer(void *self, ID3D11VideoDecoder * pDecoder, D3D11_VIDEO_DECODER_BUFFER_TYPE Type, UINT * pBufferSize, void ** ppBuffer)
 {
-    HRESULT _ret = npt_call_ID3D11VideoContext_GetDecoderBuffer(npt_com_self_ring(self),npt_com_self_id(self),pDecoder,Type,pBufferSize,ppBuffer);
-    return _ret;
+    (void)self;
+    (void)pDecoder;
+    (void)Type;
+    if (pBufferSize)
+        memset(pBufferSize, 0, sizeof(*pBufferSize));
+    if (ppBuffer)
+        *ppBuffer = NULL;
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("ID3D11VideoContext::GetDecoderBuffer is not supported over Neptune");
+    }
+    return (HRESULT)0x80004001 /* E_NOTIMPL */;
 }
 
+/* ID3D11VideoContext::ReleaseDecoderBuffer has no transport (unsupported): fail the
+ * call without touching the wire. */
 HRESULT NPT_STDMETHODCALLTYPE
 npt_id3d11videocontext_default_ReleaseDecoderBuffer(void *self, ID3D11VideoDecoder * pDecoder, D3D11_VIDEO_DECODER_BUFFER_TYPE Type)
 {
-    npt_async_ID3D11VideoContext_ReleaseDecoderBuffer(npt_com_self_ring(self),npt_com_self_id(self),pDecoder,Type);
-    /* Async under the deferred-fatal model: assume success.  Host-side
-     * failures (OOM, bad arg) leave the guest_id unregistered, so the
-     * first method call against the wrapper trips decoder_fatal and
-     * unwinds the context cleanly. */
-    return (HRESULT)0 /* S_OK */;
+    (void)self;
+    (void)pDecoder;
+    (void)Type;
+    static bool _logged;
+    if (!_logged) {
+        _logged = true;
+        npt_log("ID3D11VideoContext::ReleaseDecoderBuffer is not supported over Neptune");
+    }
+    return (HRESULT)0x80004001 /* E_NOTIMPL */;
 }
 
 HRESULT NPT_STDMETHODCALLTYPE

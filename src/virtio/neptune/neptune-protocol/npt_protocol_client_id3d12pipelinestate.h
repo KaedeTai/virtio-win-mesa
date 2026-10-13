@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12pipelinestate: ID3D12PipelineState
+/* Family id3d12pipelinestate: ID3D12PipelineState */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

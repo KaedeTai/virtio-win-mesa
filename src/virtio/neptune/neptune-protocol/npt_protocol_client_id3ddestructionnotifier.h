@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3ddestructionnotifier: ID3DDestructionNotifier
+/* Family id3ddestructionnotifier: ID3DDestructionNotifier */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

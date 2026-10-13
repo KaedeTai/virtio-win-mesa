@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11shaderresourceview: ID3D11ShaderResourceView, ID3D11ShaderResourceView1
+/* Family id3d11shaderresourceview: ID3D11ShaderResourceView, ID3D11ShaderResourceView1 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

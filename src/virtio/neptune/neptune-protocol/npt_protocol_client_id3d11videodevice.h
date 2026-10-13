@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11videodevice: ID3D11VideoDevice, ID3D11VideoDevice1, ID3D11VideoDevice2
+/* Family id3d11videodevice: ID3D11VideoDevice, ID3D11VideoDevice1, ID3D11VideoDevice2 */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

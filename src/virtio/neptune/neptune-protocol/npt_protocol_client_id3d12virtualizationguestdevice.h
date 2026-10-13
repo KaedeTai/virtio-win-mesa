@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12virtualizationguestdevice: ID3D12VirtualizationGuestDevice
+/* Family id3d12virtualizationguestdevice: ID3D12VirtualizationGuestDevice */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

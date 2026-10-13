@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d12lifetimetracker: ID3D12LifetimeTracker
+/* Family id3d12lifetimetracker: ID3D12LifetimeTracker */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -201,7 +201,7 @@ bool npt_dispatch_event_arm_fence(struct npt_ring *ring, uint64_t event_token,
 /* Synchronous monitored-fence gate wait: host arms
  * SetEventOnCompletion(fence, value) onto ring_idx's persistent gate
  * eventfd and installs the pending-arm for the next submit_fence on
- * that ring (value-checked retirement; see npt_transport_defs.h). */
+ * that ring (value-checked retirement; see neptune-protocol/npt_protocol_transport.h). */
 bool npt_dispatch_event_gate_wait(struct npt_ring *ring, uint64_t fence_id,
                                   uint64_t value, uint32_t ring_idx);
 

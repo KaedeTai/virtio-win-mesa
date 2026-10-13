@@ -30,7 +30,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11multithread: ID3D11Multithread
+/* Family id3d11multithread: ID3D11Multithread */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from

@@ -6,13 +6,16 @@
  * covered by the protocol generator; the wire format reuses
  * npt_command_header and bodies are cast-directly C structs.
  *
+ * Hand-written and shipped verbatim beside the generated headers, so the
+ * guest and the host compile the same definitions.
+ *
  * cmd_type layout for group 0: bits 23:16 = subgroup id, bits 15:0 =
  * method id within the subgroup. */
 
-#ifndef NPT_TRANSPORT_DEFS_H
-#define NPT_TRANSPORT_DEFS_H
+#ifndef NPT_PROTOCOL_TRANSPORT_H
+#define NPT_PROTOCOL_TRANSPORT_H
 
-#include "neptune-protocol/npt_protocol_defs.h"
+#include "npt_protocol_defs.h"
 
 #define NPT_TRANSPORT_GROUP 0u
 
@@ -29,6 +32,18 @@
    NPT_CMD_TYPE_TOPLEVEL(NPT_TRANSPORT_GROUP, \
       (((uint32_t)(subgroup) & 0xFFu) << 16) | \
       ((uint32_t)(method) & 0xFFFFu))
+
+static inline uint32_t
+npt_transport_subgroup(const struct npt_command_header *hdr)
+{
+   return (hdr->cmd_type >> 16) & 0xFFu;
+}
+
+static inline uint32_t
+npt_transport_method(const struct npt_command_header *hdr)
+{
+   return hdr->cmd_type & 0xFFFFu;
+}
 
 /* ====================================================================== */
 /* CORE                                                                   */
@@ -57,16 +72,26 @@ struct npt_cmd_set_reply_stream {
 #define NPT_TRANSPORT_RING_WAIT_VQ_SEQNO   6u
 #define NPT_TRANSPORT_RING_WAIT_PEER       7u
 
+/* Virtio timelines (ring_idx values) every Neptune context is created
+ * with.  0 is the CPU timeline; Win32 event fences use the upper half,
+ * from NPT_EVENT_RING_BASE.  Both ends size their per-timeline state from
+ * these, so they cannot disagree on the split. */
+#define NPT_MAX_TIMELINES   64u
+#define NPT_EVENT_RING_BASE (NPT_MAX_TIMELINES / 2)
+
 /* Ring status bits (host writes, guest reads).  ALIVE is OR-set by
  * the ring-monitor thread on opted-in rings; the guest watchdog
  * clears and re-checks to detect a wedged host. */
 #define NPT_RING_STATUS_IDLE_BIT  (1u << 0)
 #define NPT_RING_STATUS_FATAL_BIT (1u << 1)
 #define NPT_RING_STATUS_ALIVE_BIT (1u << 2)
-/* Bits 8..31 hold a heartbeat counter the ring-monitor thread bumps on
- * every report period.  A guest that cannot clear ALIVE (an atomic
- * read-modify-write faults on write-combining memory under ARM and the
- * x86 translators) watches the counter stand still instead. */
+/* Bits 8..31 hold a heartbeat counter.  The host ticks it once when it
+ * creates a ring with a monitor and the ring-monitor thread ticks it on
+ * every report period after that, so the guest can tell a host worker
+ * that is gone from one that has not reported yet: a counter that stands
+ * still for several periods, zero included, is a dead worker.  Watching
+ * the counter needs no read-modify-write on write-combining memory,
+ * which faults under ARM and the x86 translators. */
 #define NPT_RING_STATUS_HEARTBEAT_SHIFT 8u
 #define NPT_RING_STATUS_HEARTBEAT_ONE   (1u << NPT_RING_STATUS_HEARTBEAT_SHIFT)
 
@@ -192,11 +217,9 @@ struct npt_cmd_com_release {
     * npt_cmd_com_release_wait) entries. */
 };
 
-/* Synchronous.  `guest_id` is the id the host registers the interface
- * under when it does not already hold the object under one; the reply
- * names the id it is registered under either way (ref.id), the
- * object's primary registration and its type.  ref is zero when
- * cmd_return is not S_OK. */
+/* Synchronous: the caller branches on E_NOINTERFACE to decide
+ * whether the wrapper stays live.  Guest pre-allocates `guest_id`;
+ * on success the host registers the returned interface under it. */
 struct npt_cmd_com_query_interface {
    struct npt_command_header header;
    /* header.object_id = source object's guest id */
@@ -206,6 +229,10 @@ struct npt_cmd_com_query_interface {
 
 struct npt_cmd_com_query_interface_reply {
    struct npt_reply_header header;
+   /* The id the interface is registered under (guest_id when the
+    * object was new to this context, else the id already held for it),
+    * the object's primary registration and its type; zero unless
+    * cmd_return is S_OK. */
    struct npt_wire_object_ref ref;
 };
 
@@ -221,28 +248,6 @@ struct npt_cmd_com_query_interface_reply {
 #define NPT_TRANSPORT_RESOURCE_BIND_D3D11_BUFFER_SHMEM 5u
 /* map_resource_reply.external_cookie when the Map landed on host memory. */
 #define NPT_EXTERNAL_COOKIE_NONE 0xffffffffu
-
-/* Synchronous.  Make a guest SHM blob the storage of one rename
- * allocation of a DYNAMIC ID3D11Buffer (header.object_id), tagged with
- * cookie; a later Map(WRITE_DISCARD) may rename onto it, and its reply
- * then carries the cookie.  byte_size is the buffer's ByteWidth; the blob
- * must cover it and be a multiple of the host page size.  The host keeps
- * its own reference to the blob's memory, so the virtio resource may be
- * destroyed before the buffer.  Reply: cmd_return = HRESULT; E_NOTIMPL
- * from a backend without the capability. */
-struct npt_cmd_bind_d3d11_buffer_shmem {
-   struct npt_command_header header;
-   /* header.object_id = guest ID3D11Buffer id */
-   uint32_t shmem_res_id;
-   uint32_t cookie;
-   uint64_t byte_size;
-   uint32_t reserved;     /* 0 */
-   uint32_t pad;
-};
-
-struct npt_cmd_bind_d3d11_buffer_shmem_reply {
-   struct npt_reply_header header;
-};
 
 /* UpdateSubresource(1) wire path; also serves D3D11_SUBRESOURCE_DATA
  * pSysMem.  D3D12 WriteToSubresource has identical shape (same box
@@ -268,10 +273,13 @@ struct npt_cmd_resource_update {
    uint32_t box_right;
    uint32_t box_bottom;
    uint32_t box_back;
-   /* Explicit pad matches the trailing padding the header's uint64_t
-    * forces on this struct.  Without it the host body decode (which
-    * excludes the header) under-reads by 4 bytes versus guest sizeof. */
+   /* Explicit so the body has no implicit padding before context_id:
+    * the host decodes the body apart from the header. */
    uint32_t pad;
+   /* 0 = the device's immediate context.  Otherwise the host id of the
+    * deferred ID3D11DeviceContext the update is recorded on, so it takes
+    * effect when that context's command list executes.  D3D12 sends 0. */
+   uint64_t context_id;
    /* followed by `byte_size` bytes of payload */
 };
 
@@ -373,18 +381,12 @@ struct npt_cmd_execute_command_stream {
 };
 
 /* Synchronous.  D3D12 persistently-mapped heap path: import the guest
- * SHM blob window [shmem_offset, shmem_offset + size) as an
- * ID3D12Heap via ID3D12Device13::OpenExistingHeapFromAddress1
- * and register the
- * heap under mint_heap_id.  header.object_id = guest device id.
- * shmem_offset must be page-aligned; size is 64 KiB-aligned by the
- * guest allocator.  heap_type/heap_flags are the APP's original
- * D3D12_HEAP_TYPE / D3D12_HEAP_FLAGS (informational host-side; the
- * guest answers GetDesc / GetHeapProperties locally).
- *
- * Teardown: the host keeps {heap_id -> shmem_res_id} and defers the
- * blob munmap until the heap object is released
- * (munmap-while-imported is UB).  Reply: cmd_return = HRESULT. */
+ * SHM blob window [shmem_offset, shmem_offset + size) as an ID3D12Heap
+ * registered under mint_heap_id.  shmem_offset must be page-aligned;
+ * size is 64 KiB-aligned by the guest allocator.  heap_type/heap_flags
+ * are the app's original values and informational here -- the guest
+ * answers GetDesc / GetHeapProperties locally.  Reply: cmd_return =
+ * HRESULT. */
 struct npt_cmd_create_heap_from_shmem {
    struct npt_command_header header;
    /* header.object_id = guest device id */
@@ -394,6 +396,28 @@ struct npt_cmd_create_heap_from_shmem {
    uint64_t size;
    uint32_t heap_type;    /* D3D12_HEAP_TYPE (app's) */
    uint32_t heap_flags;   /* D3D12_HEAP_FLAGS (app's) */
+};
+
+/* Synchronous.  Make a guest SHM blob the storage of one rename
+ * allocation of a DYNAMIC ID3D11Buffer (header.object_id), tagged with
+ * cookie; a later Map(WRITE_DISCARD) may rename onto it, and its reply
+ * then carries the cookie.  byte_size is the buffer's ByteWidth; the blob
+ * must cover it and be a multiple of the host page size.  The backend
+ * keeps its own reference to the blob's memory, so the virtio resource
+ * may be destroyed before the buffer.  Reply: cmd_return = HRESULT;
+ * E_NOTIMPL from a backend without the capability. */
+struct npt_cmd_bind_d3d11_buffer_shmem {
+   struct npt_command_header header;
+   /* header.object_id = guest ID3D11Buffer id */
+   uint32_t shmem_res_id;
+   uint32_t cookie;
+   uint64_t byte_size;
+   uint32_t reserved;     /* 0 */
+   uint32_t pad;
+};
+
+struct npt_cmd_bind_d3d11_buffer_shmem_reply {
+   struct npt_reply_header header;
 };
 
 struct npt_cmd_create_heap_from_shmem_reply {
@@ -503,7 +527,6 @@ struct npt_cmd_register_event {
  * should use this token's proxy eventfd as its sync source.  Sync
  * so the guest knows the pending-arm is installed before the
  * matching command submission. */
-
 struct npt_cmd_arm_event_fence {
    struct npt_command_header header;
    uint64_t event_token;
@@ -521,15 +544,17 @@ struct npt_cmd_release_event {
 };
 
 /* Synchronous: monitored-fence gate wait (D3D12 DDI path).  The host
- * arms SetEventOnCompletion(fence, value) onto ring_idx's PERSISTENT
- * gate eventfd and installs the pending-arm; the next submit_fence on
- * ring_idx retires only when the fence truly reaches value -- the sync
- * worker re-checks GetCompletedValue on every wakeup, so late or
- * spurious eventfd writes from earlier gates are harmless.  (Per-arm
- * single-use eventfds were unsound: the D3D library fires callbacks
- * asynchronously by NUMERIC fd, and fd-number reuse after retirement
- * let a late fire signal the NEXT gate, giving systematic
- * stale-by-one readbacks.) */
+ * arms SetEventOnCompletion(fence, value) onto ring_idx's gate event and
+ * installs the pending arm; the next submit_fence on ring_idx retires
+ * only once the fence truly reaches value, re-checked on every wakeup.
+ *
+ * The gate event is per-ring and persistent rather than per-arm because
+ * the host D3D library fires completions asynchronously against a handle
+ * it captured at arm time: a single-use event closed at retirement would
+ * hand its identity to whatever opens next.  The wakeup object has to
+ * outlive any one arm, so correctness comes from the value check and
+ * never from which event fired -- which also makes another gate's fire
+ * landing here harmless. */
 struct npt_cmd_gate_wait {
    struct npt_command_header header;
    uint64_t fence_id; /* npt object id of the (drain) fence */
@@ -600,24 +625,16 @@ struct npt_cmd_query_end {
    uint64_t query_id;
 };
 
-/* Fence feedback (D3D11 + D3D12).  Each fence has a 16-byte slot the
- * host writes when the value advances.  D3D11 fences are monotonic;
- * D3D12 fences may be REWOUND (Signal(lower) is legal), so the host
- * poll publishes a plain snapshot store rather than a monotonic CAS —
- * the slot is simply the latest observed completed value, initial 0
- * (or InitialValue, guest-seeded) means no Signal observed yet.
+/* Fence feedback (D3D11 + D3D12).  Each registered fence gets a slot the
+ * host publishes the latest observed completed value into, so the guest
+ * reads it with an acquire load instead of a wire round trip.  The store
+ * is a plain snapshot rather than a monotonic CAS because a D3D12 fence
+ * may legally be rewound; a monotonic reader treats the slot as a lower
+ * bound.  A slot still holding its seeded initial value means no Signal
+ * has been observed yet.
  *
- * Register: guest sends REGISTER_FENCE (fence_api = 11 or 12); host
- *   inserts entry and resolves host_obj lazily on first Signal.
- * Update: the Signal hooks (D3D11: DC4::Signal; D3D12:
- *   ID3D12CommandQueue::Signal + ID3D12Fence::Signal) mark the entry
- *   pending; the idle poll calls GetCompletedValue via the api-
- *   matching vtable and publishes via release store.
- * Read: guest's atomic acquire load is a valid snapshot (lower bound
- *   for monotonic users).
- * Unregister: piggybacks on COM_RELEASE; feedback_unregister fires
- *   BEFORE the IUnknown::Release so the poll path never touches a
- *   freed pointer. */
+ * Unregistration piggybacks on COM_RELEASE and runs BEFORE the
+ * IUnknown::Release, so the poll never touches a freed pointer. */
 #define NPT_FENCE_FEEDBACK_SLOT_SIZE  16u
 
 #define NPT_FENCE_FEEDBACK_API_D3D11  11u
@@ -639,4 +656,4 @@ struct npt_cmd_register_fence_feedback {
    uint32_t pad;
 };
 
-#endif /* NPT_TRANSPORT_DEFS_H */
+#endif /* NPT_PROTOCOL_TRANSPORT_H */

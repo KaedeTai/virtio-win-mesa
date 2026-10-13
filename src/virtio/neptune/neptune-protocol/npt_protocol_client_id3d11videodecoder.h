@@ -31,7 +31,7 @@ struct npt_device;
 
 
 /* ================================================================== */
-/* Family id3d11videodecoder: ID3D11VideoDecoder
+/* Family id3d11videodecoder: ID3D11VideoDecoder */
 /* ================================================================== */
 
 /* IUnknown thunks shared by every tier.  QueryInterface answers from
