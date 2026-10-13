@@ -419,6 +419,9 @@ t12OrderAgainstSiblings(PTRITON12_QUEUE q)
             v <= q->XQueueSeen[s->Slot])
             continue;
         q->XQueueSeen[s->Slot] = v;
+        /* Held across the Wait below: the sibling may be destroyed once
+         * the lock is dropped. */
+        ID3D12Fence_AddRef(s->pDrainFence);
         fences[n] = s->pDrainFence;
         values[n] = v;
         slots[n]  = s->Slot;
@@ -434,6 +437,7 @@ t12OrderAgainstSiblings(PTRITON12_QUEUE q)
             TR_LOG("12.XQueueOrder #%ld: queue %u waits on queue %u drain "
                    "v=%llu -> 0x%08lx", (long)ln, q->Slot, slots[i],
                    (unsigned long long)values[i], (unsigned long)hr);
+        ID3D12Fence_Release(fences[i]);
     }
 }
 
