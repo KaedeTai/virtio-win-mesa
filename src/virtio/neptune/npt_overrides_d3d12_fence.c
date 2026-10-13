@@ -67,8 +67,9 @@ npt_d3d12_fence_aux_init(struct npt_com_base *com,
    atomic_store_explicit(&aux->rewound, false, memory_order_relaxed);
    com->aux_destroy = npt_d3d12_fence_aux_destroy;
    /* Slot alloc + REGISTER happen post-Create (aux_init has no
-    * InitialValue).  QI-routed wrappers stay unregistered and fall
-    * through to the sync GetCompletedValue. */
+    * InitialValue).  A fence opened from a shared handle stays
+    * unregistered and takes the sync GetCompletedValue: another device
+    * can signal it out of the guest's sight. */
    (void)dev; (void)host_id;
 }
 
@@ -149,8 +150,7 @@ npt_d3d12_fence_finalize_create(struct npt_device *dev, void *wrapper,
       aux->base.registered = true;
 }
 
-/* NULL on wrappers that bypassed CreateFence; QI tier aliases resolve
- * to the primary's aux (and thus its registered feedback slot). */
+/* NULL on wrappers outside the fence family. */
 static struct npt_d3d12_fence_aux *
 fence12_aux(void *self)
 {
@@ -173,7 +173,8 @@ fence12_GetCompletedValue_override(void *self)
    struct npt_d3d11_fence_feedback_slot *slot = fence12_slot(aux);
    if (!slot || !aux->base.registered ||
        atomic_load_explicit(&aux->rewound, memory_order_acquire)) {
-      /* Env opt-out, pool OOM, QI-routed wrapper, or a rewound fence
+      /* Env opt-out, pool OOM, a fence not made by CreateFence, or a
+       * rewound fence
        * whose snapshot can read stale-high -- take the authoritative
        * sync read. */
       return npt_id3d12fence_default_GetCompletedValue(self);

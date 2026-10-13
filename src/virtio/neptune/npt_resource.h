@@ -284,8 +284,7 @@ void npt_d3d11_buffer_map_close(struct npt_d3d11_buffer *b,
                                 const void *context, struct npt_ring *ring,
                                 uint32_t seqno);
 
-/* Always 0 — slots own their shmem and start at offset 0.  Kept for
- * Unmap call-site symmetry. */
+/* Byte offset of a slot in its (pool-shared) shmem. */
 uint32_t npt_d3d11_buffer_slot_offset(const struct npt_d3d11_buffer *b,
                                       uint32_t slot);
 void *npt_d3d11_buffer_slot_ptr(const struct npt_d3d11_buffer *b,

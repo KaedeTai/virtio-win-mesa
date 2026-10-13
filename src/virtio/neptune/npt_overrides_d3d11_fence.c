@@ -47,8 +47,9 @@ npt_d3d11_fence_aux_init(struct npt_com_base *com,
    aux->base.registered = false;
    com->aux_destroy = npt_d3d11_fence_aux_destroy;
    /* Slot alloc + REGISTER happen post-Create (aux_init has no
-    * InitialValue).  QI-routed wrappers stay unregistered and fall
-    * through to the sync GetCompletedValue. */
+    * InitialValue).  A fence opened from a shared handle stays
+    * unregistered and takes the sync GetCompletedValue: another device
+    * can signal it out of the guest's sight. */
    (void)dev; (void)host_id;
 }
 
@@ -110,7 +111,7 @@ npt_d3d11_fence_finalize_create(struct npt_device *dev, void *wrapper,
       aux->base.registered = true;
 }
 
-/* NULL on QI-routed wrappers that bypassed Device5::CreateFence. */
+/* NULL on wrappers outside the fence family. */
 static struct npt_d3d11_fence_aux *
 fence_aux(void *self)
 {
@@ -135,7 +136,7 @@ fence_GetCompletedValue_override(void *self)
    struct npt_d3d11_fence_aux *aux = fence_aux(self);
    struct npt_d3d11_fence_feedback_slot *slot = fence_slot(aux);
    if (!slot || !aux->base.registered) {
-      /* Env opt-out, pool OOM, or QI-routed wrapper. */
+      /* Env opt-out, pool OOM, or a fence not made by CreateFence. */
       return npt_id3d11fence_default_GetCompletedValue(self);
    }
    /* Acquire pairs with the host's release-CAS.  Monotonic fences

@@ -20,8 +20,8 @@ struct npt_renderer_shmem;
 struct npt_d3d11_feedback_aux {
    struct npt_com_base *com;
 
-   /* NULL shmem = registration skipped (env opt-out, pool OOM, or
-    * wrapper came via QI without going through Create); the
+   /* NULL shmem = registration skipped (env opt-out, pool OOM, or a
+    * wrapper not made by its Create); the
     * type-specific path falls back to the sync wire round-trip. */
    struct npt_renderer_shmem *fb_shmem;
    uint32_t fb_offset;
@@ -51,9 +51,8 @@ struct npt_d3d11_query_aux {
 
 /* Type-safe downcast from an ID3D11Asynchronous (or any tier in the
  * query family: Query, Query1, Predicate, Counter) to its aux.
- * Returns NULL if `async` is not a wrapper in the query family --
- * checked via vtbl identity against the family's tier vtbls, so
- * QI-routed pointers from other families fail cleanly. */
+ * Returns NULL if `async` is not a wrapper in the query family, which
+ * owns a query aux. */
 struct npt_d3d11_query_aux *npt_d3d11_query_aux_cast(void *async);
 
 #endif /* NPT_OVERRIDES_D3D11_FEEDBACK_H */

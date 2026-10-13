@@ -247,8 +247,7 @@ npt_d3d12_resource_aux_destroy(void *aux_raw)
    free(aux);
 }
 
-/* NULL on wrappers outside the resource family (QI tier aliases
- * resolve to the primary's aux). */
+/* NULL on wrappers outside the resource family. */
 static struct npt_d3d12_resource_aux *
 res12_aux(void *self)
 {

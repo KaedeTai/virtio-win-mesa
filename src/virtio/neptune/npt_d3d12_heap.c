@@ -333,7 +333,6 @@ void
 npt_d3d12_heap_overrides_init(void)
 {
    NPT_REGISTER_OVERRIDE(id3d12heap, GetDesc, heap12_GetDesc_override);
-   NPT_REGISTER_OVERRIDE(id3d12heap1, GetDesc, heap12_GetDesc_override);
    npt_com_register_family(heap12_tiers,
                            sizeof(struct npt_d3d12_heap_aux),
                            npt_d3d12_heap_aux_init);

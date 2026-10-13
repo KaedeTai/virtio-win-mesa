@@ -90,10 +90,9 @@ _Static_assert(offsetof(struct npt_object, id) == 0,
                "npt_object: id must be the first field");
 
 /*
- * Synthetic host_ids for wrappers with no host counterpart (guest-side
- * IDXGIOutput, etc.).  x86_64 user pointers never have bit 63 set, so
- * this bit can't collide with a real host pointer.  npt_com_send_release
- * skips the wire send when this bit is on.
+ * Synthetic ids for wrappers with no host counterpart (guest-side
+ * IDXGIOutput, etc.).  Guest-minted ids count up from 1 and never reach
+ * bit 63.  npt_com_send_release skips the wire send when this bit is on.
  */
 #define NPT_GUEST_FAB_BIT (1ull << 63)
 #define NPT_GUEST_KIND_OUTPUT 1u

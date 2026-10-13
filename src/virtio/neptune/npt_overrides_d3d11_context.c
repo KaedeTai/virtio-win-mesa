@@ -657,7 +657,7 @@ ctx_GetData_override(void *self, ID3D11Asynchronous *pAsync, void *pData,
    struct npt_d3d11_query_aux *aux = npt_d3d11_query_aux_cast(pAsync);
    struct npt_query_feedback_slot *slot = ctx_query_slot(aux);
    if (!slot || !aux->base.registered) {
-      /* Counter, OOM at Create, or QI-routed wrapper. */
+      /* Counter, OOM at Create, or a query not made by CreateQuery. */
       return npt_id3d11devicecontext_default_GetData(self, pAsync, pData,
                                                      DataSize, GetDataFlags);
    }
