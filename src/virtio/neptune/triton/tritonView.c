@@ -363,24 +363,27 @@ tritonSetRenderTargets(D3D10DDI_HDEVICE hDevice,
     PTRITON_DSVIEW dsv = (PTRITON_DSVIEW)(hDSV.pDrvPrivate);
     ID3D11DepthStencilView *pDSV = dsv ? dsv->pDSV : NULL;
 
-    if (NumUAVs == 0) {
-        ID3D11DeviceContext1_OMSetRenderTargets(pD->pCtx1, NumRTVs, aRTV, pDSV);
-    } else {
-        if (UAVStartSlot >= D3D11_1_UAV_SLOT_COUNT ||
-            NumUAVs > D3D11_1_UAV_SLOT_COUNT - UAVStartSlot)
-            return;
-        ID3D11UnorderedAccessView *aUAV[D3D11_1_UAV_SLOT_COUNT] = {};
-        for (UINT i = 0; i < NumUAVs; ++i) {
-            PTRITON_UAVIEW u = phUAVs
-                ? (PTRITON_UAVIEW)(phUAVs[i].pDrvPrivate)
-                : NULL;
-            aUAV[i] = u ? u->pUAV : NULL;
-        }
-        (void)UAVRangeStart; (void)UAVRangeSize;
-        ID3D11DeviceContext1_OMSetRenderTargetsAndUnorderedAccessViews(
-            pD->pCtx1, NumRTVs, aRTV, pDSV,
-            UAVStartSlot, NumUAVs, aUAV, pUAVInitialCounts);
+    /* The DDI always binds everything ("the Direct3D DDI always binds
+     * everything", SetRenderTargets(D3D11)), so NumUAVs == 0 means no OM
+     * UAVs.  Say so explicitly: whether a plain OMSetRenderTargets clears
+     * previously bound UAVs differs between host backends.  UAVRangeStart
+     * and UAVRangeSize are change hints only. */
+    (void)UAVRangeStart; (void)UAVRangeSize;
+    if (NumUAVs == 0)
+        UAVStartSlot = NumRTVs;
+    if (UAVStartSlot > D3D11_1_UAV_SLOT_COUNT ||
+        NumUAVs > D3D11_1_UAV_SLOT_COUNT - UAVStartSlot)
+        return;
+    ID3D11UnorderedAccessView *aUAV[D3D11_1_UAV_SLOT_COUNT] = {};
+    for (UINT i = 0; i < NumUAVs; ++i) {
+        PTRITON_UAVIEW u = phUAVs
+            ? (PTRITON_UAVIEW)(phUAVs[i].pDrvPrivate)
+            : NULL;
+        aUAV[i] = u ? u->pUAV : NULL;
     }
+    ID3D11DeviceContext1_OMSetRenderTargetsAndUnorderedAccessViews(
+        pD->pCtx1, NumRTVs, aRTV, pDSV,
+        UAVStartSlot, NumUAVs, aUAV, NumUAVs ? pUAVInitialCounts : NULL);
 }
 
 /* ---------- ShaderResourceView ---------- */
