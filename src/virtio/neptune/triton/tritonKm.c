@@ -75,6 +75,27 @@ tritonKmEnsureRuntimeCtx(TRITON_KM *km)
    LeaveCriticalSection(km->pLock);
 }
 
+/* The paging fence value is a monitored-fence UINT64 the kernel advances in
+ * a page mapped read-only into the process, so an interlocked
+ * compare-exchange (a locked write cycle) would fault.  A plain 64-bit load
+ * is atomic on 64-bit targets; the 32-bit UMD re-reads the high half until
+ * it is stable, which is enough for a monotonic value. */
+static UINT64
+tritonKmLoadFence(volatile const UINT64 *va)
+{
+#if defined(_WIN64)
+   return *va;
+#else
+   volatile const UINT32 *half = (volatile const UINT32 *)va;
+   UINT32 hi, lo;
+   do {
+      hi = half[1];
+      lo = half[0];
+   } while (hi != half[1]);
+   return ((UINT64)hi << 32) | lo;
+#endif
+}
+
 /* WDDM2 explicit residency.  GpuMmu allocations are not resident at create,
  * and VidMm refuses any DMA buffer that references an allocation holding no
  * residency request ("Failed to reference DMA buffer: Allocation is not
@@ -129,10 +150,10 @@ tritonKmRequestResidency(TRITON_KM *km, D3DKMT_HANDLE hAllocation)
        * waits are rare and short, so poll the plain monotonic fence value
        * with a yield and a loud timeout. */
       const ULONGLONG deadline = GetTickCount64() + 5000;
-      while (*km->PagingFenceVa < mr.PagingFenceValue) {
+      while (tritonKmLoadFence(km->PagingFenceVa) < mr.PagingFenceValue) {
          if (GetTickCount64() > deadline) {
             TR_LOG("km: paging fence wait TIMED OUT (alloc=0x%x fence=%llu < %llu)",
-                   hAllocation, (unsigned long long)*km->PagingFenceVa,
+                   hAllocation, (unsigned long long)tritonKmLoadFence(km->PagingFenceVa),
                    (unsigned long long)mr.PagingFenceValue);
             return;
          }
