@@ -14,28 +14,10 @@
 #include "triton.h"
 #include "triton_log.h"
 #include "npt_workaround.h"  /* npt_host_workaround_flags() + NPT_WA_* bits */
+#include "tritonDxbc.h"
 
 /* Declared early so tritonVsSetShader can call it. */
 void tritonResolveInputLayout(PTRITON_DEVICE pD);
-
-/* DXBC wrapper from tritonDxbc.c. */
-void *tritonBuildDxbc(const UINT *pTokens, SIZE_T cbTokens,
-                                  const void *pInEntries,    UINT cInSigs,
-                                  const void *pOutEntries,   UINT cOutSigs,
-                                  const void *pPatchEntries, UINT cPatchSigs,
-                                  UINT entryStride,
-                                  SIZE_T *pcbOut);
-
-/* Synthetic ISGN-only container builder from tritonDxbc.c. */
-void *tritonBuildInputSigDxbc(const char *const *pNames,
-                              const UINT *pSemanticIndices,
-                              const UINT *pRegisters,
-                              UINT cEntries, SIZE_T *pcbOut);
-
-/* VS input-signature reconciler from tritonDxbc.c (see there for rationale). */
-void *tritonReconcileVsInputSig(const void *pDxbc, SIZE_T cbDxbc,
-                                const unsigned char compReg[32],
-                                SIZE_T *pcbOut);
 
 static SIZE_T tritonShaderTokenBytes(const UINT *pShaderCode)
 {
@@ -351,128 +333,6 @@ TR_SET_SHADER_WITH_IFACES(Cs)
  * output signature (OSG5 for SM5, OSGN for SM4).
  *
  * The parser is bounds-checked and accepts only chunks we recognize. */
-
-#define TRITON_DXBC_MAGIC 0x43425844u  /* "DXBC" */
-#define TRITON_TAG_OSGN   0x4E47534Fu  /* "OSGN" — output signature, no Stream */
-#define TRITON_TAG_OSG5   0x3547534Fu  /* "OSG5" — adds Stream */
-#define TRITON_TAG_OSG1   0x3147534Fu  /* "OSG1" — Stream + MinPrecision */
-#define TRITON_TAG_ISGN   0x4E475349u  /* "ISGN" — input signature */
-#define TRITON_TAG_ISG1   0x31475349u  /* "ISG1" — input + MinPrecision */
-
-typedef struct TritonDxbcSig {
-    UINT Stream;
-    UINT Register;
-    UINT SemanticIndex;
-    UINT Mask;          /* 4-bit xyzw component mask */
-    char Name[64];
-} TritonDxbcSig;
-
-/* Generic OSG-style signature parser. fInput=TRUE searches for the input
- * signature (ISGN/ISG1); FALSE for output (OSG5/OSG1/OSGN). */
-static UINT tritonDxbcParseSig(const void *pBytecode, SIZE_T cbBytecode,
-                               BOOL fInput,
-                               TritonDxbcSig *pOut, UINT maxEntries)
-{
-    if (!pBytecode || cbBytecode < 32 || !pOut || !maxEntries) return 0;
-    const BYTE  *p   = (const BYTE *)(pBytecode);
-    const UINT  *pH  = (const UINT *)(p);
-    if (pH[0] != TRITON_DXBC_MAGIC) return 0;
-
-    UINT fileSize = pH[6];
-    UINT cChunks  = pH[7];
-    if (fileSize > cbBytecode) fileSize = (UINT)cbBytecode;
-    if (cChunks == 0 || cChunks > 256) return 0;
-    if (32 + cChunks * 4u > fileSize) return 0;
-
-    const UINT *pOffsets = (const UINT *)(p + 32);
-
-    /* Tags by priority — newer variants (with extra fields) first.
-     *   OSGN/ISGN: 24 B entries (no Stream)
-     *   OSG5:      28 B entries (Stream prefix)
-     *   OSG1/ISG1: 32 B entries (Stream prefix + MinPrecision suffix) */
-    const UINT tagPrefer = fInput ? TRITON_TAG_ISG1 : TRITON_TAG_OSG1;
-    const UINT tagMid    = fInput ? TRITON_TAG_ISG1 : TRITON_TAG_OSG5;
-    const UINT tagBasic  = fInput ? TRITON_TAG_ISGN : TRITON_TAG_OSGN;
-    UINT  dataOff = 0, dataLen = 0;
-    UINT  entrySize = 0;
-    BOOL  fHasStream = FALSE;
-    for (UINT i = 0; i < cChunks; ++i) {
-        UINT off = pOffsets[i];
-        if (off > fileSize - 8) continue;
-        UINT tag = *(const UINT *)(p + off);
-        UINT len = *(const UINT *)(p + off + 4);
-        if (len > fileSize - off - 8) continue;
-
-        if (tag == tagPrefer) {
-            dataOff    = off + 8;
-            dataLen    = len;
-            entrySize  = 32u;
-            fHasStream = TRUE;  /* ISG1 carries the Stream field too */
-            break;
-        }
-        if (tag == tagMid && !fInput) {
-            dataOff    = off + 8;
-            dataLen    = len;
-            entrySize  = 28u;
-            fHasStream = TRUE;
-            break;
-        }
-        if (tag == tagBasic && dataOff == 0) {
-            dataOff    = off + 8;
-            dataLen    = len;
-            entrySize  = 24u;
-            fHasStream = FALSE;
-        }
-    }
-    if (dataOff == 0 || dataLen < 8 || entrySize == 0) return 0;
-
-    const BYTE *pData = p + dataOff;
-    UINT cElem = *(const UINT *)(pData + 0);
-    if (cElem == 0 || cElem > 256) return 0;
-    if (8u + cElem * entrySize > dataLen) return 0;
-
-    UINT cWritten = 0;
-    for (UINT i = 0; i < cElem && cWritten < maxEntries; ++i) {
-        const BYTE *pe = pData + 8 + i * entrySize;
-        /* Field offsets (OSG5/OSG1 share these; OSGN omits Stream):
-         *      Stream  NameOff  SemIdx  Register  Mask
-         *  OSGN  -        0       4       16       20
-         *  OSG5  0        4       8       20       24
-         *  OSG1  0        4       8       20       24   (+ MinPrecision @ 28) */
-        UINT stream = 0, off, semIdx, reg, mask;
-        if (fHasStream) {
-            stream = *(const UINT *)(pe + 0);
-            off    = *(const UINT *)(pe + 4);
-            semIdx = *(const UINT *)(pe + 8);
-            reg    = *(const UINT *)(pe + 20);
-            mask   = *(const BYTE *)(pe + 24) & 0xFu;
-        } else {
-            off    = *(const UINT *)(pe + 0);
-            semIdx = *(const UINT *)(pe + 4);
-            reg    = *(const UINT *)(pe + 16);
-            mask   = *(const BYTE *)(pe + 20) & 0xFu;
-        }
-        if (off >= dataLen) continue;
-
-        TritonDxbcSig *out = &pOut[cWritten];
-        out->Stream        = stream;
-        out->Register      = reg;
-        out->SemanticIndex = semIdx;
-        out->Mask          = mask;
-
-        const char *psz   = (const char *)(pData + off);
-        UINT        avail = dataLen - off;
-        UINT        j     = 0;
-        const UINT  cap   = sizeof(out->Name) - 1;
-        while (j < cap && j < avail && psz[j]) {
-            out->Name[j] = psz[j];
-            ++j;
-        }
-        out->Name[j] = '\0';
-        ++cWritten;
-    }
-    return cWritten;
-}
 
 /* Packing can place several elements in one register (e.g. ATTRIB0 in .xy,
  * ATTRIB1 in .zw), so prefer the element whose mask covers the requested

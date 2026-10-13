@@ -20,12 +20,7 @@
 
 #include <stdio.h> /* snprintf (DXIL input-layout placeholder names) */
 
-/* tritonDxbc.c */
-void *tritonBuildDxbc(const UINT *pTokens, SIZE_T cbTokens,
-                      const void *pInEntries,  UINT cInSigs,
-                      const void *pOutEntries, UINT cOutSigs,
-                      const void *pPatchEntries, UINT cPatchSigs,
-                      UINT entryStride, SIZE_T *pcbOut);
+#include "tritonDxbc.h"
 
 /* npt_entry_d3d12.c (aliased to the public export by d3d12.def). */
 HRESULT __stdcall
@@ -611,61 +606,6 @@ t12DestroyRootSignature(D3D12DDI_HDEVICE hDevice, D3D12DDI_HROOTSIGNATURE h)
     }
 }
 
-/* Find the input-signature entry for a given input register inside a
- * container and return its semantic name/index.  Handles both signature
- * part layouts:
- *   ISGN -- classic DXBC (tritonBuildDxbc output): 24-byte elements,
- *           name offset at +0, semantic index at +4, register at +16;
- *   ISG1 -- DXIL containers and min-precision DXBC
- *           (DxilProgramSignatureElement, 32 bytes): Stream at +0, name
- *           offset at +4, semantic index at +8, register at +20.
- * Both encode string offsets relative to the part-data start.  The name
- * pointer aims INTO the container -- valid for the shader's lifetime. */
-static const char *
-t12SigSemanticForRegister(const void *dxbc, SIZE_T cb, UINT reg,
-                          UINT *pSemIndex)
-{
-    const unsigned char *base = (const unsigned char *)dxbc;
-    if (!base || cb < 32 || memcmp(base, "DXBC", 4) != 0)
-        return NULL;
-    UINT nBlob = *(const UINT *)(base + 28);
-    const UINT *offs = (const UINT *)(base + 32);
-    if (32 + (SIZE_T)nBlob * 4 > cb)
-        return NULL;
-    for (UINT b = 0; b < nBlob; b++) {
-        if ((SIZE_T)offs[b] + 8 > cb)
-            continue;
-        const unsigned char *blob = base + offs[b];
-        int isg1 = memcmp(blob, "ISG1", 4) == 0;
-        if (!isg1 && memcmp(blob, "ISGN", 4) != 0)
-            continue;
-        const unsigned char *io = blob + 8; /* part data start */
-        UINT n = *(const UINT *)io;         /* element count */
-        UINT elOff = *(const UINT *)(io + 4);
-        UINT stride = isg1 ? 32u : 24u;
-        for (UINT i = 0; i < n; i++) {
-            const unsigned char *el = io + elOff + i * stride;
-            UINT nameOff, semIdx, r;
-            if (isg1) {
-                nameOff = *(const UINT *)(el + 4);
-                semIdx  = *(const UINT *)(el + 8);
-                r       = *(const UINT *)(el + 20);
-            } else {
-                nameOff = *(const UINT *)(el + 0);
-                semIdx  = *(const UINT *)(el + 4);
-                r       = *(const UINT *)(el + 16);
-            }
-            if (r == reg) {
-                if (pSemIndex)
-                    *pSemIndex = semIdx;
-                return (const char *)(io + nameOff);
-            }
-        }
-        return NULL;
-    }
-    return NULL;
-}
-
 /* PSO / list-side accessors shared with tritonList12.c. */
 ID3D12RootSignature *
 triton12RootSig(D3D12DDI_HROOTSIGNATURE h)
@@ -900,7 +840,7 @@ t12CreatePipelineStateImpl(D3D12DDI_HDEVICE hDevice,
                 name = dxilNames[n];
                 semIdx = 0;
             } else {
-                name = t12SigSemanticForRegister(
+                name = tritonDxbcInputSemantic(
                     vsForIsgn->pDxbc, vsForIsgn->cbDxbc, se->InputRegister,
                     &semIdx);
             }

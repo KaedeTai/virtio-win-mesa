@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "triton_log.h"
+#include "tritonDxbc.h"
 #include "npt_workaround.h"  /* npt_host_workaround_flags() + NPT_WA_* bits */
 
 /* ---------- DXBC container format ----------
@@ -1595,3 +1596,149 @@ _Static_assert(offsetof(DXBCHeader, u32Version)  == 20, "DXBCHeader.u32Version")
 _Static_assert(offsetof(DXBCHeader, cbTotal)     == 24, "DXBCHeader.cbTotal");
 _Static_assert(offsetof(DXBCHeader, cBlob)       == 28, "DXBCHeader.cBlob");
 _Static_assert(offsetof(DXBCHeader, aBlobOffset) == 32, "DXBCHeader.aBlobOffset");
+
+/* ---------- signature parser ----------
+ *
+ * Shared by the D3D11 UMD (input-layout resolution, stream-output decls) and
+ * the D3D12 UMD (PSO input layouts), on our own synthesized containers and on
+ * verbatim DXIL containers alike.  Every offset read from the container is
+ * bounds-checked against the chunk. */
+
+typedef struct TritonSigChunk {
+    const BYTE *data;       /* chunk payload (after the 8-byte part header) */
+    UINT        len;        /* payload bytes */
+    UINT        entrySize;  /* 24 (ISGN/OSGN), 28 (OSG5), 32 (ISG1/OSG1) */
+    BOOL        hasStream;  /* entries lead with a Stream field */
+} TritonSigChunk;
+
+/* Locate the input or output signature chunk, preferring the newest variant:
+ *   ISGN/OSGN: 24-byte entries, no Stream
+ *   OSG5:      28-byte entries, Stream prefix
+ *   ISG1/OSG1: 32-byte entries, Stream prefix + MinPrecision suffix */
+static BOOL tritonDxbcFindSigChunk(const void *pBytecode, SIZE_T cbBytecode,
+                                   BOOL fInput, TritonSigChunk *out)
+{
+    if (!pBytecode || cbBytecode < 32) return FALSE;
+    const BYTE *p  = (const BYTE *)pBytecode;
+    const UINT *pH = (const UINT *)p;
+    if (pH[0] != DXBC_MAGIC) return FALSE;
+
+    UINT fileSize = pH[6];
+    UINT cChunks  = pH[7];
+    if (fileSize > cbBytecode) fileSize = (UINT)cbBytecode;
+    if (cChunks == 0 || cChunks > 256) return FALSE;
+    if (32 + cChunks * 4u > fileSize) return FALSE;
+
+    const UINT *pOffsets  = (const UINT *)(p + 32);
+    const UINT  tagPrefer = fInput ? DXBC_BLOB_TYPE_ISG1 : DXBC_BLOB_TYPE_OSG1;
+    const UINT  tagBasic  = fInput ? DXBC_BLOB_TYPE_ISGN : DXBC_BLOB_TYPE_OSGN;
+    BOOL found = FALSE;
+    for (UINT i = 0; i < cChunks; ++i) {
+        UINT off = pOffsets[i];
+        if (off > fileSize - 8) continue;
+        UINT tag = *(const UINT *)(p + off);
+        UINT len = *(const UINT *)(p + off + 4);
+        if (len > fileSize - off - 8) continue;
+
+        if (tag == tagPrefer || (!fInput && tag == DXBC_BLOB_TYPE_OSG5)) {
+            out->data      = p + off + 8;
+            out->len       = len;
+            out->entrySize = tag == DXBC_BLOB_TYPE_OSG5 ? 28u : 32u;
+            out->hasStream = TRUE;
+            return TRUE;
+        }
+        if (tag == tagBasic && !found) {
+            out->data      = p + off + 8;
+            out->len       = len;
+            out->entrySize = 24u;
+            out->hasStream = FALSE;
+            found = TRUE;
+        }
+    }
+    return found;
+}
+
+typedef struct TritonSigEntryRaw {
+    UINT Stream, NameOffset, SemanticIndex, Register, Mask;
+} TritonSigEntryRaw;
+
+/* Entry i of a located chunk; FALSE when it or its name lies outside the
+ * chunk or the name is not NUL-terminated inside it. */
+static BOOL tritonDxbcSigEntry(const TritonSigChunk *c, UINT i,
+                               TritonSigEntryRaw *e)
+{
+    if (c->len < 8) return FALSE;
+    const UINT cElem = *(const UINT *)(c->data + 0);
+    const UINT elOff = *(const UINT *)(c->data + 4);
+    if (i >= cElem || elOff > c->len ||
+        (UINT64)i * c->entrySize + c->entrySize > (UINT64)(c->len - elOff))
+        return FALSE;
+    const BYTE *pe = c->data + elOff + (SIZE_T)i * c->entrySize;
+    /* Field offsets (OSG5/OSG1/ISG1 share these; ISGN/OSGN omit Stream):
+     *            Stream  NameOff  SemIdx  Register  Mask
+     *  ISGN/OSGN   -        0       4       16       20
+     *  others      0        4       8       20       24 */
+    if (c->hasStream) {
+        e->Stream        = *(const UINT *)(pe + 0);
+        e->NameOffset    = *(const UINT *)(pe + 4);
+        e->SemanticIndex = *(const UINT *)(pe + 8);
+        e->Register      = *(const UINT *)(pe + 20);
+        e->Mask          = *(const BYTE *)(pe + 24) & 0xFu;
+    } else {
+        e->Stream        = 0;
+        e->NameOffset    = *(const UINT *)(pe + 0);
+        e->SemanticIndex = *(const UINT *)(pe + 4);
+        e->Register      = *(const UINT *)(pe + 16);
+        e->Mask          = *(const BYTE *)(pe + 20) & 0xFu;
+    }
+    if (e->NameOffset >= c->len ||
+        !memchr(c->data + e->NameOffset, 0, c->len - e->NameOffset))
+        return FALSE;
+    return TRUE;
+}
+
+UINT tritonDxbcParseSig(const void *pBytecode, SIZE_T cbBytecode, BOOL fInput,
+                        TritonDxbcSig *pOut, UINT maxEntries)
+{
+    TritonSigChunk c;
+    if (!pOut || !maxEntries ||
+        !tritonDxbcFindSigChunk(pBytecode, cbBytecode, fInput, &c) || c.len < 8)
+        return 0;
+    const UINT cElem = *(const UINT *)c.data;
+    if (cElem > 256) return 0;
+
+    UINT cWritten = 0;
+    for (UINT i = 0; i < cElem && cWritten < maxEntries; ++i) {
+        TritonSigEntryRaw e;
+        if (!tritonDxbcSigEntry(&c, i, &e))
+            continue;
+        TritonDxbcSig *out = &pOut[cWritten++];
+        out->Stream        = e.Stream;
+        out->Register      = e.Register;
+        out->SemanticIndex = e.SemanticIndex;
+        out->Mask          = e.Mask;
+        const char *psz = (const char *)(c.data + e.NameOffset);
+        size_t n = strlen(psz);
+        if (n > sizeof(out->Name) - 1) n = sizeof(out->Name) - 1;
+        memcpy(out->Name, psz, n);
+        out->Name[n] = '\0';
+    }
+    return cWritten;
+}
+
+const char *tritonDxbcInputSemantic(const void *pBytecode, SIZE_T cbBytecode,
+                                    UINT reg, UINT *pSemIndex)
+{
+    TritonSigChunk c;
+    if (!tritonDxbcFindSigChunk(pBytecode, cbBytecode, TRUE, &c) || c.len < 8)
+        return NULL;
+    const UINT cElem = *(const UINT *)c.data;
+    for (UINT i = 0; i < cElem && i < 256; ++i) {
+        TritonSigEntryRaw e;
+        if (!tritonDxbcSigEntry(&c, i, &e) || e.Register != reg)
+            continue;
+        if (pSemIndex) *pSemIndex = e.SemanticIndex;
+        return (const char *)(c.data + e.NameOffset);
+    }
+    return NULL;
+}
