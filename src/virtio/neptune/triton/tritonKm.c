@@ -11,6 +11,20 @@
 #include "tritonSharedBridge.h"
 #include "npt_shared_texture.h"
 
+/* The KMD pins the same sizes (viogpu_adapter.cpp); a drift on either side
+ * is an ABI break that would otherwise only show up as garbage escapes. */
+_Static_assert(sizeof(VIOGPU_ADAPTERINFO) == 32, "VIOGPU_ADAPTERINFO");
+_Static_assert(sizeof(VIOGPU_ESCAPE) == 108, "VIOGPU_ESCAPE");
+_Static_assert(sizeof(VIOGPU_RES_INFO_REQ) == 104, "VIOGPU_RES_INFO_REQ");
+_Static_assert(sizeof(VIOGPU_CREATE_ALLOCATION_EXCHANGE) == 204,
+               "VIOGPU_CREATE_ALLOCATION_EXCHANGE");
+_Static_assert(sizeof(VIOGPU_CREATE_ALLOCATION_EXCHANGE_EX) == 212,
+               "VIOGPU_CREATE_ALLOCATION_EXCHANGE_EX");
+_Static_assert(sizeof(VIOGPU_BLIT_PRESENT) == 348, "VIOGPU_BLIT_PRESENT");
+_Static_assert(sizeof(VIOGPU_DMA_PRIVATE) == 1040, "VIOGPU_DMA_PRIVATE");
+_Static_assert(offsetof(VIOGPU_DMA_PRIVATE, cmdRaw) == 0,
+               "VIOGPU_DMA_PRIVATE.cmdRaw");
+
 void
 tritonKmInit(TRITON_KM *km, HANDLE hRTAdapter, HANDLE hRTDevice,
              const D3DDDI_DEVICECALLBACKS *pCallbacks)

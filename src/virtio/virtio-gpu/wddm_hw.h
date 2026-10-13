@@ -526,17 +526,18 @@ struct _VIOGPU_BLIT_PRESENT
                                           // (VIOGPU_PRESENT_GATE_HINT); never reaches
                                           // virtio and never authored by the UMD
 
-// Mirror of the KMD's per-submission private data (viogpu_command.h).  The
-// D3D12 DDI stamps it on SubmitCommandCb submissions for virtual contexts:
-// the KMD executes `body` as a VIOGPU command stream (GPU VAs are not
-// CPU-mappable, so the body travels by value in private data).
+// Per-submission DMA private data.  The KMD's build-phase DDIs and the D3D12
+// DDI's SubmitCommandCb (virtual contexts) both carry the command `body` by
+// value here: GPU VAs are not CPU-mappable.  `magic` identifies the layout,
+// not the author.
 #define VIOGPU_DMA_PRIV_MAGIC 0x56503244u /* 'VP2D' */
 #define VIOGPU_DMA_PRIV_BODY_MAX 1024u
 typedef struct _VIOGPU_DMA_PRIVATE
 {
-    ULONGLONG cmdRaw; /* legacy VioGpuCommand* slot (KMD is x64) -- must stay
-                       * first; ULONGLONG keeps the layout arch-invariant for
-                       * a 32-bit UMD */
+    ULONGLONG cmdRaw; /* KMD-owned slot, user mode leaves it 0.  Must stay
+                       * first (a paging buffer's private data may hold only
+                       * this slot); ULONGLONG keeps the layout identical
+                       * for a 32-bit UMD */
     ULONG magic;
     ULONG bodySize;
     UCHAR body[VIOGPU_DMA_PRIV_BODY_MAX];
