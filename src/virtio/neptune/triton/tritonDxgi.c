@@ -16,6 +16,7 @@
 #include "tritonPresent.h"
 #include "npt_env.h"
 #include "tritonPresentTiming.h"
+#include "npt_shared_texture.h"   /* host format of a primary */
 
 #include <dxgiddi.h>
 
@@ -846,6 +847,49 @@ tritonBlitEnsureLocked(PTRITON_DEVICE pD)
    return TRUE;
 }
 
+/* BltDXGI gamma rules (DXGI_DDI_BASE_FUNCTIONS): sRGB content copied to a
+ * non-sRGB destination stays unchanged, and a float source written to an
+ * integer destination gets gamma encoded.  The blit samples through an SRV
+ * in the source's own format, which decodes sRGB to linear, so both cases
+ * come down to writing through the destination's sRGB twin.  Returns
+ * DXGI_FORMAT_UNKNOWN when the destination's own format is right. */
+static DXGI_FORMAT
+tritonBltEncodeFormat(DXGI_FORMAT srcHost, DXGI_FORMAT dstHost)
+{
+   BOOL decoded = FALSE, isFloat = FALSE;
+   switch (srcHost) {
+   case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+   case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+   case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+      decoded = TRUE;
+      break;
+   case DXGI_FORMAT_R16G16B16A16_FLOAT:
+   case DXGI_FORMAT_R32G32B32A32_FLOAT:
+   case DXGI_FORMAT_R11G11B10_FLOAT:
+      isFloat = TRUE;
+      break;
+   default:
+      break;
+   }
+   if (!decoded && !isFloat)
+      return DXGI_FORMAT_UNKNOWN;
+   switch (dstHost) {
+   case DXGI_FORMAT_R8G8B8A8_UNORM: return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+   case DXGI_FORMAT_B8G8R8A8_UNORM: return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+   case DXGI_FORMAT_B8G8R8X8_UNORM: return DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+   default:                         return DXGI_FORMAT_UNKNOWN;
+   }
+}
+
+/* The format a resource's host texture was created with: primaries take the
+ * shared-texture host format (sRGB stripped), see tritonCreateResource. */
+static DXGI_FORMAT
+tritonBltHostFormat(const TRITON_RESOURCE *r)
+{
+   return r->IsPresentable
+      ? (DXGI_FORMAT)npt_shared_texture_host_format(r->Format) : r->Format;
+}
+
 /* GPU stretch/convert blit: draw the source box into the dst rect through a
  * fullscreen triangle.  CopySubresourceRegion cannot stretch, and the host
  * D3D stack silently copies ZEROS across format families -- the runtime's
@@ -887,7 +931,7 @@ tritonDxgiBltStretch(PTRITON_DEVICE pD,
    } else {
       D3D11_SHADER_RESOURCE_VIEW_DESC sdc;
       memset(&sdc, 0, sizeof(sdc));
-      sdc.Format = src->Format;
+      sdc.Format = tritonBltHostFormat(src);
       if (src->ArraySize > 1) {
          sdc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
          sdc.Texture2DArray.MostDetailedMip  = srcMip;
@@ -911,13 +955,19 @@ tritonDxgiBltStretch(PTRITON_DEVICE pD,
       return FAILED(hr) ? hr : E_FAIL;
    }
 
-   if (DstSubresource == 0) {
+   const DXGI_FORMAT dstHost = tritonBltHostFormat(dst);
+   /* An sRGB view of a UNORM texture needs the mutable-format storage the
+    * shared and presentable textures are created with. */
+   const DXGI_FORMAT encodeFmt = (dst->IsShared || dst->IsPresentable)
+      ? tritonBltEncodeFormat(tritonBltHostFormat(src), dstHost)
+      : DXGI_FORMAT_UNKNOWN;
+   if (DstSubresource == 0 && encodeFmt == DXGI_FORMAT_UNKNOWN) {
       hr = ID3D11Device1_CreateRenderTargetView(pD->pDev1, dst->pResource,
                                                 NULL, &rtv);
    } else {
       D3D11_RENDER_TARGET_VIEW_DESC rdc;
       memset(&rdc, 0, sizeof(rdc));
-      rdc.Format = dst->Format;
+      rdc.Format = encodeFmt != DXGI_FORMAT_UNKNOWN ? encodeFmt : dstHost;
       if (dst->ArraySize > 1) {
          rdc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
          rdc.Texture2DArray.MipSlice        = dstMip;
