@@ -713,16 +713,9 @@ static void APIENTRY tritonDestroyDevice(D3D10DDI_HDEVICE hDevice)
             LeaveCriticalSection(&p->kmCtxLock);
     }
 
-    /* Tear down the WDDM2 paging queue (tritonPresentRequestResidency);
-     * the residency requests it granted die with this device's
-     * allocations. */
-    if (p->hPagingQueue && p->KTCallbacks.pfnDestroyPagingQueueCb) {
-        D3DDDI_DESTROYPAGINGQUEUE dpq;
-        memset(&dpq, 0, sizeof(dpq));
-        dpq.hPagingQueue = p->hPagingQueue;
-        p->KTCallbacks.pfnDestroyPagingQueueCb(p->hRTDevice.handle, &dpq);
-        p->hPagingQueue = 0;
-    }
+    /* The residency requests the paging queue granted die with this
+     * device's allocations. */
+    tritonKmDestroy(&p->Km);
 
     /* Release the lazily-created present-fence objects under presentLock,
      * marking the fence not-ready+disabled first so a present still inside
@@ -829,6 +822,8 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     p->uIfVersion   = pArgs->Interface;
     p->pAdapter     = pAdapter;
     p->KTCallbacks  = *pArgs->pKTCallbacks;
+    tritonKmInit(&p->Km, pAdapter->hRTAdapter.handle, pArgs->hRTDevice.handle,
+                 &p->KTCallbacks);
     p->pDev1          = NULL;
     p->pDev2          = NULL;
     p->pDev3          = NULL;
@@ -850,7 +845,6 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     p->pUMCallbacks   = pArgs->p11UMCallbacks;
     p->hKMContext     = NULL;
     p->pfnPresentCb   = NULL;
-    p->RuntimeCtxInited = FALSE;
     /* Present-fence state (see triton.h): spelled out as the documented
      * starting state, though the memset above already covers it. */
     p->pCtx4                = NULL;
@@ -960,6 +954,7 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     InitializeCriticalSection(&p->presentLock);
     InitializeCriticalSection(&p->kmCtxLock);
     p->presentLockInit = TRUE;
+    p->Km.pLock = &p->kmCtxLock;
 
     /* The kernel context must exist before the runtime's first
      * dxgkrnl-side operation on it, and those are not all DDI-visible:

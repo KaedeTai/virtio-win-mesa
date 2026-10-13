@@ -1294,7 +1294,7 @@ tritonDxgiTrimResidencySet(DXGI_DDI_ARG_TRIMRESIDENCYSET *pArgs)
    /* The WDDM2 residency contract: the OS asks the driver to shrink its
     * device residency set under memory pressure.  The only residency this
     * driver holds is the per-allocation request made at create time
-    * (tritonPresentRequestResidency) so the OS's redirected blt-model
+    * (tritonKmRequestResidency) so the OS's redirected blt-model
     * present may reference the allocation; evicting one would make its
     * window unpresentable, so there is nothing safely trimmable. */
    return S_OK;

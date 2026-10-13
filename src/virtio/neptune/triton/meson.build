@@ -19,6 +19,7 @@ triton_src = files(
   'tritonQuery.c',
   'tritonDxgi.c',
   'tritonPresent.c',
+  'tritonKm.c',
   'tritonSharedBridge.c',
   'tritonHostCaps.c',
 )

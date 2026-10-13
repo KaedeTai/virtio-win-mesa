@@ -81,22 +81,9 @@ typedef struct TRITON12_DEVICE
      * needs one at create, so each list type gets a device-level scratch
      * allocator that only ever backs the empty create-then-close. */
     ID3D12CommandAllocator      *pScratchAlloc[TRITON12_POOL_TYPES];
-    /* One-shot VIOGPU_CTX_INIT on the runtime's kernel device so the
-     * KMD can bind exported blobs; see
-     * tritonPresentEnsureRuntimeCtx. */
-    BOOL                         RuntimeCtxInited;
-
-    /* WDDM2 paging queue for the residency requests t12RequestResidency
-     * makes on the KM allocations this driver mints (shared-blob exports
-     * and present companions).  Created lazily on the first such
-     * allocation; hPagingQueue==0 with PagingQueueTried set means the
-     * runtime left the paging callbacks NULL or the create failed, and
-     * every request is a no-op.  Creation is guarded by QueueLock.
-     * PagingFenceVa is the queue's monitored-fence value CPU VA, polled
-     * when MakeResident answers E_PENDING. */
-    D3DKMT_HANDLE                hPagingQueue;
-    volatile const UINT64       *PagingFenceVa;
-    BOOL                         PagingQueueTried;
+    /* Escapes, runtime virtio context and residency requests on the
+     * runtime's kernel device (tritonKm.h); its lock is QueueLock. */
+    TRITON_KM                    Km;
 
     /* ---- cross-queue submission ordering (see t12OrderAgainstSiblings) ----
      *

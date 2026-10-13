@@ -122,12 +122,12 @@ tritonBuildInitData(const D3D11DDIARG_CREATERESOURCE *a)
 }
 
 /* Exporter side of the shared/presentable texture plumbing.  The host
- * texture r->pResource was created with exportable (dmabuf) storage;
- * stage its export as this context's pending blob and create the shared
- * KM allocation whose private data round-trips the texture description
- * to an opening process, and whose KMD-side blob create binds a
- * VM-global res_id to the dmabuf.  primary marks a flippable scanout
- * primary (segment-1 residency + scanout promotion in the KMD). */
+ * texture r->pResource was created with exportable (dmabuf) storage; stage
+ * its export as this context's pending blob and create the shared KM
+ * allocation whose private data round-trips the texture description to an
+ * opening process, and whose KMD-side blob create binds a VM-global res_id
+ * to the dmabuf.  primary marks a flippable scanout primary (segment-1
+ * residency + scanout promotion in the KMD). */
 static BOOL
 tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
                          UINT d3d11Usage, UINT d3d11Bind, UINT d3d11Cpu,
@@ -138,64 +138,25 @@ tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
 
     /* The KMD's deferred blob create / ctx attach need this device's
      * virtio context. */
-    tritonPresentEnsureRuntimeCtx(pD);
+    tritonKmEnsureRuntimeCtx(&pD->Km);
+
+    TRITON_KM_SHARED_DESC d;
+    memset(&d, 0, sizeof(d));
+    d.Width          = r->Width;
+    d.Height         = r->Height;
+    d.MipLevels      = r->MipLevels;
+    d.ArraySize      = r->ArraySize;
+    d.Format         = hostFmt;
+    d.SampleCount    = r->SampleDesc.Count;
+    d.Is2D           = TRUE;
+    d.Usage          = d3d11Usage;
+    d.BindFlags      = d3d11Bind;
+    d.CpuAccessFlags = d3d11Cpu;
+    d.MiscFlags      = d3d11Misc;
 
     VIOGPU_CREATE_ALLOCATION_EXCHANGE ax;
-    memset(&ax, 0, sizeof(ax));
-    ax.Type = VIOGPU_RESOURCE_TYPE_SHARED;
-    VIOGPU_RESOURCE_SHARED_TEXTURE_OPTIONS *o = &ax.OptionsShared;
-
-    struct triton_shared_texture_desc exp;
-    memset(&exp, 0, sizeof(exp));
-    if (!tritonSharedBridgeExportBlob(r->pResource, &exp)) {
-        TR_LOG("shared: export failed %ux%u fmt=%d", r->Width, r->Height,
-               hostFmt);
+    if (!tritonKmFillSharedExchange(&ax, r->pResource, &d, primary))
         return FALSE;
-    }
-    o->blob_id         = exp.blob_id;
-    o->create_ctx_id   = exp.create_ctx_id;
-    o->plane_count     = exp.plane_count;
-    o->texture_layout  = exp.texture_layout;
-    o->modifier        = exp.modifier;
-    o->allocation_size = exp.allocation_size;
-    for (UINT i = 0; i < exp.plane_count && i < 4; i++) {
-        o->planes[i].offset = exp.planes[i].offset;
-        o->planes[i].pitch  = exp.planes[i].pitch;
-    }
-
-    o->primary          = primary ? 1u : 0u;
-    o->width            = r->Width;
-    o->height           = r->Height;
-    o->mip_levels       = r->MipLevels ? r->MipLevels : 1;
-    o->array_size       = r->ArraySize ? r->ArraySize : 1;
-    o->format           = (ULONG)hostFmt;
-    o->sample_count     = r->SampleDesc.Count ? r->SampleDesc.Count : 1;
-    o->usage            = d3d11Usage;
-    o->bind_flags       = d3d11Bind;
-    o->cpu_access_flags = d3d11Cpu;
-    o->misc_flags       = d3d11Misc;
-
-    /* Every shared blob carries a texture description: the KMD keys its
-     * blob-info-valid flag off ScanoutInfo.width, and without it
-     * DescribeAllocation returns STATUS_INVALID_PARAMETER and a windowed blt
-     * present types the source with width/height/stride 0, which the host
-     * rejects along with the copy.  A non-primary is typed with its exact
-     * copy format, so the blt reads it in the layout it was rendered in;
-     * only a format with no exact match (or a primary) takes the scanout
-     * mapping.  Claiming the scanout stays gated on `primary` via
-     * o->primary and ai.Flags.Primary below. */
-    const uint32_t copyFmt = primary
-        ? 0 : npt_shared_texture_virgl_copy_format(hostFmt);
-    o->ScanoutInfo.width      = r->Width;
-    o->ScanoutInfo.height     = r->Height;
-    o->ScanoutInfo.format     =
-        copyFmt ? copyFmt : npt_shared_texture_virgl_format(hostFmt);
-    o->ScanoutInfo.strides[0] = (ULONG)o->planes[0].pitch;
-    o->ScanoutInfo.offsets[0] = (ULONG)o->planes[0].offset;
-
-    ax.Size = (o->allocation_size + 4095ull) & ~4095ull;
-    if (!ax.Size)
-        ax.Size = (((ULONGLONG)r->Width * r->Height * 4) + 4095) & ~4095ull;
 
     D3DDDI_ALLOCATIONINFO2 ai;
     memset(&ai, 0, sizeof(ai));
@@ -219,14 +180,10 @@ tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
     }
     r->hKMAllocation = ai.hAllocation;
     r->IsShared      = TRUE;
-    /* WDDM2: the allocation is not resident at create, and the OS's
-     * redirected blt-model present references it as its source -- without
-     * a residency request that present is rejected and hangs the device.
-     * No-op on WDDM 1.3 (see tritonPresentRequestResidency). */
-    tritonPresentRequestResidency(pD, ai.hAllocation);
-    TR_LOG("shared: exporter blob_id=0x%llx alloc=0x%x %ux%u primary=%d "
-           "pitch=%llu", o->blob_id, ai.hAllocation, r->Width, r->Height,
-           primary, o->planes[0].pitch);
+    tritonKmRequestResidency(&pD->Km, ai.hAllocation);
+    TR_LOG_HOT("shared: exporter blob_id=0x%llx alloc=0x%x %ux%u primary=%d",
+               ax.OptionsShared.blob_id, ai.hAllocation, r->Width, r->Height,
+               primary);
     return TRUE;
 }
 
@@ -621,7 +578,7 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
 
     /* The KMD attaches opened allocations to this device's virtio
      * context; make sure it exists first. */
-    tritonPresentEnsureRuntimeCtx(pD);
+    tritonKmEnsureRuntimeCtx(&pD->Km);
 
     /* The res_id was minted by the KMD when the exporter's allocation
      * bound the blob; recover it from the opened allocation. */
@@ -630,7 +587,7 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
     esc.Type                   = VIOGPU_RES_INFO;
     esc.DataLength             = sizeof(esc.ResourceInfo);
     esc.ResourceInfo.ResHandle = pArgs->pOpenAllocationInfo[0].hAllocation;
-    HRESULT hr = tritonPresentEscape(pD, &esc);
+    HRESULT hr = tritonKmEscape(&pD->Km, &esc);
     if (FAILED(hr) || !esc.ResourceInfo.IsCreated || !esc.ResourceInfo.Id) {
         TR_LOG("OpenResource: RES_INFO failed hr=0x%08lx created=%d id=%u",
                hr, esc.ResourceInfo.IsCreated, esc.ResourceInfo.Id);

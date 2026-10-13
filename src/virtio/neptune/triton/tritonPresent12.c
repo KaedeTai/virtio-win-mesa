@@ -8,7 +8,7 @@
  * queue's kernel context.  Presentable committed resources (PRIMARY
  * heap flag) get their KM allocation via the same shared-bridge blob
  * export + pfnAllocateCb flow as Triton D3D11 primaries
- * (tritonRegisterSharedBlob); the host exports its resources through
+ * (tritonKmFillSharedExchange); the host exports its resources through
  * ID3D12Device::CreateSharedHandle natively.
  */
 
@@ -23,121 +23,6 @@
                            * failures, so launcher-spawned games (no ODS
                            * listener) still leave evidence */
 #include "tritonPresentTiming.h"
-
-static HRESULT
-t12Escape(PTRITON12_DEVICE p, VIOGPU_ESCAPE *esc)
-{
-    if (!p->KTCallbacks.pfnEscapeCb || !p->pAdapter)
-        return E_NOTIMPL;
-    D3DDDICB_ESCAPE cb;
-    memset(&cb, 0, sizeof(cb));
-    cb.hDevice               = p->hRTDevice.handle;
-    cb.pPrivateDriverData    = esc;
-    cb.PrivateDriverDataSize = sizeof(*esc);
-    return p->KTCallbacks.pfnEscapeCb(p->pAdapter->hRTAdapter.handle, &cb);
-}
-
-static void
-t12EnsureRuntimeCtx(PTRITON12_DEVICE p)
-{
-    if (p->RuntimeCtxInited)
-        return;
-    p->RuntimeCtxInited = TRUE;
-    VIOGPU_ESCAPE esc;
-    memset(&esc, 0, sizeof(esc));
-    esc.Type             = VIOGPU_CTX_INIT;
-    esc.DataLength       = sizeof(esc.CtxInit);
-    esc.CtxInit.CapsetID = 7;
-    esc.CtxInit.NumRings = 1;
-    (void)t12Escape(p, &esc);
-}
-
-/* Give a KM allocation this driver minted a residency reference.
- *
- * VidMm refuses any DMA buffer that references an allocation holding no
- * residency request (VIDMM_GLOBAL::ReferenceDmaBuffer, "Failed to reference
- * DMA buffer: Allocation is not requested to be resident") and marks the
- * device in error, which the runtime surfaces as "D3D12: Removing Device".
- * A flip present carries no DMA buffer, so composited games and DWM never
- * meet this; a blt-model present does -- D3D9On12's windowed presents, and
- * every redirected present the OS builds itself -- and dies on its first
- * frame.  The D3D12 runtime makes the heaps it owns resident but never the
- * allocations pfnAllocateCb hands back to the driver, so the request is
- * ours to make, as the D3D11 path does in tritonPresentRequestResidency.
- *
- * Rendering rides the npt ring and references no KM allocations, so the
- * request exists purely for the OS's present packet.  An E_PENDING answer
- * is waited out on the paging queue's monitored fence: a present built
- * against the allocation before the operation completes still dies the
- * same way.  Requests are never revoked; the reference dies with the
- * allocation when the runtime frees it. */
-static void
-t12RequestResidency(PTRITON12_DEVICE p, D3DKMT_HANDLE hAllocation)
-{
-    if (!hAllocation)
-        return;
-    if (!p->PagingQueueTried) {
-        if (!p->QueueLockInit)
-            return;
-        EnterCriticalSection(&p->QueueLock);
-        if (!p->PagingQueueTried) {
-            if (p->KTCallbacks.pfnCreatePagingQueueCb &&
-                p->KTCallbacks.pfnMakeResidentCb) {
-                D3DDDICB_CREATEPAGINGQUEUE pq;
-                memset(&pq, 0, sizeof(pq)); /* PRIORITY_NORMAL, adapter 0 */
-                HRESULT hr = p->KTCallbacks.pfnCreatePagingQueueCb(
-                    p->hRTDevice.handle, &pq);
-                if (SUCCEEDED(hr) && pq.hPagingQueue) {
-                    p->hPagingQueue  = pq.hPagingQueue;
-                    p->PagingFenceVa = (volatile const UINT64 *)
-                        pq.FenceValueCPUVirtualAddress;
-                    TR_LOG("12.residency: paging queue created (fence va=%p)",
-                           pq.FenceValueCPUVirtualAddress);
-                } else {
-                    TR_LOG("12.residency: CreatePagingQueue failed 0x%08lx -- "
-                           "a blt-model present of a driver allocation will "
-                           "remove the device", (unsigned long)hr);
-                }
-            } else {
-                TR_LOG("12.residency: runtime offers no paging-queue/"
-                       "MakeResident callbacks");
-            }
-            p->PagingQueueTried = TRUE;
-        }
-        LeaveCriticalSection(&p->QueueLock);
-    }
-    if (!p->hPagingQueue)
-        return;
-
-    D3DDDI_MAKERESIDENT mr;
-    memset(&mr, 0, sizeof(mr));
-    mr.hPagingQueue   = p->hPagingQueue;
-    mr.NumAllocations = 1;
-    mr.AllocationList = &hAllocation;
-    HRESULT hr = p->KTCallbacks.pfnMakeResidentCb(p->hRTDevice.handle, &mr);
-    if (hr == E_PENDING && p->PagingFenceVa) {
-        /* Creation-time waits are rare and short: poll the plain monotonic
-         * fence value with a yield and a loud timeout. */
-        const ULONGLONG deadline = GetTickCount64() + 5000;
-        while (*p->PagingFenceVa < mr.PagingFenceValue) {
-            if (GetTickCount64() > deadline) {
-                TR_LOG("12.residency: paging fence wait TIMED OUT (alloc=0x%x "
-                       "fence=%llu < %llu)", hAllocation,
-                       (unsigned long long)*p->PagingFenceVa,
-                       (unsigned long long)mr.PagingFenceValue);
-                return;
-            }
-            Sleep(0);
-        }
-        TR_LOG("12.residency: MakeResident(alloc=0x%x) completed async "
-               "(fence %llu)", hAllocation,
-               (unsigned long long)mr.PagingFenceValue);
-    } else if (FAILED(hr)) {
-        TR_LOG("12.residency: MakeResident(alloc=0x%x) FAILED 0x%08lx -- a "
-               "blt-model present referencing it will remove the device",
-               hAllocation, (unsigned long)hr);
-    }
-}
 
 void
 triton12DeallocateKM(PTRITON12_DEVICE p, D3DKMT_HANDLE *phAllocation)
@@ -168,68 +53,25 @@ triton12RegisterSharedBlob(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
     if (!p->pUMCallbacks || !p->pUMCallbacks->pfnAllocateCb || !pSurf)
         return FALSE;
 
-    t12EnsureRuntimeCtx(p);
+    tritonKmEnsureRuntimeCtx(&p->Km);
+
+    TRITON_KM_SHARED_DESC d;
+    memset(&d, 0, sizeof(d));
+    d.Width          = r->Desc.Width;
+    d.Height         = r->Desc.Height;
+    d.MipLevels      = r->Desc.MipLevels;
+    d.ArraySize      = r->Desc.DepthOrArraySize;
+    d.Format         = r->Desc.Format;
+    d.SampleCount    = r->Desc.SampleDesc.Count;
+    d.Is2D           = r->Desc.ResourceType == D3D12DDI_RT_TEXTURE2D;
+    d.Usage          = D3D11_USAGE_DEFAULT;
+    d.BindFlags      = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    d.CpuAccessFlags = 0;
+    d.MiscFlags      = D3D11_RESOURCE_MISC_SHARED;
 
     VIOGPU_CREATE_ALLOCATION_EXCHANGE ax;
-    memset(&ax, 0, sizeof(ax));
-    ax.Type = VIOGPU_RESOURCE_TYPE_SHARED;
-    VIOGPU_RESOURCE_SHARED_TEXTURE_OPTIONS *o = &ax.OptionsShared;
-
-    struct triton_shared_texture_desc exp;
-    memset(&exp, 0, sizeof(exp));
-    if (!tritonSharedBridgeExportBlob(pSurf, &exp)) {
-        TR_LOG("12.shared: export failed %llux%u fmt=%d",
-               (unsigned long long)r->Desc.Width, r->Desc.Height,
-               (int)r->Desc.Format);
+    if (!tritonKmFillSharedExchange(&ax, pSurf, &d, primary))
         return FALSE;
-    }
-    o->blob_id         = exp.blob_id;
-    o->create_ctx_id   = exp.create_ctx_id;
-    o->plane_count     = exp.plane_count;
-    o->texture_layout  = exp.texture_layout;
-    o->modifier        = exp.modifier;
-    o->allocation_size = exp.allocation_size;
-    for (UINT i = 0; i < exp.plane_count && i < 4; i++) {
-        o->planes[i].offset = exp.planes[i].offset;
-        o->planes[i].pitch  = exp.planes[i].pitch;
-    }
-
-    o->primary          = primary ? 1u : 0u;
-    o->width            = (ULONG)r->Desc.Width;
-    o->height           = r->Desc.Height;
-    o->mip_levels       = r->Desc.MipLevels ? r->Desc.MipLevels : 1;
-    o->array_size       = r->Desc.DepthOrArraySize ? r->Desc.DepthOrArraySize : 1;
-    o->format           = (ULONG)r->Desc.Format;
-    o->sample_count     = r->Desc.SampleDesc.Count ? r->Desc.SampleDesc.Count : 1;
-    o->usage            = 0;    /* D3D11_USAGE_DEFAULT */
-    o->bind_flags       = 0x28; /* RENDER_TARGET | SHADER_RESOURCE */
-    o->cpu_access_flags = 0;
-    o->misc_flags       = 0x2;  /* D3D11_RESOURCE_MISC_SHARED */
-
-    /* Describe a non-primary blob too when the host can type it exactly:
-     * the KMD's blt present types the source from ScanoutInfo, and a zero
-     * width makes the host reject the type and the copy (windowed
-     * blt-model presents stay black).  The description is plane 0 as a
-     * single-sample 2D image, so other shapes and formats stay undescribed
-     * -- typed as BGRA8, a blob in another format would not fit its row
-     * pitch. */
-    const uint32_t copyFmt =
-        r->Desc.ResourceType == D3D12DDI_RT_TEXTURE2D &&
-        r->Desc.SampleDesc.Count <= 1
-            ? npt_shared_texture_virgl_copy_format(r->Desc.Format) : 0;
-    if (primary || copyFmt) {
-        o->ScanoutInfo.width      = (ULONG)r->Desc.Width;
-        o->ScanoutInfo.height     = r->Desc.Height;
-        o->ScanoutInfo.format     = primary
-            ? npt_shared_texture_virgl_format(r->Desc.Format) : copyFmt;
-        o->ScanoutInfo.strides[0] = (ULONG)o->planes[0].pitch;
-        o->ScanoutInfo.offsets[0] = (ULONG)o->planes[0].offset;
-    }
-
-    ax.Size = (o->allocation_size + 4095ull) & ~4095ull;
-    if (!ax.Size)
-        ax.Size = (((ULONGLONG)r->Desc.Width * r->Desc.Height * 4) + 4095)
-                  & ~4095ull;
 
     D3D12DDI_ALLOCATION_INFO_0022 ai;
     memset(&ai, 0, sizeof(ai));
@@ -255,9 +97,9 @@ triton12RegisterSharedBlob(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
     /* A residency-only placeholder being replaced by the real export. */
     triton12DeallocateKM(p, &r->hKMAllocation);
     r->hKMAllocation = ai.hAllocation;
-    t12RequestResidency(p, ai.hAllocation);
+    tritonKmRequestResidency(&p->Km, ai.hAllocation);
     TR_LOG_HOT("12.shared: exporter blob_id=0x%llx alloc=0x%x %llux%u primary=%d",
-           (unsigned long long)o->blob_id, ai.hAllocation,
+           (unsigned long long)ax.OptionsShared.blob_id, ai.hAllocation,
            (unsigned long long)r->Desc.Width, r->Desc.Height, primary);
     return TRUE;
 }
@@ -284,7 +126,7 @@ triton12AllocResidencyOnly(PTRITON12_DEVICE p, HANDLE hRTResource)
     if (!p->pUMCallbacks || !p->pUMCallbacks->pfnAllocateCb)
         return 0;
 
-    t12EnsureRuntimeCtx(p);
+    tritonKmEnsureRuntimeCtx(&p->Km);
 
     /* The EX form carries a lookup cookie, which is the only way the KMD
      * pairs this allocation's in-create open with the right object: a
@@ -747,7 +589,7 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
                 memset(&esc, 0, sizeof(esc));
                 esc.Type = VIOGPU_PRESENT_GATE_HINT;
                 esc.DataLength = 0;
-                gated = SUCCEEDED(t12Escape(q->pDev, &esc));
+                gated = SUCCEEDED(tritonKmEscape(&q->pDev->Km, &esc));
             }
             const ULONGLONG deadline = GetTickCount64() + 1000;
             while (!gated && SUCCEEDED(ehr) &&

@@ -2,8 +2,7 @@
  * Copyright 2026 Turing Software LLC
  * SPDX-License-Identifier: MIT
  *
- * Device-level kernel-context / virtio-context plumbing for the
- * present path.  Presentable resources themselves are ordinary
+ * Device-level kernel context for the present path.  Presentable resources themselves are ordinary
  * exportable textures bound to virtio-gpu blob resources
  * (tritonResource.c); the KMD scans them out directly, so there is no
  * host swapchain or per-present host command.
@@ -14,8 +13,6 @@
 
 #include "triton.h"
 
-#include "virtio/virtio-gpu/wddm_hw.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,21 +21,6 @@ extern "C" {
  * tritonCreateDevice because creating it during the runtime's device
  * probe leads the runtime to reject the adapter. */
 void tritonPresentEnsureKernelContext(PTRITON_DEVICE pD);
-
-/* Initialize the runtime device's virtio context once (idempotent).
- * Required so the KMD's deferred host bindings (RESOURCE_CREATE_BLOB /
- * CTX_ATTACH_RESOURCE on this device's context) reach a valid host
- * context. */
-void tritonPresentEnsureRuntimeCtx(PTRITON_DEVICE pD);
-
-/* Issue a VIOGPU escape on the runtime device. */
-HRESULT tritonPresentEscape(PTRITON_DEVICE pD, VIOGPU_ESCAPE *esc);
-
-/* WDDM2 explicit residency: request residency for a KM allocation this
- * device created, so an OS-built present blt may reference it.  No-op
- * (self-gating) on WDDM 1.3.  See tritonPresent.c for the contract. */
-void tritonPresentRequestResidency(PTRITON_DEVICE pD,
-                                   D3DKMT_HANDLE hAllocation);
 
 #ifdef __cplusplus
 }
