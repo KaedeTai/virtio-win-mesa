@@ -143,6 +143,11 @@ npt_cs_decoder_alloc_temp(struct npt_cs_decoder *dec, size_t size)
 {
    struct npt_cs_decoder_temp_pool *pool = &dec->temp_pool;
 
+   /* A zero-size request still takes a slot so its pointer never aliases
+    * the next allocation; callers read NULL as a decode failure. */
+   if (!size)
+      size = 1;
+
    if (unlikely(size > (size_t)(pool->end - pool->cur))) {
       if (!npt_cs_decoder_alloc_temp_internal(dec, size))
          return NULL;
