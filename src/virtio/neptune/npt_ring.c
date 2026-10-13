@@ -16,10 +16,6 @@
 #include "util/os_time.h"
 #endif
 
-#if defined(__x86_64__) || defined(__i386__)
-#include <cpuid.h> /* __cpuid: detect x86-on-non-x86 translators (FEX/TCG) */
-#endif
-
 static_assert(ATOMIC_INT_LOCK_FREE >= 1 && sizeof(atomic_uint) == 4,
               "npt_ring requires lock-free 32-bit atomic_uint");
 
@@ -32,8 +28,8 @@ npt_ring_notify(struct npt_ring *ring);
  * worst-case first-submit-after-park latency. */
 #define NPT_TLS_RING_IDLE_TIMEOUT_NS (10000000) /* 10ms */
 
-/* Must be > host's ALIVE refresh + scheduler jitter so a healthy host
- * isn't killed. */
+/* The host monitor's heartbeat period; the watchdog's checks are spaced
+ * well beyond it so a healthy host isn't killed. */
 #define NPT_RING_WATCHDOG_REPORT_PERIOD_US (3 * 1000 * 1000)
 
 /* buffer_size >> NPT_RING_DIRECT_ORDER threshold. */
@@ -46,67 +42,11 @@ npt_ring_notify(struct npt_ring *ring);
 #define NPT_RING_REPLY_POOL_MIN_SIZE (1u << 20)
 
 /*
- * Whether an atomic read-modify-write works on the ring's write-combining
- * shmem.  ARM LSE atomics (ldclral) take a Data Abort on WC / Normal
- * Non-cacheable memory, and x86-on-ARM translators lower a LOCK-prefixed RMW
- * onto them, so both native ARM64 and translated x86 fault; plain loads and
- * stores are fine, so only the watchdog's ALIVE clear (the ring's sole atomic
- * RMW) is affected.
- *
- * -1 = undetected, 0 = unsupported (emulated), 1 = supported.  Detected once via
- * CPUID -- a passive read, no faulting: the translator self-identifies on the
- * hypervisor vendor leaf.  Real-x86 hypervisors (KVM/VMware/Hyper-V) also set
- * the present bit but do atomics fine, so we key off the specific translator
- * signatures, not the bit alone.
- */
-static atomic_int npt_wc_atomic_ok = -1;
-
-static int
-npt_detect_wc_atomic_ok(void)
-{
-#if defined(_M_ARM64EC) || defined(__arm64ec__) || defined(_M_ARM64) || \
-   defined(__aarch64__)
-   /* All ARM64 flavors (native and arm64ec): the compiler lowers
-    * atomic_fetch_and to an LSE atomic (ldclral) -- MSVC native arm64 does so
-    * too, behind a runtime CPU-feature check that passes on every Apple
-    * Silicon host -- and LSE atomics take a Data Abort on Write-Combining /
-    * Non-cacheable memory.  The ring shmem is mapped WC, so the ALIVE-clear
-    * faults on any wait that outlives the watchdog threshold.  Disable it;
-    * the watchdog degrades to a no-op, as on the x86-emulation path. */
-   return 0;
-#elif defined(__x86_64__) || defined(__i386__)
-   unsigned a, b, c, d;
-
-   /* No hypervisor/emulator present bit -> bare-metal x86 -> atomics fine. */
-   __cpuid(1, a, b, c, d);
-   if (!(c & (1u << 31)))
-      return 1;
-
-   /* Hypervisor vendor leaf 0x40000000: 12-byte signature in EBX,ECX,EDX. */
-   __cpuid(0x40000000u, a, b, c, d);
-   (void)a;
-   char sig[13];
-   memcpy(sig + 0, &b, 4);
-   memcpy(sig + 4, &c, 4);
-   memcpy(sig + 8, &d, 4);
-   sig[12] = '\0';
-
-   if (!memcmp(sig, "FEXIFEXIEMU", 12) ||   /* FEX-Emu */
-       !memcmp(sig, "TCGTCGTCGTCG", 12))    /* QEMU TCG (qemu-user / full TCG) */
-      return 0;                             /* x86-on-non-x86: WC atomics fault */
-
-   return 1; /* real-x86 hypervisor or an emulator that does atomics correctly */
-#else
-   return 1; /* other architectures: no known WC-atomic restriction */
-#endif
-}
-
-/*
  * Adaptive backoff with watchdog.  After warn_order iters, check the
- * ring's heartbeat counter (the host's ring monitor advances it every
- * NPT_RING_WATCHDOG_REPORT_PERIOD_US) or, on hosts without one, the ALIVE
- * bit; too many misses = host worker gone.  `ring` may be NULL when the
- * watchdog isn't wanted (pre-shmem-map paths).
+ * ring's heartbeat counter (the host stamps it at CREATE_RING and its ring
+ * monitor advances it every NPT_RING_WATCHDOG_REPORT_PERIOD_US); too many
+ * misses = host worker gone.  `ring` may be NULL when the watchdog isn't
+ * wanted (pre-shmem-map paths).
  */
 static void
 npt_ring_relax(struct npt_ring *ring, uint32_t *iter)
@@ -136,78 +76,32 @@ npt_ring_relax(struct npt_ring *ring, uint32_t *iter)
       if (status & NPT_RING_STATUS_FATAL_BIT)
          return;
       const uint32_t beat = status >> NPT_RING_STATUS_HEARTBEAT_SHIFT;
-      if (beat != 0 || ring->heartbeat_seen != 0) {
-         /* The monitor ticks the counter from its own host thread, so it
-          * keeps moving while the ring thread sits in a long command and
-          * stops only when the worker process is gone or frozen.  Checks
-          * here are at least three report periods apart, so a counter
-          * that stands still across max_misses checks is a dead worker:
-          * mark the renderer lost so every wait bails and the runtime
-          * removes the device, instead of waiting forever for a reply
-          * nobody will write.  Reading the counter needs no RMW, which is
-          * what makes this usable where ALIVE cannot be cleared. */
-         if (beat != ring->heartbeat_seen) {
-            ring->heartbeat_seen = beat;
-            ring->watchdog_misses = 0;
-         } else if (++ring->watchdog_misses >= max_misses) {
-            const uint32_t head =
-               atomic_load_explicit(ring->head, memory_order_acquire);
-            const uint32_t tail =
-               atomic_load_explicit(ring->tail, memory_order_acquire);
-            npt_log("watchdog: ring %llu heartbeat stopped at %u for %u "
-                    "checks, head=%u tail=%u cur=%u -- host worker gone; "
-                    "marking renderer lost",
-                    (unsigned long long)ring->id, beat, ring->watchdog_misses,
-                    head, tail, ring->cur);
-            if (ring->renderer)
-               npt_renderer_set_lost(ring->renderer);
-            ring->watchdog_misses = 0;
-         }
-         return;
-      }
-
-      if (status & NPT_RING_STATUS_ALIVE_BIT) {
-         /* Clearing ALIVE (so a host re-set is detectable) is the ring's only
-          * atomic RMW.  Skip it where WC atomics fault -- emulated x86-on-ARM
-          * and every ARM64 flavor, per npt_detect_wc_atomic_ok.  With nothing
-          * clearing ALIVE, the wedge report below stops firing once the host
-          * has set it, leaving only the "host never came alive" case.  Native
-          * x86 keeps the full watchdog. */
-         if (atomic_load_explicit(&npt_wc_atomic_ok, memory_order_relaxed) == 1)
-            atomic_fetch_and_explicit(ring->status,
-                                      ~(unsigned)NPT_RING_STATUS_ALIVE_BIT,
-                                      memory_order_seq_cst);
+      /* The monitor ticks the counter from its own host thread, so it
+       * keeps moving while the ring thread sits in a long command and
+       * stops only when the worker process is gone or frozen.  Checks
+       * here are at least three report periods apart, so a counter that
+       * stands still across max_misses checks is a dead worker: mark the
+       * renderer lost so every wait bails and the runtime removes the
+       * device, instead of waiting forever for a reply nobody will write.
+       * A counter stuck at 0 counts too: it is either a host that never
+       * serviced CREATE_RING or a mapping torn down to the zero page
+       * (WDDM TDR removed the D3DKMT device). */
+      if (beat != ring->heartbeat_seen) {
+         ring->heartbeat_seen = beat;
          ring->watchdog_misses = 0;
-      } else {
-         if (++ring->watchdog_misses >= max_misses) {
-            /* Soft-abort: log instead of abort() so a developer can
-             * attach a debugger to the wedged host render server.
-             * Per-call-site (no static once-flag) so a deadlock that
-             * advances multiple call sites is observable. */
-            const uint32_t head =
-               atomic_load_explicit(ring->head, memory_order_acquire);
-            const uint32_t tail =
-               atomic_load_explicit(ring->tail, memory_order_acquire);
-            npt_log("watchdog: ring %llu wedged after %u iters, head=%u tail=%u cur=%u "
-                    "status=0x%x is_tls=%d",
-                    (unsigned long long)ring->id, *iter, head, tail, ring->cur, status,
-                    (int)ring->is_tls_ring);
-            /* Distinguish a wedged host from a torn-down mapping: the
-             * host-written words (head, status) reading 0 while our
-             * local cur is far ahead means the blob mapping was
-             * replaced by the zero page (WDDM TDR removed the D3DKMT
-             * device).  A live-but-slow host would still show ALIVE
-             * being re-set between misses.  Mark the renderer lost so
-             * every wait loop bails instead of spinning on zeros. */
-            if (head == 0 && status == 0 && ring->cur != 0 &&
-                ring->renderer && !npt_renderer_is_lost(ring->renderer)) {
-               npt_log("watchdog: ring %llu mapping reads as zero page -- "
-                       "device removed; marking renderer lost",
-                       (unsigned long long)ring->id);
-               npt_renderer_set_lost(ring->renderer);
-            }
-            ring->watchdog_misses = 0;
-         }
+      } else if (++ring->watchdog_misses >= max_misses) {
+         const uint32_t head =
+            atomic_load_explicit(ring->head, memory_order_acquire);
+         const uint32_t tail =
+            atomic_load_explicit(ring->tail, memory_order_acquire);
+         npt_log("watchdog: ring %llu heartbeat stopped at %u for %u "
+                 "checks, status=0x%x head=%u tail=%u cur=%u is_tls=%d -- "
+                 "host worker gone; marking renderer lost",
+                 (unsigned long long)ring->id, beat, ring->watchdog_misses,
+                 status, head, tail, ring->cur, (int)ring->is_tls_ring);
+         if (ring->renderer)
+            npt_renderer_set_lost(ring->renderer);
+         ring->watchdog_misses = 0;
       }
    }
 }
@@ -1598,16 +1492,6 @@ npt_ring_create(struct npt_device *device,
    atomic_store_explicit(ring->head, 0, memory_order_relaxed);
    atomic_store_explicit(ring->tail, 0, memory_order_relaxed);
    atomic_store_explicit(ring->status, 0, memory_order_relaxed);
-
-   /* Detect once whether atomic RMWs work on the WC ring shmem here; gates the
-    * watchdog's ALIVE clear -- see npt_detect_wc_atomic_ok. */
-   if (atomic_load_explicit(&npt_wc_atomic_ok, memory_order_acquire) < 0) {
-      const int ok = npt_detect_wc_atomic_ok();
-      atomic_store_explicit(&npt_wc_atomic_ok, ok, memory_order_release);
-      npt_log("ring WC-atomic support -> %s",
-              ok ? "yes (native x86)"
-                 : "no -- watchdog ALIVE-clear disabled");
-   }
 
    npt_ring_lock_init(&ring->lock);
    mtx_init(&ring->stages_mutex, mtx_plain);

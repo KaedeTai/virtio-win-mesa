@@ -55,8 +55,8 @@
  * uncontended and spin-resolved paths never enter the kernel.
  *
  * The word lives in the heap-allocated npt_ring, not the WC-mapped
- * shmem, so atomic RMWs on it are safe on every arch (see the
- * npt_wc_atomic_ok discussion in npt_ring.c).
+ * shmem: ARM64 atomics (and x86 translators lowering LOCK RMWs onto
+ * them) fault on write-combining memory.
  */
 struct npt_ring_lock {
    atomic_uint v;
@@ -287,12 +287,11 @@ struct npt_ring {
    uint32_t direct_size;
 
    /* Bumped each time npt_ring_relax finds the host heartbeat
-    * unchanged (or, on hosts without the counter, ALIVE cleared); reset
-    * when it moves.  At the threshold the renderer is marked lost so a
+    * unchanged; reset when it moves.  At the threshold the renderer is marked lost so a
     * dead host worker fails the device instead of spinning forever. */
    uint32_t watchdog_misses;
    /* Heartbeat counter (status bits 8..31) as of the last watchdog
-    * check; 0 until the host has ticked once. */
+    * check. */
    uint32_t heartbeat_seen;
 
    /* Virtqueue-seqno roundtrip counter.  Minted outside ring->lock, so
