@@ -34,6 +34,7 @@ npt_common_src = files(
   'npt_overrides_dxgi_factory.c',
   'npt_overrides_dxgi_factorymedia.c',
   'npt_overrides_dxgi_output.c',
+  'npt_overrides_event_handles.c',
 )
 
 # Generated client-side COM sources from neptune-protocol.  One out-of-line

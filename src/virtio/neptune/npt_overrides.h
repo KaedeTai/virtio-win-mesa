@@ -28,6 +28,7 @@ void npt_overrides_d3d12_resource_init(void);
 void npt_overrides_d3d12_fence_init(void);
 void npt_overrides_d3d12_queue_init(void);
 void npt_overrides_d3d12_list_init(void);
+void npt_overrides_event_handles_init(void);
 
 /* npt_overrides_d3d12_device.c: before a command that reads the CPU
  * descriptor at `handle` at decode time, order `ring` after the ring

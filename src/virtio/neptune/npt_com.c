@@ -1001,6 +1001,7 @@ npt_com_init_impl(void)
    npt_overrides_d3d12_fence_init();
    npt_overrides_d3d12_queue_init();
    npt_overrides_d3d12_list_init();
+   npt_overrides_event_handles_init();
    npt_d3d12_heap_overrides_init();
 }
 
