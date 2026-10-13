@@ -338,7 +338,6 @@ npt_com_destroy(struct npt_com_base *com)
    if (com->base.device)
       npt_device_wrapper_cache_remove(com->base.device, com->base.id);
    npt_com_send_release(com->base.device, com->base.id);
-   /* Pinned to primary: instance_ring == dev->ring, no refcount taken. */
    if (com->base.device && com->base.instance_ring) {
       if (com->base.private_instance_ring) {
          struct npt_device *dev = com->base.device;
@@ -346,7 +345,7 @@ npt_com_destroy(struct npt_com_base *com)
          list_del(&com->base.instance_ring->instance_head);
          mtx_unlock(&dev->instance_rings_mutex);
          npt_ring_destroy(com->base.instance_ring);
-      } else if (com->base.instance_ring != com->base.device->ring) {
+      } else {
          npt_com_release_dc_sc_ring(com->base.device);
       }
       com->base.instance_ring = NULL;
@@ -546,6 +545,54 @@ npt_com_release_dc_sc_ring(struct npt_device *dev)
    mtx_unlock(&dev->instance_rings_mutex);
 }
 
+/* A wrapper for `id` from `entry`'s constructor with its self hold, aux
+ * and instance ring, not yet published to the cache. */
+static struct npt_com_base *
+npt_com_build(struct npt_device *dev, const struct npt_com_ctor_entry *entry,
+              const GUID *ctor_iid, uint64_t id)
+{
+   struct npt_com_base *com = entry->ctor(dev, id);
+   if (!com)
+      return NULL;
+   /* Mirrors default_addref: priv_ref tracks the live pub_ref hold. */
+   atomic_fetch_add(&com->base.priv_ref, 1);
+   /* On aux OOM the wrapper is still usable; aux-dependent accessors see
+    * NULL. */
+   if (entry->aux_size) {
+      com->aux = calloc(1, entry->aux_size);
+      if (com->aux && entry->aux_init)
+         entry->aux_init(com, dev, id);
+   }
+   if (!com->base.instance_ring &&
+       npt_com_iid_needs_instance_ring(dev, ctor_iid))
+      com->base.instance_ring = npt_com_acquire_dc_sc_ring(dev);
+   return com;
+}
+
+/* Undo a wrapper that was built but never published to the cache: the
+ * cache holds another wrapper for its id, which owns the host ref. */
+static void
+npt_com_discard_unpublished(struct npt_device *dev, struct npt_com_base *com)
+{
+   if (com->base.parent) {
+      atomic_fetch_sub(&com->base.parent->base.priv_ref, 1);
+      com->base.parent = NULL;
+   }
+   if (com->identity) {
+      atomic_fetch_sub(&com->identity->base.priv_ref, 1);
+      com->identity = NULL;
+   }
+   if (com->base.instance_ring) {
+      npt_com_release_dc_sc_ring(dev);
+      com->base.instance_ring = NULL;
+   }
+   atomic_store(&com->base.pub_ref, 0);
+   atomic_store(&com->base.priv_ref, 0);
+   if (com->aux_destroy)
+      com->aux_destroy(com->aux);
+   free(com);
+}
+
 void *
 npt_com_get_or_wrap(struct npt_device *dev, const GUID *iid,
                     uint64_t host_id, struct npt_com_base *parent_wrapper)
@@ -576,70 +623,21 @@ npt_com_get_or_wrap(struct npt_device *dev, const GUID *iid,
          return NULL;
       }
 
-      void *wrapper = entry->ctor(dev, host_id);
-      if (!wrapper)
+      struct npt_com_base *com = npt_com_build(dev, entry, iid, host_id);
+      if (!com)
          return NULL;
-
-      struct npt_com_base *com = wrapper;
-
       com->base.parent = parent_wrapper;
       if (parent_wrapper)
          atomic_fetch_add(&parent_wrapper->base.priv_ref, 1);
-      /* Mirrors default_addref: priv_ref tracks the live pub_ref hold. */
-      atomic_fetch_add(&com->base.priv_ref, 1);
-
-      /* On aux OOM the wrapper is still usable; aux-dependent
-       * accessors see NULL. */
-      if (entry->aux_size) {
-         com->aux = calloc(1, entry->aux_size);
-         if (com->aux && entry->aux_init)
-            entry->aux_init(com, dev, host_id);
-      }
-
-      if (!com->base.instance_ring &&
-          npt_com_iid_needs_instance_ring(dev, iid)) {
-         com->base.instance_ring = npt_com_acquire_dc_sc_ring(dev);
-      }
 
       bool retry = false;
       void *winner =
-         npt_device_wrapper_cache_insert_if_absent(dev, host_id,
-                                                   wrapper, &retry);
-      if (winner) {
-         /* Lost the race.  Roll back speculative holds and free our
-          * wrapper directly -- it was never in the cache, and the
-          * host ref is owned by the winner. */
-         if (parent_wrapper)
-            atomic_fetch_sub(&parent_wrapper->base.priv_ref, 1);
-         if (com->base.instance_ring) {
-            if (com->base.instance_ring != dev->ring)
-               npt_com_release_dc_sc_ring(dev);
-            com->base.instance_ring = NULL;
-         }
-         atomic_store(&com->base.pub_ref, 0);
-         atomic_store(&com->base.priv_ref, 0);
-         if (com->aux_destroy)
-            com->aux_destroy(com->aux);
-         free(com);
+         npt_device_wrapper_cache_insert_if_absent(dev, host_id, com, &retry);
+      if (!winner && !retry)
+         return com;
+      npt_com_discard_unpublished(dev, com);
+      if (winner)
          return winner;
-      }
-
-      if (!retry)
-         return wrapper;
-
-      /* Slot occupied by a dying wrapper.  Yield and retry. */
-      if (parent_wrapper)
-         atomic_fetch_sub(&parent_wrapper->base.priv_ref, 1);
-      if (com->base.instance_ring) {
-         if (com->base.instance_ring != dev->ring)
-            npt_com_release_dc_sc_ring(dev);
-         com->base.instance_ring = NULL;
-      }
-      atomic_store(&com->base.pub_ref, 0);
-      atomic_store(&com->base.priv_ref, 0);
-      if (com->aux_destroy)
-         com->aux_destroy(com->aux);
-      free(com);
       thrd_yield();
    }
 
@@ -715,26 +713,6 @@ npt_com_deny_tier(struct npt_com_base *com, uint32_t k)
       ;
 }
 
-/* Undo a wrapper that was built but never published to the cache. */
-static void
-npt_com_discard_unpublished(struct npt_device *dev, struct npt_com_base *com)
-{
-   if (com->identity) {
-      atomic_fetch_sub(&com->identity->base.priv_ref, 1);
-      com->identity = NULL;
-   }
-   if (com->base.instance_ring) {
-      if (com->base.instance_ring != dev->ring)
-         npt_com_release_dc_sc_ring(dev);
-      com->base.instance_ring = NULL;
-   }
-   atomic_store(&com->base.pub_ref, 0);
-   atomic_store(&com->base.priv_ref, 0);
-   if (com->aux_destroy)
-      com->aux_destroy(com->aux);
-   free(com);
-}
-
 void *
 npt_com_wrap_canonical(struct npt_device *dev,
                        const struct npt_wire_object_ref *ref, const GUID *iid)
@@ -775,21 +753,11 @@ npt_com_wrap_canonical(struct npt_device *dev,
          return NULL;
       }
 
-      struct npt_com_base *com = entry->ctor(dev, id);
+      struct npt_com_base *com = npt_com_build(dev, entry, ctor_iid, id);
       if (!com) {
          npt_ring_send_com_release_immediate(dev, id);
          return NULL;
       }
-      /* Mirrors default_addref: priv_ref tracks the live pub_ref hold. */
-      atomic_fetch_add(&com->base.priv_ref, 1);
-      if (entry->aux_size) {
-         com->aux = calloc(1, entry->aux_size);
-         if (com->aux && entry->aux_init)
-            entry->aux_init(com, dev, id);
-      }
-      if (!com->base.instance_ring &&
-          npt_com_iid_needs_instance_ring(dev, ctor_iid))
-         com->base.instance_ring = npt_com_acquire_dc_sc_ring(dev);
       npt_com_confirm_tier(com, iid, ref->type);
       if (ref->primary_id && ref->primary_id != id) {
          struct npt_com_base *primary =
