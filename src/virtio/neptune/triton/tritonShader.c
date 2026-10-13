@@ -153,7 +153,7 @@ static void tritonCreateShaderCommon(D3D10DDI_HDEVICE hDevice, TRITON_SHADER_KIN
     if (sigs.cIn > 4096 || sigs.cOut > 4096 || sigs.cPatch > 4096) {
         TR_LOG("CreateShader[%d]: signature counts exceed 4096 (in=%u out=%u patch=%u)",
                (int)kind, sigs.cIn, sigs.cOut, sigs.cPatch);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
 
@@ -166,7 +166,7 @@ static void tritonCreateShaderCommon(D3D10DDI_HDEVICE hDevice, TRITON_SHADER_KIN
                                    &cbDxbc);
     if (!pDxbc) {
         TR_LOG("CreateShader[%d]: tritonBuildDxbc failed", (int)kind);
-        tritonSetError(pD, E_OUTOFMEMORY);
+        tritonSetCreateError(pD, E_OUTOFMEMORY);
         return;
     }
     s->pBytecode  = pDxbc;
@@ -182,7 +182,7 @@ static void tritonCreateShaderCommon(D3D10DDI_HDEVICE hDevice, TRITON_SHADER_KIN
         HeapFree(GetProcessHeap(), 0, s->pBytecode);
         s->pBytecode  = NULL;
         s->cbBytecode = 0;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
     }
 }
 
@@ -562,12 +562,12 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
     s->pSoOnlyGS      = NULL;
     if (pArgs->NumEntries > D3D11_SO_STREAM_COUNT * D3D11_SO_OUTPUT_COMPONENT_COUNT) {
         TR_LOG("CreateGSWithSO: NumEntries %u exceeds SO decl cap", pArgs->NumEntries);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     if (pArgs->NumStrides > D3D11_SO_BUFFER_SLOT_COUNT) {
         TR_LOG("CreateGSWithSO: NumStrides %u exceeds SO buffer slots", pArgs->NumStrides);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     /* No bytecode: a stream-output-only GS. The host makes one from the
@@ -579,7 +579,7 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
             s->pSoDecl = (D3D11DDIARG_STREAM_OUTPUT_DECLARATION_ENTRY *)
                 HeapAlloc(GetProcessHeap(), 0, cbDecl);
             if (!s->pSoDecl) {
-                tritonSetError(pD, E_OUTOFMEMORY);
+                tritonSetCreateError(pD, E_OUTOFMEMORY);
                 return;
             }
             memcpy(s->pSoDecl, pArgs->pOutputStreamDecl, cbDecl);
@@ -600,7 +600,7 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
     if (sigs.cIn > 4096 || sigs.cOut > 4096) {
         TR_LOG("CreateGSWithSO: signature counts exceed 4096 (in=%u out=%u)",
                sigs.cIn, sigs.cOut);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
 
@@ -613,7 +613,7 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
                                    &cbDxbc);
     if (!pDxbc) {
         TR_LOG("CreateGSWithSO: tritonBuildDxbc failed");
-        tritonSetError(pD, E_OUTOFMEMORY);
+        tritonSetCreateError(pD, E_OUTOFMEMORY);
         return;
     }
     s->pBytecode  = pDxbc;
@@ -640,7 +640,7 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
         HeapFree(GetProcessHeap(), 0, s->pBytecode);
         s->pBytecode  = NULL;
         s->cbBytecode = 0;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
     }
 }
 

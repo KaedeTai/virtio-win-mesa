@@ -148,7 +148,7 @@ tritonQueryGetData(D3D10DDI_HDEVICE hDevice, D3D10DDI_HQUERY hQuery,
     if (hr == S_FALSE)
         tritonSetError(pD, DXGI_DDI_ERR_WASSTILLDRAWING);
     else if (FAILED(hr))
-        tritonSetError(pD, hr);
+        tritonSetError(pD, D3DDDIERR_DEVICEREMOVED);
 }
 
 void APIENTRY

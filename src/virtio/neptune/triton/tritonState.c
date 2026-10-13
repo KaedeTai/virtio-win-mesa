@@ -62,7 +62,7 @@ tritonCreateBlendState(D3D10DDI_HDEVICE hDevice,
     if (FAILED(hr)) {
         TR_LOG("CreateBlendState: failed 0x%08lx", hr);
         s->pState = NULL;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
     }
 }
 
@@ -176,7 +176,7 @@ tritonCreateDepthStencilState(D3D10DDI_HDEVICE hDevice,
     if (FAILED(hr)) {
         TR_LOG("CreateDepthStencilState: failed 0x%08lx", hr);
         s->pState = NULL;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
     }
 }
 
@@ -234,7 +234,7 @@ tritonCreateRasterizerState(D3D10DDI_HDEVICE hDevice,
     if (FAILED(hr)) {
         TR_LOG("CreateRasterizerState: failed 0x%08lx", hr);
         s->pState = NULL;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
     }
 }
 
@@ -349,7 +349,7 @@ tritonCreateRasterizerState_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     if (FAILED(hr)) {
         TR_LOG("CreateRasterizerState_WDDM2_0: failed 0x%08lx", hr);
         s->pState = NULL;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
         return;
     }
     s->pState = (ID3D11RasterizerState1 *)pState2;
@@ -392,7 +392,7 @@ tritonCreateSampler(D3D10DDI_HDEVICE hDevice,
     if (FAILED(hr)) {
         TR_LOG("CreateSampler: failed 0x%08lx", hr);
         s->pState = NULL;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
     }
 }
 
@@ -486,7 +486,7 @@ tritonCreateElementLayout(D3D10DDI_HDEVICE hDevice,
         memcpy(e->pElements, pArgs->pVertexElements, cb);
     } else {
         e->NumElements = 0;
-        tritonSetError(pD, E_OUTOFMEMORY);
+        tritonSetCreateError(pD, E_OUTOFMEMORY);
     }
 }
 

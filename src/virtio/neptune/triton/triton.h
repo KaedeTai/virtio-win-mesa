@@ -240,6 +240,15 @@ static inline void tritonSetError(PTRITON_DEVICE pD, HRESULT hr)
         pD->pUMCallbacks->pfnSetErrorCb(pD->hRTCoreLayer, hr);
 }
 
+/* Create and Open DDIs may report only E_OUTOFMEMORY or
+ * D3DDDIERR_DEVICEREMOVED; the runtime treats any other code as a driver bug
+ * and removes the device.  E_OUTOFMEMORY is what the app's create then
+ * returns.  The runtime does not call the matching Destroy after either. */
+static inline void tritonSetCreateError(PTRITON_DEVICE pD, HRESULT hr)
+{
+    tritonSetError(pD, hr == D3DDDIERR_DEVICEREMOVED ? hr : E_OUTOFMEMORY);
+}
+
 /* Map the DDI's D3DWDDM2_0DDI_CONTEXTTYPE_FLAG bit flag to the sequential
  * D3D11_CONTEXT_TYPE enum (they diverge at COPY/VIDEO). Defined in
  * tritonQuery.c; shared with the WDDM 2.0 Flush path in tritonView.c. */

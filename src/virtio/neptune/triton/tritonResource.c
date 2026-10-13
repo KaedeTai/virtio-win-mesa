@@ -273,7 +273,7 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
      * export, bound to a virtio-gpu blob the KMD scans out directly. */
     if (r->IsPresentable && pArgs->ResourceDimension == D3D10DDIRESOURCE_TEXTURE2D) {
         if (r->Width == 0 || r->Height == 0) {
-            tritonSetError(pD, E_INVALIDARG);
+            tritonSetCreateError(pD, E_INVALIDARG);
             return;
         }
         tritonPresentEnsureKernelContext(pD);
@@ -303,7 +303,7 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
         HRESULT phr = ID3D11Device1_CreateTexture2D(pD->pDev1, &d, NULL, &tex);
         if (FAILED(phr) || !tex) {
             TR_LOG("present: primary CreateTexture2D failed hr=0x%08lx", phr);
-            tritonSetError(pD, FAILED(phr) ? phr : E_FAIL);
+            tritonSetCreateError(pD, FAILED(phr) ? phr : E_FAIL);
             return;
         }
         r->pResource = (ID3D11Resource *)tex;
@@ -315,7 +315,7 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
                                       scFmt, TRUE)) {
             ID3D11Resource_Release(r->pResource);
             r->pResource = NULL;
-            tritonSetError(pD, E_FAIL);
+            tritonSetCreateError(pD, E_FAIL);
         }
         return;
     }
@@ -435,7 +435,7 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
 
     if (FAILED(hr) || !r->pResource) {
         TR_LOG("CreateResource: failed dim=%d hr=0x%08lx", pArgs->ResourceDimension, hr);
-        tritonSetError(pD, FAILED(hr) ? hr : E_OUTOFMEMORY);
+        tritonSetCreateError(pD, FAILED(hr) ? hr : E_OUTOFMEMORY);
         return;
     }
 
@@ -496,13 +496,13 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hResource.pDrvPrivate);
     if (!pD || !r) {
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
 
     if (pArgs->NumAllocations < 1 || !pArgs->pOpenAllocationInfo) {
         TR_STUB("OpenResource: no allocation info");
-        tritonSetError(pD, E_NOTIMPL);
+        tritonSetCreateError(pD, E_NOTIMPL);
         return;
     }
     const VIOGPU_CREATE_ALLOCATION_EXCHANGE *ax =
@@ -514,7 +514,7 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
          ax->Type != VIOGPU_RESOURCE_TYPE_3D)) {
         TR_LOG("OpenResource: not an openable texture (type=%d)",
                ax ? (int)ax->Type : -1);
-        tritonSetError(pD, E_NOTIMPL);
+        tritonSetCreateError(pD, E_NOTIMPL);
         return;
     }
 
@@ -537,7 +537,7 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
         default:
             TR_LOG("OpenResource: 3D allocation with unmapped virgl format %u",
                    (unsigned)ax->Options3D.format);
-            tritonSetError(pD, E_NOTIMPL);
+            tritonSetCreateError(pD, E_NOTIMPL);
             return;
         }
         const ULONGLONG stride3d =
@@ -591,7 +591,7 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
     if (FAILED(hr) || !esc.ResourceInfo.IsCreated || !esc.ResourceInfo.Id) {
         TR_LOG("OpenResource: RES_INFO failed hr=0x%08lx created=%d id=%u",
                hr, esc.ResourceInfo.IsCreated, esc.ResourceInfo.Id);
-        tritonSetError(pD, E_FAIL);
+        tritonSetCreateError(pD, E_FAIL);
         return;
     }
     const uint32_t res_id = esc.ResourceInfo.Id;
@@ -636,7 +636,7 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
             r->hImportAlloc = 0;
             r->hImportResKmt = 0;
         }
-        tritonSetError(pD, E_FAIL);
+        tritonSetCreateError(pD, E_FAIL);
         return;
     }
     r->pResource = (ID3D11Resource *)imported;
@@ -673,12 +673,13 @@ tritonResourceMap(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hResource,
         return;
     }
     if (FAILED(hr)) {
-        /* The Map DDI has no benign failure code besides WASSTILLDRAWING:
-         * the runtime treats anything else as critical and loses the
-         * device, so record what failed before that happens. */
+        /* Map may report only WASSTILLDRAWING and DEVICEREMOVED; any other
+         * code is taken as a driver bug.  A failed map leaves the app no
+         * usable pointer either way, so report the device as removed and
+         * record what failed. */
         TR_LOG("Map: sub=%u type=%u flags=0x%x hr=0x%08lx", Subresource,
                (unsigned)DDIMap, Flags, hr);
-        tritonSetError(pD, hr);
+        tritonSetError(pD, D3DDDIERR_DEVICEREMOVED);
         pMapped->pData = NULL;
         pMapped->RowPitch = pMapped->DepthPitch = 0;
         return;
@@ -855,7 +856,6 @@ tritonCs_ ## stage ## _Set10(D3D10DDI_HDEVICE hDevice, UINT Start, UINT N,      
     ID3D11Buffer *aB[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT] = {};               \
     if (!tritonFillConstantBuffers(Start, N, phB, aB,                                       \
                        D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)) {                \
-        tritonSetError(pD, E_INVALIDARG);                                                   \
         return;                                                                             \
     }                                                                                       \
     ID3D11DeviceContext1_##ctx_method(pD->pCtx1, Start, N, aB);                             \
@@ -881,7 +881,6 @@ tritonCs_ ## stage ## _Set11_1(D3D10DDI_HDEVICE hDevice, UINT Start, UINT N,    
     ID3D11Buffer *aB[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT] = {};               \
     if (!tritonFillConstantBuffers(Start, N, phB, aB,                                       \
                        D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)) {                \
-        tritonSetError(pD, E_INVALIDARG);                                                   \
         return;                                                                             \
     }                                                                                       \
     ID3D11DeviceContext1_##ctx_method(pD->pCtx1, Start, N, aB, pFirst, pNum);               \

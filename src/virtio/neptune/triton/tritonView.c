@@ -143,7 +143,7 @@ tritonCreateRenderTargetView(D3D10DDI_HDEVICE hDevice,
     if (!pD || !v || !r || !r->pResource) {
         TR_LOG("CreateRenderTargetView: missing handle (dev=%p view=%p res=%p)",
                (void *)pD, (void *)v, (void *)(r ? r->pResource : NULL));
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
 
@@ -206,7 +206,7 @@ tritonCreateRenderTargetView(D3D10DDI_HDEVICE hDevice,
     default:
         TR_LOG("CreateRenderTargetView: unknown dimension %d",
                pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
 
@@ -217,7 +217,7 @@ tritonCreateRenderTargetView(D3D10DDI_HDEVICE hDevice,
     if (FAILED(hr)) {
         TR_LOG("CreateRenderTargetView: failed hr=0x%08lx", hr);
         v->pRTV = NULL;
-        tritonSetError(pD, hr);
+        tritonSetCreateError(pD, hr);
         return;
     }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_RTV);
@@ -300,7 +300,6 @@ tritonSetRenderTargets(D3D10DDI_HDEVICE hDevice,
     if (NumRTVs > D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT) {
         TR_LOG("SetRenderTargets: NumRTVs %u exceeds max %u",
                NumRTVs, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
-        tritonSetError(pD, E_INVALIDARG);
         return;
     }
     (void)ClearSlots;
@@ -319,10 +318,8 @@ tritonSetRenderTargets(D3D10DDI_HDEVICE hDevice,
         ID3D11DeviceContext1_OMSetRenderTargets(pD->pCtx1, NumRTVs, aRTV, pDSV);
     } else {
         if (UAVStartSlot >= D3D11_1_UAV_SLOT_COUNT ||
-            NumUAVs > D3D11_1_UAV_SLOT_COUNT - UAVStartSlot) {
-            tritonSetError(pD, E_INVALIDARG);
+            NumUAVs > D3D11_1_UAV_SLOT_COUNT - UAVStartSlot)
             return;
-        }
         ID3D11UnorderedAccessView *aUAV[D3D11_1_UAV_SLOT_COUNT] = {};
         for (UINT i = 0; i < NumUAVs; ++i) {
             PTRITON_UAVIEW u = phUAVs
@@ -354,7 +351,7 @@ tritonCreateSRV(D3D10DDI_HDEVICE hDevice,
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_SRVIEW   v  = (PTRITON_SRVIEW)(hSRV.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetError(pD, E_INVALIDARG); return; }
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
     v->pResource = r;
     v->pSRV      = NULL;
 
@@ -428,13 +425,13 @@ tritonCreateSRV(D3D10DDI_HDEVICE hDevice,
         break;
     default:
         TR_LOG("CreateSRV: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     v->fDesc1 = FALSE;
     v->Desc   = d;
     HRESULT hr = ID3D11Device1_CreateShaderResourceView(pD->pDev1, r->pResource, &d, &v->pSRV);
-    if (FAILED(hr)) { TR_LOG("CreateSRV: 0x%08lx", hr); v->pSRV = NULL; tritonSetError(pD, hr); return; }
+    if (FAILED(hr)) { TR_LOG("CreateSRV: 0x%08lx", hr); v->pSRV = NULL; tritonSetCreateError(pD, hr); return; }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_SRV);
 }
 
@@ -465,7 +462,7 @@ tritonCreateDSV(D3D10DDI_HDEVICE hDevice,
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_DSVIEW   v  = (PTRITON_DSVIEW)(hDSV.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetError(pD, E_INVALIDARG); return; }
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
     v->pResource = r;
     v->pDSV      = NULL;
 
@@ -512,12 +509,12 @@ tritonCreateDSV(D3D10DDI_HDEVICE hDevice,
         break;
     default:
         TR_LOG("CreateDSV: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     v->Desc = d;
     HRESULT hr = ID3D11Device1_CreateDepthStencilView(pD->pDev1, r->pResource, &d, &v->pDSV);
-    if (FAILED(hr)) { TR_LOG("CreateDSV: 0x%08lx", hr); v->pDSV = NULL; tritonSetError(pD, hr); return; }
+    if (FAILED(hr)) { TR_LOG("CreateDSV: 0x%08lx", hr); v->pDSV = NULL; tritonSetCreateError(pD, hr); return; }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_DSV);
 }
 
@@ -548,7 +545,7 @@ tritonCreateUAV(D3D10DDI_HDEVICE hDevice,
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_UAVIEW   v  = (PTRITON_UAVIEW)(hUAV.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetError(pD, E_INVALIDARG); return; }
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
     v->pResource = r;
     v->pUAV      = NULL;
 
@@ -593,13 +590,13 @@ tritonCreateUAV(D3D10DDI_HDEVICE hDevice,
         break;
     default:
         TR_LOG("CreateUAV: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     v->fDesc1 = FALSE;
     v->Desc   = d;
     HRESULT hr = ID3D11Device1_CreateUnorderedAccessView(pD->pDev1, r->pResource, &d, &v->pUAV);
-    if (FAILED(hr)) { TR_LOG("CreateUAV: 0x%08lx", hr); v->pUAV = NULL; tritonSetError(pD, hr); return; }
+    if (FAILED(hr)) { TR_LOG("CreateUAV: 0x%08lx", hr); v->pUAV = NULL; tritonSetCreateError(pD, hr); return; }
     tritonResourceLinkView(r, &v->link, TRITON_VIEW_UAV);
 }
 
@@ -682,10 +679,8 @@ tritonCsSetUAVs(D3D10DDI_HDEVICE hDevice, UINT Start, UINT N,
     PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     if (!pD) return;
     if (N > D3D11_1_UAV_SLOT_COUNT || Start >= D3D11_1_UAV_SLOT_COUNT ||
-        N + Start > D3D11_1_UAV_SLOT_COUNT) {
-        tritonSetError(pD, E_INVALIDARG);
+        N + Start > D3D11_1_UAV_SLOT_COUNT)
         return;
-    }
     ID3D11UnorderedAccessView *a[D3D11_1_UAV_SLOT_COUNT] = {};
     for (UINT i = 0; i < N; ++i) {
         PTRITON_UAVIEW v = ph
@@ -732,7 +727,7 @@ tritonCreateSRV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_SRVIEW   v  = (PTRITON_SRVIEW)(hSRV.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetError(pD, E_INVALIDARG); return; }
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
 
     if (!pD->pDev3) {
         D3D11DDIARG_CREATESHADERRESOURCEVIEW a = {};
@@ -827,7 +822,7 @@ tritonCreateSRV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
         break;
     default:
         TR_LOG("CreateSRV_WDDM2_0: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     ID3D11ShaderResourceView1 *pView1 = NULL;
@@ -835,7 +830,7 @@ tritonCreateSRV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     v->Desc1  = d;
     HRESULT hr = ID3D11Device3_CreateShaderResourceView1(
         pD->pDev3, r->pResource, &d, &pView1);
-    if (FAILED(hr)) { TR_LOG("CreateSRV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetError(pD, hr); }
+    if (FAILED(hr)) { TR_LOG("CreateSRV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetCreateError(pD, hr); }
     v->pSRV = (ID3D11ShaderResourceView *)pView1;
     if (v->pSRV) tritonResourceLinkView(r, &v->link, TRITON_VIEW_SRV);
 }
@@ -856,7 +851,7 @@ tritonCreateRenderTargetView_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_RTVIEW   v  = (PTRITON_RTVIEW)(hRTV.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetError(pD, E_INVALIDARG); return; }
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
 
     if (!pD->pDev3) {
         D3D10DDIARG_CREATERENDERTARGETVIEW a = {};
@@ -932,7 +927,7 @@ tritonCreateRenderTargetView_WDDM2_0(D3D10DDI_HDEVICE hDevice,
         break;
     default:
         TR_LOG("CreateRTV_WDDM2_0: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     ID3D11RenderTargetView1 *pView1 = NULL;
@@ -940,7 +935,7 @@ tritonCreateRenderTargetView_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     v->Desc1  = d;
     HRESULT hr = ID3D11Device3_CreateRenderTargetView1(
         pD->pDev3, r->pResource, &d, &pView1);
-    if (FAILED(hr)) { TR_LOG("CreateRTV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetError(pD, hr); }
+    if (FAILED(hr)) { TR_LOG("CreateRTV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetCreateError(pD, hr); }
     v->pRTV = (ID3D11RenderTargetView *)pView1;
     if (v->pRTV) tritonResourceLinkView(r, &v->link, TRITON_VIEW_RTV);
 }
@@ -961,7 +956,7 @@ tritonCreateUAV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_UAVIEW   v  = (PTRITON_UAVIEW)(hUAV.pDrvPrivate);
     PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(pArgs->hDrvResource.pDrvPrivate);
-    if (!pD || !v || !r || !r->pResource) { tritonSetError(pD, E_INVALIDARG); return; }
+    if (!pD || !v || !r || !r->pResource) { tritonSetCreateError(pD, E_INVALIDARG); return; }
 
     if (!pD->pDev3) {
         D3D11DDIARG_CREATEUNORDEREDACCESSVIEW a = {};
@@ -1024,7 +1019,7 @@ tritonCreateUAV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
         break;
     default:
         TR_LOG("CreateUAV_WDDM2_0: unknown dimension %d", pArgs->ResourceDimension);
-        tritonSetError(pD, E_INVALIDARG);
+        tritonSetCreateError(pD, E_INVALIDARG);
         return;
     }
     ID3D11UnorderedAccessView1 *pView1 = NULL;
@@ -1032,7 +1027,7 @@ tritonCreateUAV_WDDM2_0(D3D10DDI_HDEVICE hDevice,
     v->Desc1  = d;
     HRESULT hr = ID3D11Device3_CreateUnorderedAccessView1(
         pD->pDev3, r->pResource, &d, &pView1);
-    if (FAILED(hr)) { TR_LOG("CreateUAV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetError(pD, hr); }
+    if (FAILED(hr)) { TR_LOG("CreateUAV_WDDM2_0: 0x%08lx", hr); pView1 = NULL; tritonSetCreateError(pD, hr); }
     v->pUAV = (ID3D11UnorderedAccessView *)pView1;
     if (v->pUAV) tritonResourceLinkView(r, &v->link, TRITON_VIEW_UAV);
 }
