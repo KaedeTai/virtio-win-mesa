@@ -786,7 +786,9 @@ tritonDxgiRotateResourceIdentities(DXGI_DDI_ARG_ROTATE_RESOURCE_IDENTITIES *pArg
                                 D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT);
          if (cb->pfnStateCsUavCb)
             cb->pfnStateCsUavCb(pD->hRTCoreLayer, 0,
-                                D3D11_PS_CS_UAV_REGISTER_COUNT);
+                                pD->uIfVersion >= D3D11_1_DDI_INTERFACE_VERSION
+                                   ? D3D11_1_UAV_SLOT_COUNT
+                                   : D3D11_PS_CS_UAV_REGISTER_COUNT);
          if (cb->pfnStateOmRenderTargetsCb)
             cb->pfnStateOmRenderTargetsCb(pD->hRTCoreLayer);
       }
