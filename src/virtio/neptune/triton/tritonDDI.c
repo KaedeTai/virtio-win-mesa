@@ -123,6 +123,12 @@ void   APIENTRY tritonGsSetShader(D3D10DDI_HDEVICE, D3D10DDI_HSHADER);
 void   APIENTRY tritonHsSetShader(D3D10DDI_HDEVICE, D3D10DDI_HSHADER);
 void   APIENTRY tritonDsSetShader(D3D10DDI_HDEVICE, D3D10DDI_HSHADER);
 void   APIENTRY tritonCsSetShader(D3D10DDI_HDEVICE, D3D10DDI_HSHADER);
+#define TR_DECL_SET_SHADER_WITH_IFACES(stage) \
+    void APIENTRY triton ## stage ## SetShaderWithIfaces(D3D10DDI_HDEVICE, D3D10DDI_HSHADER, UINT, \
+                                                         const UINT *, const D3D11DDIARG_POINTERDATA *)
+TR_DECL_SET_SHADER_WITH_IFACES(Vs); TR_DECL_SET_SHADER_WITH_IFACES(Ps); TR_DECL_SET_SHADER_WITH_IFACES(Gs);
+TR_DECL_SET_SHADER_WITH_IFACES(Hs); TR_DECL_SET_SHADER_WITH_IFACES(Ds); TR_DECL_SET_SHADER_WITH_IFACES(Cs);
+#undef TR_DECL_SET_SHADER_WITH_IFACES
 void   APIENTRY tritonCreateGeometryShader(D3D10DDI_HDEVICE, const UINT *, D3D10DDI_HSHADER, D3D10DDI_HRTSHADER, const VOID *);
 void   APIENTRY tritonCreateHullShader(D3D10DDI_HDEVICE, const UINT *, D3D10DDI_HSHADER, D3D10DDI_HRTSHADER, const VOID *);
 void   APIENTRY tritonCreateDomainShader(D3D10DDI_HDEVICE, const UINT *, D3D10DDI_HSHADER, D3D10DDI_HRTSHADER, const VOID *);
@@ -466,12 +472,12 @@ static void tritonFillD3D11DeviceFuncs(D3D11DDI_DEVICEFUNCS *p)
     p->pfnCreateCommandList                         = (PFND3D11DDI_CREATECOMMANDLIST)0;
     p->pfnDestroyCommandList                        = (PFND3D11DDI_DESTROYCOMMANDLIST)0;
     p->pfnCalcPrivateTessellationShaderSize         = (PFND3D11DDI_CALCPRIVATETESSELLATIONSHADERSIZE)tritonCalcPrivateTessellationShaderSize;
-    p->pfnPsSetShaderWithIfaces                     = (PFND3D11DDI_SETSHADER_WITH_IFACES)TR_STUB_V;
-    p->pfnVsSetShaderWithIfaces                     = (PFND3D11DDI_SETSHADER_WITH_IFACES)TR_STUB_V;
-    p->pfnGsSetShaderWithIfaces                     = (PFND3D11DDI_SETSHADER_WITH_IFACES)TR_STUB_V;
-    p->pfnHsSetShaderWithIfaces                     = (PFND3D11DDI_SETSHADER_WITH_IFACES)TR_STUB_V;
-    p->pfnDsSetShaderWithIfaces                     = (PFND3D11DDI_SETSHADER_WITH_IFACES)TR_STUB_V;
-    p->pfnCsSetShaderWithIfaces                     = (PFND3D11DDI_SETSHADER_WITH_IFACES)TR_STUB_V;
+    p->pfnPsSetShaderWithIfaces                     = tritonPsSetShaderWithIfaces;
+    p->pfnVsSetShaderWithIfaces                     = tritonVsSetShaderWithIfaces;
+    p->pfnGsSetShaderWithIfaces                     = tritonGsSetShaderWithIfaces;
+    p->pfnHsSetShaderWithIfaces                     = tritonHsSetShaderWithIfaces;
+    p->pfnDsSetShaderWithIfaces                     = tritonDsSetShaderWithIfaces;
+    p->pfnCsSetShaderWithIfaces                     = tritonCsSetShaderWithIfaces;
     p->pfnCreateComputeShader                       = tritonCreateComputeShader;
     p->pfnCsSetShader                               = tritonCsSetShader;
     p->pfnCsSetShaderResources                      = tritonCsSetShaderResources;

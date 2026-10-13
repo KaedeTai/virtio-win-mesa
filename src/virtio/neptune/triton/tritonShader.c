@@ -316,6 +316,32 @@ tritonCsSetShader(D3D10DDI_HDEVICE hDevice, D3D10DDI_HSHADER hShader)
         (s && s->u.pCS) ? s->u.pCS : NULL, NULL, 0);
 }
 
+/* Shaders that declare interfaces are bound through *SetShaderWithIfaces.
+ * The host shaders are created without class linkage, so the class
+ * instances have nowhere to go; bind the shader itself (the VS through
+ * tritonVsSetShader so input-layout resolution still runs) rather than
+ * leaving the previous shader bound. */
+#define TR_SET_SHADER_WITH_IFACES(stage)                                       \
+void APIENTRY                                                                  \
+triton ## stage ## SetShaderWithIfaces(D3D10DDI_HDEVICE hDevice,               \
+                                       D3D10DDI_HSHADER hShader,               \
+                                       UINT NumClassInstances,                 \
+                                       const UINT *pIfaces,                    \
+                                       const D3D11DDIARG_POINTERDATA *pPtrs)   \
+{                                                                              \
+    (void)pIfaces; (void)pPtrs;                                                \
+    if (NumClassInstances)                                                     \
+        TR_STUB(#stage "SetShaderWithIfaces: class instances ignored");        \
+    triton ## stage ## SetShader(hDevice, hShader);                            \
+}
+TR_SET_SHADER_WITH_IFACES(Vs)
+TR_SET_SHADER_WITH_IFACES(Ps)
+TR_SET_SHADER_WITH_IFACES(Gs)
+TR_SET_SHADER_WITH_IFACES(Hs)
+TR_SET_SHADER_WITH_IFACES(Ds)
+TR_SET_SHADER_WITH_IFACES(Cs)
+#undef TR_SET_SHADER_WITH_IFACES
+
 /* ---------- Geometry Shader with Stream Output ----------
  *
  * D3D11's CreateGeometryShaderWithStreamOutput needs the per-element
