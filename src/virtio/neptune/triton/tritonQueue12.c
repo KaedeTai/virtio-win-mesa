@@ -445,8 +445,6 @@ t12ExecuteCommandLists(D3D12DDI_HCOMMANDQUEUE hQueue, UINT Count,
     /* Before the batch reaches the host, not after: the wait has to be on the
      * host queue's timeline ahead of this batch's work. */
     t12OrderAgainstSiblings(q);
-    /* Likewise for tile mappings this batch may consume. */
-    t12TileMapOrder(q);
 
     ID3D12CommandList *stackLists[8];
     ID3D12CommandList **lists = stackLists;
@@ -631,7 +629,10 @@ C_ASSERT(sizeof(D3D12DDI_TILE_RANGE_FLAGS) == sizeof(D3D12_TILE_RANGE_FLAGS));
  * from a DIFFERENT ring carry an ordering edge to that position: the host
  * holds that ring at the edge until the mapping is applied, and this
  * thread never waits.  Work submitted on the mapping queue itself is
- * behind the update in its own ring and needs nothing.
+ * behind the update in its own ring and needs nothing, and an
+ * ExecuteCommandLists on any queue already orders itself after every
+ * ring's tail (npt_overrides_d3d12_queue.c); what is left to edge are
+ * Signals and further mapping updates.
  *
  * Unmaps carry an edge too.  Reading an unmapped tile is undefined, so an
  * unmap racing dependent work needs no ordering of its own -- but a later
