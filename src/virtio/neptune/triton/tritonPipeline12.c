@@ -61,7 +61,11 @@ t12ContainerHasPart(const void *container, SIZE_T cb, UINT fourcc)
 }
 
 typedef struct TRITON12_BLEND    { D3D12DDI_BLEND_DESC_0010 d; }        TRITON12_BLEND;
-typedef struct TRITON12_DS       { D3D12DDI_DEPTH_STENCIL_DESC_0010 d; } TRITON12_DS;
+/* _0025 layout: the _0010 desc with DepthBoundsTestEnable appended.  The
+ * R3 (_0022) table hands the shorter desc, which leaves the flag clear. */
+typedef struct TRITON12_DS       { D3D12DDI_DEPTH_STENCIL_DESC_0025 d; } TRITON12_DS;
+_Static_assert(offsetof(D3D12DDI_DEPTH_STENCIL_DESC_0025, DepthBoundsTestEnable) >=
+               sizeof(D3D12DDI_DEPTH_STENCIL_DESC_0010), "_0025 extends _0010");
 typedef struct TRITON12_RASTER   { D3D12DDI_RASTERIZER_DESC_0010 d; }   TRITON12_RASTER;
 typedef struct TRITON12_ROOTSIG  { ID3D12RootSignature *pRS; }          TRITON12_ROOTSIG;
 typedef struct TRITON12_PSO      { ID3D12PipelineState *pPSO; }         TRITON12_PSO;
@@ -295,6 +299,25 @@ static VOID APIENTRY
 t12CreateDepthStencilState(D3D12DDI_HDEVICE hDevice,
                            const D3D12DDI_DEPTH_STENCIL_DESC_0010 *pDesc,
                            D3D12DDI_HDEPTHSTENCILSTATE hState)
+{
+    TRITON12_DS *s = (TRITON12_DS *)hState.pDrvPrivate;
+    (void)hDevice;
+    if (!s)
+        return;
+    memset(s, 0, sizeof(*s));
+    if (pDesc)
+        memcpy(&s->d, pDesc, sizeof(*pDesc));
+}
+
+static SIZE_T APIENTRY
+t12CalcPrivateDepthStencilStateSize0025(D3D12DDI_HDEVICE hDevice,
+                                        const D3D12DDI_DEPTH_STENCIL_DESC_0025 *pDesc)
+{ (void)hDevice; (void)pDesc; return sizeof(TRITON12_DS); }
+
+static VOID APIENTRY
+t12CreateDepthStencilState0025(D3D12DDI_HDEVICE hDevice,
+                               const D3D12DDI_DEPTH_STENCIL_DESC_0025 *pDesc,
+                               D3D12DDI_HDEPTHSTENCILSTATE hState)
 {
     TRITON12_DS *s = (TRITON12_DS *)hState.pDrvPrivate;
     (void)hDevice;
@@ -651,40 +674,64 @@ t12StreamPut(unsigned char *buf, SIZE_T *off,
     *off = (at + size + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
 }
 
-/* Mesh pipelines have no graphics-desc form: the host takes them as a
- * subobject stream (ID3D12Device2::CreatePipelineState) carrying the
- * amplification and mesh stages in place of the vertex stages. */
+/* A graphics PSO the graphics-desc form cannot carry -- mesh/amplification
+ * stages, or the depth-bounds enable that lives only in
+ * D3D12_DEPTH_STENCIL_DESC1 -- goes to the host as a subobject stream
+ * (ID3D12Device2::CreatePipelineState) built from the same assembled desc.
+ * With ms set the mesh stages replace the vertex stages. */
 static HRESULT
-t12CreateMeshPipelineState(PTRITON12_DEVICE p,
-                           const D3D12_GRAPHICS_PIPELINE_STATE_DESC *gd,
-                           const D3D12DDIARG_CREATE_PIPELINE_STATE_0075 *pArgs,
-                           TRITON12_PSO *pso)
+t12CreateStreamPipelineState(PTRITON12_DEVICE p,
+                             const D3D12_GRAPHICS_PIPELINE_STATE_DESC *gd,
+                             const D3D12_SHADER_BYTECODE *as,
+                             const D3D12_SHADER_BYTECODE *ms,
+                             BOOL depthBounds, TRITON12_PSO *pso)
 {
-    D3D12_SHADER_BYTECODE as, ms;
-    t12ShaderBytecode(pArgs->hAmplificationShader, &as);
-    t12ShaderBytecode(pArgs->hMeshShader, &ms);
-    if (!ms.pShaderBytecode)
-        return E_INVALIDARG;
-
-    unsigned char buf[1024];
+    unsigned char buf[2048];
     SIZE_T off = 0;
 #define PUT(tag, ptr, T) \
     t12StreamPut(buf, &off, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_##tag, \
                  (ptr), sizeof(T), __alignof(T))
+#define PUT_SHADER(tag, bc) \
+    do { if ((bc)->pShaderBytecode) PUT(tag, (bc), D3D12_SHADER_BYTECODE); } while (0)
     PUT(ROOT_SIGNATURE, &gd->pRootSignature, ID3D12RootSignature *);
-    if (as.pShaderBytecode)
-        PUT(AS, &as, D3D12_SHADER_BYTECODE);
-    PUT(MS, &ms, D3D12_SHADER_BYTECODE);
-    if (gd->PS.pShaderBytecode)
-        PUT(PS, &gd->PS, D3D12_SHADER_BYTECODE);
+    if (ms) {
+        PUT_SHADER(AS, as);
+        PUT_SHADER(MS, ms);
+    } else {
+        PUT_SHADER(VS, &gd->VS);
+        PUT_SHADER(HS, &gd->HS);
+        PUT_SHADER(DS, &gd->DS);
+        PUT_SHADER(GS, &gd->GS);
+        if (gd->StreamOutput.NumEntries)
+            PUT(STREAM_OUTPUT, &gd->StreamOutput, D3D12_STREAM_OUTPUT_DESC);
+        if (gd->InputLayout.NumElements)
+            PUT(INPUT_LAYOUT, &gd->InputLayout, D3D12_INPUT_LAYOUT_DESC);
+        PUT(IB_STRIP_CUT_VALUE, &gd->IBStripCutValue,
+            D3D12_INDEX_BUFFER_STRIP_CUT_VALUE);
+    }
+    PUT_SHADER(PS, &gd->PS);
     PUT(BLEND, &gd->BlendState, D3D12_BLEND_DESC);
     PUT(SAMPLE_MASK, &gd->SampleMask, UINT);
     PUT(RASTERIZER, &gd->RasterizerState, D3D12_RASTERIZER_DESC);
-    PUT(DEPTH_STENCIL, &gd->DepthStencilState, D3D12_DEPTH_STENCIL_DESC);
+    if (depthBounds) {
+        D3D12_DEPTH_STENCIL_DESC1 ds1;
+        memset(&ds1, 0, sizeof(ds1));
+        ds1.DepthEnable      = gd->DepthStencilState.DepthEnable;
+        ds1.DepthWriteMask   = gd->DepthStencilState.DepthWriteMask;
+        ds1.DepthFunc        = gd->DepthStencilState.DepthFunc;
+        ds1.StencilEnable    = gd->DepthStencilState.StencilEnable;
+        ds1.StencilReadMask  = gd->DepthStencilState.StencilReadMask;
+        ds1.StencilWriteMask = gd->DepthStencilState.StencilWriteMask;
+        ds1.FrontFace        = gd->DepthStencilState.FrontFace;
+        ds1.BackFace         = gd->DepthStencilState.BackFace;
+        ds1.DepthBoundsTestEnable = TRUE;
+        PUT(DEPTH_STENCIL1, &ds1, D3D12_DEPTH_STENCIL_DESC1);
+    } else {
+        PUT(DEPTH_STENCIL, &gd->DepthStencilState, D3D12_DEPTH_STENCIL_DESC);
+    }
     PUT(PRIMITIVE_TOPOLOGY, &gd->PrimitiveTopologyType, D3D12_PRIMITIVE_TOPOLOGY_TYPE);
     {
-        /* D3D12_RT_FORMAT_ARRAY, which this SDK header set lacks. */
-        struct { DXGI_FORMAT RTFormats[8]; UINT NumRenderTargets; } rts;
+        struct D3D12_RT_FORMAT_ARRAY rts;
         memset(&rts, 0, sizeof(rts));
         rts.NumRenderTargets = gd->NumRenderTargets;
         for (UINT i = 0; i < 8; i++)
@@ -695,6 +742,7 @@ t12CreateMeshPipelineState(PTRITON12_DEVICE p,
     PUT(DEPTH_STENCIL_FORMAT, &gd->DSVFormat, DXGI_FORMAT);
     PUT(SAMPLE_DESC, &gd->SampleDesc, DXGI_SAMPLE_DESC);
     PUT(NODE_MASK, &gd->NodeMask, UINT);
+#undef PUT_SHADER
 #undef PUT
 
     ID3D12Device2 *dev2 = NULL;
@@ -708,9 +756,9 @@ t12CreateMeshPipelineState(PTRITON12_DEVICE p,
     hr = ID3D12Device2_CreatePipelineState(dev2, &sd, &IID_ID3D12PipelineState,
                                            (void **)&pso->pPSO);
     ID3D12Device2_Release(dev2);
-    TR_LOG_HR(hr, "12.CreatePipelineState(mesh): as=%d rts=%u stream=%zu -> 0x%08lx",
-           (int)(as.pShaderBytecode != NULL), gd->NumRenderTargets,
-           (size_t)off, (unsigned long)hr);
+    TR_LOG_HR(hr, "12.CreatePipelineState(stream): mesh=%d bounds=%d rts=%u "
+           "stream=%zu -> 0x%08lx", (int)(ms != NULL), (int)depthBounds,
+           gd->NumRenderTargets, (size_t)off, (unsigned long)hr);
     return hr;
 }
 
@@ -869,9 +917,18 @@ t12CreatePipelineStateImpl(D3D12DDI_HDEVICE hDevice,
     gd.SampleDesc = pArgs->SampleDesc;
     gd.NodeMask = pArgs->NodeMask;
 
+    const BOOL depthBounds = ds && ds->d.DepthBoundsTestEnable;
     if (pArgs75 && (pArgs75->hMeshShader.pDrvPrivate ||
-                    pArgs75->hAmplificationShader.pDrvPrivate))
-        return t12CreateMeshPipelineState(p, &gd, pArgs75, pso);
+                    pArgs75->hAmplificationShader.pDrvPrivate)) {
+        D3D12_SHADER_BYTECODE as, ms;
+        t12ShaderBytecode(pArgs75->hAmplificationShader, &as);
+        t12ShaderBytecode(pArgs75->hMeshShader, &ms);
+        if (!ms.pShaderBytecode)
+            return E_INVALIDARG;
+        return t12CreateStreamPipelineState(p, &gd, &as, &ms, depthBounds, pso);
+    }
+    if (depthBounds)
+        return t12CreateStreamPipelineState(p, &gd, NULL, NULL, TRUE, pso);
 
     hr = ID3D12Device_CreateGraphicsPipelineState(
         p->pDev, &gd, &IID_ID3D12PipelineState, (void **)&pso->pPSO);
@@ -957,6 +1014,8 @@ t12CalcPrivateMeshShaderSize(D3D12DDI_HDEVICE hDevice,
 void
 triton12InstallPipelineFuncs0080(D3D12DDI_DEVICE_FUNCS_CORE_0080 *t)
 {
+    t->pfnCalcPrivateDepthStencilStateSize = t12CalcPrivateDepthStencilStateSize0025;
+    t->pfnCreateDepthStencilState          = t12CreateDepthStencilState0025;
     t->pfnCalcPrivatePipelineStateSize = t12CalcPrivatePipelineStateSize0075;
     t->pfnCreatePipelineState          = t12CreatePipelineState0075;
     t->pfnCreateAmplificationShader    = t12CreateAmplificationShader;
