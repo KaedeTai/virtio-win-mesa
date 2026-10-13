@@ -258,7 +258,7 @@ fence12_SetEventOnCompletion_override(void *self, UINT64 Value, HANDLE hEvent)
     * so nothing needs a reply. */
    uint64_t token = npt_event_arm(dev, (void *)hEvent);
    if (!token)
-      return NPT_E_FAIL;
+      return NPT_E_OUTOFMEMORY;
    /* The wire HANDLE slot carries the single-use token; the host
     * resolves it to this arm's proxy. */
    npt_async_ID3D12Fence_SetEventOnCompletion(
