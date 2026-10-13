@@ -631,37 +631,38 @@ tritonDiscard(D3D10DDI_HDEVICE hDevice, D3D11DDI_HANDLETYPE HandleType,
 {
     PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     if (!pD || !hResourceOrView) return;
-    /* D3D11.1 DiscardView/Resource ignore the rect array. */
-    (void)pRects; (void)NumRects;
-    if (HandleType == D3D10DDI_HT_RESOURCE) {
+    ID3D11View *pView = NULL;
+    switch (HandleType) {
+    case D3D10DDI_HT_RESOURCE: {
         PTRITON_RESOURCE r = (PTRITON_RESOURCE)(hResourceOrView);
-        if (r && r->pResource)
+        if (r->pResource)
             ID3D11DeviceContext1_DiscardResource(pD->pCtx1, r->pResource);
-    } else {
-        switch (HandleType) {
-        case D3D10DDI_HT_SHADERRESOURCEVIEW: {
-            PTRITON_SRVIEW v = (PTRITON_SRVIEW)(hResourceOrView);
-            if (v && v->pSRV) ID3D11DeviceContext1_DiscardView(pD->pCtx1, (ID3D11View *)v->pSRV);
-            break;
-        }
-        case D3D10DDI_HT_RENDERTARGETVIEW: {
-            PTRITON_RTVIEW v = (PTRITON_RTVIEW)(hResourceOrView);
-            if (v && v->pRTV) ID3D11DeviceContext1_DiscardView(pD->pCtx1, (ID3D11View *)v->pRTV);
-            break;
-        }
-        case D3D10DDI_HT_DEPTHSTENCILVIEW: {
-            PTRITON_DSVIEW v = (PTRITON_DSVIEW)(hResourceOrView);
-            if (v && v->pDSV) ID3D11DeviceContext1_DiscardView(pD->pCtx1, (ID3D11View *)v->pDSV);
-            break;
-        }
-        case D3D11DDI_HT_UNORDEREDACCESSVIEW: {
-            PTRITON_UAVIEW v = (PTRITON_UAVIEW)(hResourceOrView);
-            if (v && v->pUAV) ID3D11DeviceContext1_DiscardView(pD->pCtx1, (ID3D11View *)v->pUAV);
-            break;
-        }
-        default: break;
-        }
+        return;
     }
+    case D3D10DDI_HT_SHADERRESOURCEVIEW:
+        pView = (ID3D11View *)((PTRITON_SRVIEW)hResourceOrView)->pSRV;
+        break;
+    case D3D10DDI_HT_RENDERTARGETVIEW:
+        pView = (ID3D11View *)((PTRITON_RTVIEW)hResourceOrView)->pRTV;
+        break;
+    case D3D10DDI_HT_DEPTHSTENCILVIEW:
+        pView = (ID3D11View *)((PTRITON_DSVIEW)hResourceOrView)->pDSV;
+        break;
+    case D3D11DDI_HT_UNORDEREDACCESSVIEW:
+        pView = (ID3D11View *)((PTRITON_UAVIEW)hResourceOrView)->pUAV;
+        break;
+    default:
+        return;
+    }
+    if (!pView)
+        return;
+    /* With rectangles only those regions are discarded; the rest of the
+     * view keeps its contents. */
+    if (pRects && NumRects)
+        ID3D11DeviceContext1_DiscardView1(pD->pCtx1, pView,
+                                          (const D3D11_RECT *)pRects, NumRects);
+    else
+        ID3D11DeviceContext1_DiscardView(pD->pCtx1, pView);
 }
 
 void APIENTRY
