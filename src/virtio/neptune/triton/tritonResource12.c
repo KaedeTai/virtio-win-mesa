@@ -460,12 +460,24 @@ t12CreateHeapAndResourceCore(D3D12DDI_HDEVICE hDevice,
     }
 
     if (pHeapDesc) {
-        /* Standalone heap. */
+        /* Standalone heap.  The same untrusted ByteSize and Alignment as
+         * the heap+buffer shape above, with no covering buffer to size it
+         * from: refuse a size that cannot be a heap rather than build one
+         * on the host. */
+        if (!h)
+            return E_INVALIDARG;
+        if (!pHeapDesc->ByteSize || pHeapDesc->ByteSize > (64ull << 30)) {
+            TR_LOG("12.CreateHeapAndResource(heap): implausible size %llu "
+                   "refused", (unsigned long long)pHeapDesc->ByteSize);
+            return E_INVALIDARG;
+        }
         D3D12_HEAP_DESC desc;
         memset(&desc, 0, sizeof(desc));
-        desc.SizeInBytes = pHeapDesc->ByteSize;
+        desc.SizeInBytes = (pHeapDesc->ByteSize + 0xFFFFull) & ~0xFFFFull;
         t12HeapProps(pHeapDesc, &desc.Properties);
-        desc.Alignment = pHeapDesc->Alignment;
+        desc.Alignment = (pHeapDesc->Alignment == 0x10000ull ||
+                          pHeapDesc->Alignment == 0x400000ull)
+                             ? pHeapDesc->Alignment : 0;
         desc.Flags = t12StandaloneHeapFlags(pHeapDesc);
         HRESULT hr = ID3D12Device_CreateHeap(
             p->pDev, &desc, &IID_ID3D12Heap, (void **)&h->pHeap);
