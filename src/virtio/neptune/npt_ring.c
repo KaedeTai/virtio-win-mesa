@@ -892,6 +892,13 @@ npt_ring_send_com_release_immediate(struct npt_device *dev, uint64_t host_id)
    npt_ring_submit_raw_with_payload(ring, &header, sizeof(header), NULL, 0, 0);
 }
 
+static inline uint64_t
+npt_ring_edge_pack(uint64_t ring_id, uint32_t seqno)
+{
+   assert(ring_id && ring_id <= UINT32_MAX);
+   return (ring_id << 32) | seqno;
+}
+
 /* Lock-free pre-check: true when `ring` was already ordered after
  * target_id at or beyond seqno. */
 static bool
@@ -899,12 +906,11 @@ npt_ring_edge_covered(const struct npt_ring *ring, uint64_t target_id,
                       uint32_t seqno)
 {
    for (uint32_t i = 0; i < NPT_RING_EDGE_SEEN_SLOTS; i++) {
-      if (atomic_load_explicit(&ring->edge_seen[i].ring_id,
-                               memory_order_acquire) != target_id)
+      const uint64_t e =
+         atomic_load_explicit(&ring->edge_seen[i], memory_order_relaxed);
+      if ((e >> 32) != target_id)
          continue;
-      const uint32_t seen =
-         atomic_load_explicit(&ring->edge_seen[i].seqno, memory_order_relaxed);
-      return (int32_t)(seen - seqno) >= 0;
+      return (int32_t)((uint32_t)e - seqno) >= 0;
    }
    return false;
 }
@@ -914,20 +920,18 @@ static void
 npt_ring_edge_note_locked(struct npt_ring *ring, uint64_t target_id,
                           uint32_t seqno)
 {
+   const uint64_t packed = npt_ring_edge_pack(target_id, seqno);
    for (uint32_t i = 0; i < NPT_RING_EDGE_SEEN_SLOTS; i++) {
-      if (atomic_load_explicit(&ring->edge_seen[i].ring_id,
-                               memory_order_relaxed) == target_id) {
-         atomic_store_explicit(&ring->edge_seen[i].seqno, seqno,
+      if ((atomic_load_explicit(&ring->edge_seen[i], memory_order_relaxed) >>
+           32) == target_id) {
+         atomic_store_explicit(&ring->edge_seen[i], packed,
                                memory_order_relaxed);
          return;
       }
    }
    /* Evict round-robin: a lost entry only costs a redundant edge. */
    const uint32_t i = ring->edge_seen_next++ % NPT_RING_EDGE_SEEN_SLOTS;
-   atomic_store_explicit(&ring->edge_seen[i].seqno, seqno,
-                         memory_order_relaxed);
-   atomic_store_explicit(&ring->edge_seen[i].ring_id, target_id,
-                         memory_order_release);
+   atomic_store_explicit(&ring->edge_seen[i], packed, memory_order_relaxed);
 }
 
 /* Caller holds ring->lock. */
@@ -1608,12 +1612,8 @@ npt_ring_create(struct npt_device *device,
    npt_ring_lock_init(&ring->lock);
    mtx_init(&ring->stages_mutex, mtx_plain);
 
-   for (uint32_t i = 0; i < NPT_RING_EDGE_SEEN_SLOTS; i++) {
-      atomic_store_explicit(&ring->edge_seen[i].ring_id, 0,
-                            memory_order_relaxed);
-      atomic_store_explicit(&ring->edge_seen[i].seqno, 0,
-                            memory_order_relaxed);
-   }
+   for (uint32_t i = 0; i < NPT_RING_EDGE_SEEN_SLOTS; i++)
+      atomic_store_explicit(&ring->edge_seen[i], 0, memory_order_relaxed);
    ring->edge_seen_next = 0;
 
    npt_shmem_pool_init(&ring->reply_pool, NPT_RING_REPLY_POOL_MIN_SIZE);

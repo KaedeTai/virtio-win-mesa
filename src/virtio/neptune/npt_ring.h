@@ -301,12 +301,12 @@ struct npt_ring {
    _Atomic uint64_t roundtrip_next;
    /* Highest peer seqno this ring has already been ordered after, per
     * peer ring: an edge at or below it is redundant (a decode position
-    * only advances).  Written under ring->lock; read without it by the
-    * covered-check, where a stale entry only costs a redundant edge. */
-   struct {
-      _Atomic uint64_t ring_id;
-      _Atomic uint32_t seqno;
-   } edge_seen[NPT_RING_EDGE_SEEN_SLOTS];
+    * only advances).  Each slot packs (peer ring id << 32 | seqno) into
+    * one word so the lock-free covered-check can never pair one peer's
+    * id with another peer's seqno; ring ids are small device-local
+    * counters, and 0 is never a ring id.  Written under ring->lock; a
+    * stale read only costs a redundant edge. */
+   _Atomic uint64_t edge_seen[NPT_RING_EDGE_SEEN_SLOTS];
    uint32_t edge_seen_next;
 
    struct npt_profile_ring profile;
