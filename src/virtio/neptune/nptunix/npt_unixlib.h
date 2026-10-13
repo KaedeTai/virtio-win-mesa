@@ -16,6 +16,10 @@
 
 #define NPT_WSI_MAX_IMAGES 4
 
+/* NPT_MAX_TIMELINES for the unix side, which cannot include the transport
+ * header (it pulls in the DirectX types); the PE side asserts they agree. */
+#define NPT_UNIX_MAX_TIMELINES 64u
+
 struct npt_unix_connect_params {
    const char *path;
    int result_fd;

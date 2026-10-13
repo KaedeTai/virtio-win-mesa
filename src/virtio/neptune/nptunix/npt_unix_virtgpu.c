@@ -75,7 +75,7 @@ NTSTATUS npt_do_virtgpu_context_init(void *args)
    struct npt_unix_virtgpu_context_init_params *p = args;
    struct drm_virtgpu_context_set_param params[3] = {
       { .param = VIRTGPU_CONTEXT_PARAM_CAPSET_ID,       .value = p->capset_id },
-      { .param = VIRTGPU_CONTEXT_PARAM_NUM_RINGS,       .value = 64 },
+      { .param = VIRTGPU_CONTEXT_PARAM_NUM_RINGS,       .value = NPT_UNIX_MAX_TIMELINES },
       { .param = VIRTGPU_CONTEXT_PARAM_POLL_RINGS_MASK, .value = 0 },
    };
    struct drm_virtgpu_context_init ci = {

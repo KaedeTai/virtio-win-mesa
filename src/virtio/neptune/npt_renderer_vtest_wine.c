@@ -20,6 +20,7 @@
 #include "vtest/vtest_protocol.h"
 
 #include "neptune-protocol/npt_protocol_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 static int unixlib_connect(const char *path)
 {
@@ -255,8 +256,17 @@ npt_renderer_create_vtest(void)
    }
    npt_debug("vtest protocol: %u", v->proto.protocol_version);
 
-   v->base.info.max_timeline_count =
+   const uint32_t timelines =
       npt_vtest_vcmd_get_param(&v->proto, VCMD_PARAM_MAX_TIMELINE_COUNT);
+   if (timelines < NPT_MAX_TIMELINES) {
+      npt_log("vtest server has %u timelines, need %u", timelines,
+              (unsigned)NPT_MAX_TIMELINES);
+      npt_wine_unixlib_close(v->sock_fd);
+      DeleteCriticalSection(&v->sock_cs);
+      free(v);
+      return NULL;
+   }
+   v->base.info.max_timeline_count = NPT_MAX_TIMELINES;
 
    struct npt_capset cs;
    if (!npt_vtest_vcmd_get_capset(&v->proto, NPT_CAPSET_ID, 0, &cs, sizeof(cs))) {

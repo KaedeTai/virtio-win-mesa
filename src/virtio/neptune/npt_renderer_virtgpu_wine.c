@@ -16,6 +16,7 @@
 #include "nptunix/npt_unixlib.h"
 
 #include "neptune-protocol/npt_protocol_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 
 /* DRM UAPI constants; must match the unixlib's kernel headers. */
 #define VIRTGPU_BLOB_MEM_HOST3D        0x0002
@@ -37,6 +38,9 @@
 #endif
 
 #include "npt_renderer.h"
+
+_Static_assert(NPT_UNIX_MAX_TIMELINES == NPT_MAX_TIMELINES,
+               "nptunix and the transport header disagree on the timeline count");
 
 /* util/u_math.h conflicts with npt_common.h's Windows threading defs. */
 static inline uint64_t npt_align64(uint64_t v, uint64_t a)
@@ -369,7 +373,7 @@ npt_renderer_create_virtgpu(void)
 
    gpu->base.info.wire_format_version = capset.wire_format_version;
    gpu->base.info.caps_flags = capset.caps_flags;
-   gpu->base.info.max_timeline_count = 64;
+   gpu->base.info.max_timeline_count = NPT_MAX_TIMELINES;
 
    gpu->base.ops.destroy = npt_vgw_destroy;
    gpu->base.ops.submit_cmd = npt_vgw_submit_cmd;

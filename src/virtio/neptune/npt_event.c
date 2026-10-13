@@ -376,14 +376,7 @@ npt_event_init(struct npt_device *dev)
    const struct npt_renderer_info *info = &dev->renderer->info;
    st->ring_base = npt_renderer_event_ring_base(info);
    st->ring_end  = npt_renderer_event_ring_end(info);
-   if (st->ring_end <= st->ring_base) {
-      npt_log("event: max_timeline_count=%u too small to partition; "
-              "Win32 events will share Present rings",
-              info->max_timeline_count);
-      st->ring_base = 1;
-      st->ring_end  = info->max_timeline_count > 1
-                      ? info->max_timeline_count : 2;
-   }
+   assert(st->ring_end > st->ring_base);
    atomic_init(&st->next_event_ring_idx, st->ring_base);
    atomic_init(&st->waiter_join, false);
    st->pending_head = NULL;

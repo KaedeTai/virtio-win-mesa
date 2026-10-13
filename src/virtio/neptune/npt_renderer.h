@@ -75,14 +75,14 @@ struct npt_renderer_info {
    uint32_t virtio_ctx_id;
 };
 
-/* Timeline partition derived from the negotiated max_timeline_count.
- * Slot 0 is the CPU timeline; the upper half is Win32 event proxies
- * (round-robin).  [1, event_ring_base) is reserved for per-ring present
- * fences; the split keeps the host/guest ring-range ABI stable. */
+/* Timeline partition.  Every backend creates its context with
+ * NPT_MAX_TIMELINES; slot 0 is the CPU timeline and the upper half is
+ * Win32 event proxies.  [1, event_ring_base) is reserved, matching the
+ * host's NPT_EVENT_RING_BASE, which retires fences there immediately. */
 static inline uint32_t
 npt_renderer_event_ring_base(const struct npt_renderer_info *info)
 {
-   return info->max_timeline_count >= 4 ? info->max_timeline_count / 2 : 1;
+   return info->max_timeline_count / 2;
 }
 
 static inline uint32_t

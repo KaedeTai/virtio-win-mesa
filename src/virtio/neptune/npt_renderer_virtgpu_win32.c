@@ -28,6 +28,7 @@
 #include "virtio/virtio-gpu/wddm_hw.h"
 
 #include "neptune-protocol/npt_protocol_defs.h"
+#include "neptune-protocol/npt_protocol_transport.h"
 #include "npt_env.h"
 #include "npt_renderer.h"
 
@@ -1286,7 +1287,7 @@ npt_renderer_create_virtgpu(void)
       .DataLength = sizeof(ctx_init.CtxInit),
       .CtxInit = {
          .CapsetID = NPT_CAPSET_ID,
-         .NumRings = 64,
+         .NumRings = NPT_MAX_TIMELINES,
          .DebugName = "neptune-win32",
       },
    };
@@ -1305,7 +1306,7 @@ npt_renderer_create_virtgpu(void)
 
    gpu->base.info.wire_format_version = capset.wire_format_version;
    gpu->base.info.caps_flags = capset.caps_flags;
-   gpu->base.info.max_timeline_count = 64;
+   gpu->base.info.max_timeline_count = NPT_MAX_TIMELINES;
    /* The KMD targets this context by id when another device's flip
     * present submits this transport's WSI_PRESENT bytes. */
    gpu->base.info.virtio_ctx_id = ctx_init.CtxInit.CtxId;
