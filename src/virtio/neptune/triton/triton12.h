@@ -300,6 +300,12 @@ typedef struct TRITON12_RECORDER
 typedef struct TRITON12_LIST
 {
     ID3D12GraphicsCommandList   *pList;
+    /* Newer interfaces of pList, resolved on first use (t12ListIface) so
+     * recording entries do not QueryInterface per call.  IfaceTried marks
+     * an index as resolved, NULL included.  A list records on one thread
+     * at a time, so no lock. */
+    void                        *pIface[3];
+    UINT                         IfaceTried;
     PTRITON12_DEVICE             pDev;
     /* Recording-thread stamp, kept only under
      * NPT_DEBUG=d3d12_list_migration.  A change between Reset and Close

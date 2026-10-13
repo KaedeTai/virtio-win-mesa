@@ -36,6 +36,27 @@ t12ListApiType(D3D12DDI_COMMAND_LIST_TYPE Type,
     return D3D12_COMMAND_LIST_TYPE_DIRECT;
 }
 
+enum { T12_LIST1, T12_LIST2, T12_LIST6 };
+
+static void *
+t12ListIface(PTRITON12_LIST l, UINT which)
+{
+    static const IID *const iids[] = {
+        &IID_ID3D12GraphicsCommandList1,
+        &IID_ID3D12GraphicsCommandList2,
+        &IID_ID3D12GraphicsCommandList6,
+    };
+    if (!l || !l->pList)
+        return NULL;
+    if (!(l->IfaceTried & (1u << which))) {
+        l->IfaceTried |= 1u << which;
+        if (FAILED(ID3D12GraphicsCommandList_QueryInterface(
+                l->pList, iids[which], &l->pIface[which])))
+            l->pIface[which] = NULL;
+    }
+    return l->pIface[which];
+}
+
 /* ---------- command allocator ---------- */
 
 static SIZE_T APIENTRY
@@ -350,7 +371,15 @@ t12DestroyCommandList(D3D12DDI_HDEVICE hDevice, D3D12DDI_HCOMMANDLIST hList)
 {
     PTRITON12_LIST l = (PTRITON12_LIST)hList.pDrvPrivate;
     (void)hDevice;
-    if (l && l->pList) {
+    if (!l)
+        return;
+    for (UINT i = 0; i < ARRAYSIZE(l->pIface); i++) {
+        if (l->pIface[i])
+            IUnknown_Release((IUnknown *)l->pIface[i]);
+        l->pIface[i] = NULL;
+    }
+    l->IfaceTried = 0;
+    if (l->pList) {
         ID3D12GraphicsCommandList_Release(l->pList);
         l->pList = NULL;
     }
@@ -1342,15 +1371,9 @@ triton12InstallQueryDeviceFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t)
 static VOID APIENTRY
 t12OMSetDepthBounds(D3D12DDI_HCOMMANDLIST hList, FLOAT Min, FLOAT Max)
 {
-    PTRITON12_LIST l = t12List(hList);
-    ID3D12GraphicsCommandList1 *l1 = NULL;
-    if (!l || !l->pList)
-        return;
-    if (SUCCEEDED(ID3D12GraphicsCommandList_QueryInterface(
-            l->pList, &IID_ID3D12GraphicsCommandList1, (void **)&l1))) {
+    ID3D12GraphicsCommandList1 *l1 = t12ListIface(t12List(hList), T12_LIST1);
+    if (l1)
         ID3D12GraphicsCommandList1_OMSetDepthBounds(l1, Min, Max);
-        ID3D12GraphicsCommandList1_Release(l1);
-    }
 }
 
 static VOID APIENTRY
@@ -1359,21 +1382,16 @@ t12SetSamplePositions(D3D12DDI_HCOMMANDLIST hList, UINT NumSamplesPerPixel,
 {
     /* D3D12DDI_SAMPLE_POSITION and D3D12_SAMPLE_POSITION are both
      * {INT8 X; INT8 Y}, so the array passes through unchanged. */
-    PTRITON12_LIST l = t12List(hList);
-    ID3D12GraphicsCommandList1 *l1 = NULL;
-    if (!l || !l->pList)
+    ID3D12GraphicsCommandList1 *l1 = t12ListIface(t12List(hList), T12_LIST1);
+    if (!l1)
         return;
     TR_LOG_HOT("12.SetSamplePositions: samples=%u pixels=%u first=(%d,%d)",
            NumSamplesPerPixel, NumPixels,
            (NumSamplesPerPixel && NumPixels && pPositions) ? pPositions[0].X : 0,
            (NumSamplesPerPixel && NumPixels && pPositions) ? pPositions[0].Y : 0);
-    if (SUCCEEDED(ID3D12GraphicsCommandList_QueryInterface(
-            l->pList, &IID_ID3D12GraphicsCommandList1, (void **)&l1))) {
-        ID3D12GraphicsCommandList1_SetSamplePositions(
-            l1, NumSamplesPerPixel, NumPixels,
-            (D3D12_SAMPLE_POSITION *)pPositions);
-        ID3D12GraphicsCommandList1_Release(l1);
-    }
+    ID3D12GraphicsCommandList1_SetSamplePositions(
+        l1, NumSamplesPerPixel, NumPixels,
+        (D3D12_SAMPLE_POSITION *)pPositions);
 }
 
 static VOID APIENTRY
@@ -1387,22 +1405,20 @@ t12ResourceResolveSubresourceRegion(D3D12DDI_HCOMMANDLIST hList,
     PTRITON12_LIST l = t12List(hList);
     PTRITON12_RESOURCE d = (PTRITON12_RESOURCE)hDst.pDrvPrivate;
     PTRITON12_RESOURCE src = (PTRITON12_RESOURCE)hSrc.pDrvPrivate;
-    ID3D12GraphicsCommandList1 *l1 = NULL;
     if (!l || !l->pList || !d || !d->pResource || !src || !src->pResource)
         return;
     TR_LOG_HOT("12.ResolveSubresourceRegion: dst=%p sub=%u (%u,%u) src=%p sub=%u fmt=%d mode=%d",
            (void *)d, DstSub, DstX, DstY, (void *)src, SrcSub, (int)Format, (int)Mode);
-    if (SUCCEEDED(ID3D12GraphicsCommandList_QueryInterface(
-            l->pList, &IID_ID3D12GraphicsCommandList1, (void **)&l1))) {
+    ID3D12GraphicsCommandList1 *l1 = t12ListIface(l, T12_LIST1);
+    if (l1) {
         D3D12_RECT rc;
         if (pSrcRect) {
             rc.left = pSrcRect->left; rc.top = pSrcRect->top;
             rc.right = pSrcRect->right; rc.bottom = pSrcRect->bottom;
         }
         ID3D12GraphicsCommandList1_ResolveSubresourceRegion(
-            l1, d->pResource, DstSub, DstX, DstY, src->pResource, SrcSub,
-            pSrcRect ? &rc : NULL, Format, (D3D12_RESOLVE_MODE)Mode);
-        ID3D12GraphicsCommandList1_Release(l1);
+            l1, d->pResource, DstSub, DstX, DstY, src->pResource,
+            SrcSub, pSrcRect ? &rc : NULL, Format, (D3D12_RESOLVE_MODE)Mode);
     } else {
         /* No region variant on the host list: whole-subresource resolve
          * is the nearest the backend offers. */
@@ -1433,11 +1449,10 @@ t12WriteBufferImmediate(D3D12DDI_HCOMMANDLIST hList, UINT Count,
                         const D3D12DDI_WRITEBUFFERIMMEDIATE_MODE_0032 *pModes)
 {
     PTRITON12_LIST l = t12List(hList);
-    ID3D12GraphicsCommandList2 *l2 = NULL;
     if (!l || !l->pList || !Count || !pParams)
         return;
-    if (SUCCEEDED(ID3D12GraphicsCommandList_QueryInterface(
-            l->pList, &IID_ID3D12GraphicsCommandList2, (void **)&l2))) {
+    ID3D12GraphicsCommandList2 *l2 = t12ListIface(l, T12_LIST2);
+    if (l2) {
         static LONG once;
         if (!InterlockedExchange(&once, 1))
             TR_LOG("12.WriteBufferImmediate: forwarding to the host "
@@ -1447,7 +1462,6 @@ t12WriteBufferImmediate(D3D12DDI_HCOMMANDLIST hList, UINT Count,
             l2, Count,
             (const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER *)pParams,
             (const D3D12_WRITEBUFFERIMMEDIATE_MODE *)pModes);
-        ID3D12GraphicsCommandList2_Release(l2);
     } else {
         /* OPTIONS reports the host's queue support, so dropping the
          * writes here is silent data loss.  Say so once. */
@@ -1670,15 +1684,9 @@ t12ImplicitShaderCacheControl(D3D12DDI_HDEVICE hDevice,
 static VOID APIENTRY
 t12DispatchMesh(D3D12DDI_HCOMMANDLIST hList, UINT x, UINT y, UINT z)
 {
-    PTRITON12_LIST l = t12List(hList);
-    ID3D12GraphicsCommandList6 *l6 = NULL;
-    if (!l || !l->pList)
-        return;
-    if (SUCCEEDED(ID3D12GraphicsCommandList_QueryInterface(
-            l->pList, &IID_ID3D12GraphicsCommandList6, (void **)&l6))) {
+    ID3D12GraphicsCommandList6 *l6 = t12ListIface(t12List(hList), T12_LIST6);
+    if (l6)
         ID3D12GraphicsCommandList6_DispatchMesh(l6, x, y, z);
-        ID3D12GraphicsCommandList6_Release(l6);
-    }
 }
 
 void
