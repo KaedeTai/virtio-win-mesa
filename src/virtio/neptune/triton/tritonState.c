@@ -447,7 +447,7 @@ tritonCreateElementLayout(D3D10DDI_HDEVICE hDevice,
     }
 }
 
-void tritonResolveInputLayout(PTRITON_DEVICE pD);
+BOOL tritonResolveInputLayout(PTRITON_DEVICE pD);
 void tritonUnbindReconVs(PTRITON_DEVICE pD);
 
 void APIENTRY

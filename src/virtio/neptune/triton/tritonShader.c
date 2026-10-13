@@ -17,7 +17,7 @@
 #include "tritonDxbc.h"
 
 /* Declared early so tritonVsSetShader can call it. */
-void tritonResolveInputLayout(PTRITON_DEVICE pD);
+BOOL tritonResolveInputLayout(PTRITON_DEVICE pD);
 
 static SIZE_T tritonShaderTokenBytes(const UINT *pShaderCode)
 {
@@ -106,6 +106,18 @@ static void tritonUnpackSigs(const void *pRaw, BOOL fTess, TritonStageSigs *out)
     }
 }
 
+/* Only a VS (input-layout resolution, stream-output-only GS source) and a
+ * DS (stream-output-only GS source) read their DXBC after create. */
+static void tritonShaderDropUnusedBytecode(PTRITON_SHADER s)
+{
+    if (s->kind == TRITON_SHADER_VS || s->kind == TRITON_SHADER_DS)
+        return;
+    if (s->pBytecode)
+        HeapFree(GetProcessHeap(), 0, s->pBytecode);
+    s->pBytecode  = NULL;
+    s->cbBytecode = 0;
+}
+
 static void tritonCreateShaderCommon(D3D10DDI_HDEVICE hDevice, TRITON_SHADER_KIND kind,
                                      const UINT *pShaderCode,
                                      D3D10DDI_HSHADER hShader,
@@ -165,7 +177,9 @@ static void tritonCreateShaderCommon(D3D10DDI_HDEVICE hDevice, TRITON_SHADER_KIN
         s->pBytecode  = NULL;
         s->cbBytecode = 0;
         tritonSetCreateError(pD, hr);
+        return;
     }
+    tritonShaderDropUnusedBytecode(s);
 }
 
 void APIENTRY
@@ -233,11 +247,13 @@ tritonVsSetShader(D3D10DDI_HDEVICE hDevice, D3D10DDI_HSHADER hShader)
     PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
     PTRITON_SHADER s  = (PTRITON_SHADER)(hShader.pDrvPrivate);
     if (!pD) return;
-    ID3D11VertexShader *vs = (s && s->u.pVS) ? s->u.pVS : NULL;
-    ID3D11DeviceContext1_VSSetShader(pD->pCtx1, vs, NULL, 0);
     pD->pBoundReconVS = NULL;
     pD->pCurrentVS = s;
-    tritonResolveInputLayout(pD);
+    /* The resolver binds the VS itself (or its format-reconciled copy)
+     * whenever it binds a layout. */
+    if (!tritonResolveInputLayout(pD))
+        ID3D11DeviceContext1_VSSetShader(pD->pCtx1,
+            (s && s->u.pVS) ? s->u.pVS : NULL, NULL, 0);
     tritonBindSoOnlyGS(pD);
 }
 
@@ -527,7 +543,9 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
         s->pBytecode  = NULL;
         s->cbBytecode = 0;
         tritonSetCreateError(pD, hr);
+        return;
     }
+    tritonShaderDropUnusedBytecode(s);
 }
 
 /* Binds the host object of a stream-output-only GS, made from the bound
@@ -618,14 +636,15 @@ void tritonUnbindReconVs(PTRITON_DEVICE pD)
         NULL, 0);
 }
 
-void tritonResolveInputLayout(PTRITON_DEVICE pD)
+/* Returns TRUE when it bound a layout and, with it, the VS. */
+BOOL tritonResolveInputLayout(PTRITON_DEVICE pD)
 {
-    if (!pD) return;
+    if (!pD) return FALSE;
     PTRITON_ELEMENTLAYOUT e  = pD->pCurrentLayout;
     PTRITON_SHADER        vs = pD->pCurrentVS;
     if (!e || !vs || !vs->pBytecode || !e->pElements || e->NumElements == 0) {
         tritonUnbindReconVs(pD);
-        return;
+        return FALSE;
     }
     /* Hit: a host layout already built for this VS. */
     TRITON_IL_ENTRY *ent = NULL;
@@ -644,7 +663,7 @@ void tritonResolveInputLayout(PTRITON_DEVICE pD)
         ID3D11DeviceContext1_VSSetShader(pD->pCtx1,
             ent->pReconVS ? ent->pReconVS : vs->u.pVS, NULL, 0);
         pD->pBoundReconVS = ent->pReconVS;
-        return;
+        return TRUE;
     }
     /* Miss: build into an empty slot, else evict the least recently used.
      * Releasing a layout or reconciled VS that is still bound is safe: the
@@ -672,14 +691,14 @@ void tritonResolveInputLayout(PTRITON_DEVICE pD)
     if (cSigs == 0) {
         TR_LOG("ResolveInputLayout: VS has no ISGN/ISG1 chunk");
         tritonUnbindReconVs(pD);
-        return;
+        return FALSE;
     }
 
     D3D11_INPUT_ELEMENT_DESC descs[D3D11_IA_VERTEX_INPUT_STRUCTURE_ELEMENTS_COMPONENTS];
     if (e->NumElements > (sizeof(descs) / sizeof(descs[0]))) {
         TR_LOG("ResolveInputLayout: %u elements exceeds cap", e->NumElements);
         tritonUnbindReconVs(pD);
-        return;
+        return FALSE;
     }
 
     /* Collect the matched entries to synthesise a signature describing
@@ -770,7 +789,7 @@ void tritonResolveInputLayout(PTRITON_DEVICE pD)
             ent->pReconVS = NULL;
         }
         tritonUnbindReconVs(pD);
-        return;
+        return FALSE;
     }
     ent->VsCookie = vs->cookie;
     ent->LastUse  = ++e->IlClock;
@@ -778,6 +797,7 @@ void tritonResolveInputLayout(PTRITON_DEVICE pD)
     ID3D11DeviceContext1_VSSetShader(pD->pCtx1,
         ent->pReconVS ? ent->pReconVS : vs->u.pVS, NULL, 0);
     pD->pBoundReconVS = ent->pReconVS;
+    return TRUE;
 }
 
 /* WDDM 2.0: RetrieveShaderComment. Triton's shader path is pure DXBC
