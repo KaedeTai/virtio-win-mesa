@@ -509,12 +509,22 @@ ctx_UpdateSubresource_override(void *self, ID3D11Resource *pDstResource,
    uint64_t resource_id = ((struct npt_com_base *)pDstResource)->base.id;
    uint64_t byte_size = 0;   /* ring reservation; what the host may consume */
    uint64_t copy_size = 0;   /* what D3D guarantees readable at pSrcData */
+   struct npt_update_split split;
+   bool split_ok = false;
 
    struct npt_d3d11_buffer *b = npt_d3d11_buffer_cast(pDstResource);
    if (b) {
-      byte_size = pDstBox ? (pDstBox->right - pDstBox->left)
-                          : npt_d3d11_buffer_get_byte_width(b);
+      const uint32_t left = pDstBox ? pDstBox->left : 0;
+      const uint32_t right = pDstBox ? pDstBox->right
+                                     : npt_d3d11_buffer_get_byte_width(b);
+      byte_size = right - left;
       copy_size = byte_size;
+      const D3D11_BOX extent = { left, 0, 0, right, 1, 1 };
+      split.extent = extent;
+      split.rows = 1;
+      split.row_texels = 1;
+      split.buffer = true;
+      split_ok = true;
    } else {
       struct npt_d3d11_texture *t = npt_d3d11_texture_cast(pDstResource);
       if (t) {
@@ -569,27 +579,30 @@ ctx_UpdateSubresource_override(void *self, ID3D11Resource *pDstResource,
             }
             if (copy_size > byte_size)
                copy_size = byte_size;
+            split.extent = *pDstBox;
+            split.rows = rows;
+            split.row_texels = npt_dxgi_format_row_texels(fmt);
+            split.buffer = false;
+            split_ok = !planar && (tex_d <= 1 || SrcDepthPitch);
          } else {
-            uint32_t copy32 = 0;
             byte_size = npt_d3d11_texture_get_subresource_update_sizes(
-               t, DstSubresource, SrcRowPitch, SrcDepthPitch, &copy32);
-            copy_size = copy32;
+               t, DstSubresource, SrcRowPitch, SrcDepthPitch, &copy_size,
+               &split, &split_ok);
          }
       }
    }
 
-   if (!byte_size || !copy_size || byte_size > 0xffffffffu) {
+   if (!byte_size || !copy_size) {
       npt_log("ctx_UpdateSubresource: unsupported resource type "
               "(resource=%p sub=%u row=%u depth=%u) -- dropping update",
               pDstResource, DstSubresource, SrcRowPitch, SrcDepthPitch);
       return;
    }
 
-   (void)npt_dispatch_resource_update(npt_device_method_ring(dev), resource_id,
-                                      DstSubresource, SrcRowPitch,
-                                      SrcDepthPitch, pDstBox,
-                                      pSrcData, (uint32_t)byte_size,
-                                      (uint32_t)copy_size);
+   (void)npt_resource_update(npt_device_method_ring(dev), resource_id,
+                             DstSubresource, pDstBox, SrcRowPitch,
+                             SrcDepthPitch, pSrcData, byte_size, copy_size,
+                             split_ok ? &split : NULL);
 }
 
 /*

@@ -627,7 +627,8 @@ res12_GetHeapProperties_override(void *self,
 static bool
 res12_write_extent(struct npt_d3d12_resource_aux *aux, UINT Subresource,
                    const D3D12_BOX *pDstBox, uint32_t *out_rows,
-                   uint32_t *out_slices, uint32_t *out_row_bytes)
+                   uint32_t *out_slices, uint32_t *out_row_bytes,
+                   D3D11_BOX *out_extent)
 {
    const DXGI_FORMAT fmt = (DXGI_FORMAT)aux->format;
    uint32_t w, h, d;
@@ -652,6 +653,16 @@ res12_write_extent(struct npt_d3d12_resource_aux *aux, UINT Subresource,
       if (!w) w = 1;
       if (!h) h = 1;
       if (!d) d = 1;
+   }
+
+   if (pDstBox) {
+      const D3D11_BOX extent = { pDstBox->left, pDstBox->top, pDstBox->front,
+                                 pDstBox->right, pDstBox->bottom,
+                                 pDstBox->back };
+      *out_extent = extent;
+   } else {
+      const D3D11_BOX extent = { 0, 0, 0, w, h, d };
+      *out_extent = extent;
    }
 
    /* out_row_bytes is 0 for a format of unknown size; the caller then
@@ -685,8 +696,9 @@ res12_WriteToSubresource_override(void *self, UINT DstSubresource,
       return NPT_E_INVALIDARG;
 
    uint32_t rows = 0, slices = 0, row_bytes = 0;
+   D3D11_BOX extent;
    if (!res12_write_extent(aux, DstSubresource, pDstBox, &rows, &slices,
-                           &row_bytes))
+                           &row_bytes, &extent))
       return NPT_S_OK;   /* empty box */
 
    if (!SrcRowPitch)
@@ -708,31 +720,22 @@ res12_WriteToSubresource_override(void *self, UINT DstSubresource,
    if (row_bytes && SrcRowPitch > row_bytes)
       copy = full - (SrcRowPitch - row_bytes);
 
-   if (!full || full > (uint64_t)(64u << 20)) {
-      npt_log("ID3D12Resource::WriteToSubresource: implausible payload "
-              "%" PRIu64 " bytes (sub=%u rows=%u slices=%u pitch=%u)",
-              full, DstSubresource, rows, slices, SrcRowPitch);
+   if (!full)
       return NPT_E_INVALIDARG;
-   }
 
-   D3D11_BOX box;
-   const D3D11_BOX *pbox = NULL;
-   if (pDstBox) {
-      box.left   = pDstBox->left;
-      box.top    = pDstBox->top;
-      box.front  = pDstBox->front;
-      box.right  = pDstBox->right;
-      box.bottom = pDstBox->bottom;
-      box.back   = pDstBox->back;
-      pbox = &box;
-   }
-
+   /* Only a known block size gives the rows a texel height to band by. */
+   const struct npt_update_split split = {
+      .extent = extent,
+      .rows = rows,
+      .row_texels = npt_dxgi_format_row_texels((DXGI_FORMAT)aux->format),
+      .buffer = false,
+   };
    struct npt_device *dev = npt_com_self_device(self);
-   if (!npt_dispatch_resource_update(npt_device_method_ring(dev),
-                                     ((struct npt_com_base *)self)->base.id,
-                                     DstSubresource, SrcRowPitch,
-                                     SrcDepthPitch, pbox, pSrcData,
-                                     (uint32_t)full, (uint32_t)copy))
+   if (!npt_resource_update(npt_device_method_ring(dev),
+                            ((struct npt_com_base *)self)->base.id,
+                            DstSubresource, pDstBox ? &extent : NULL,
+                            SrcRowPitch, SrcDepthPitch, pSrcData, full, copy,
+                            row_bytes ? &split : NULL))
       return NPT_E_FAIL;
    return NPT_S_OK;
 }

@@ -72,14 +72,15 @@ dev_CreateBuffer_override(void *self,
    if (NPT_SUCCEEDED(hr) && raw && pInitialData && pInitialData->pSysMem &&
        pDesc && pDesc->ByteWidth > 0) {
       /* MSDN: SysMemPitch / SysMemSlicePitch ignored for buffers. */
-      npt_dispatch_resource_update(npt_device_method_ring(dev),
-                                   (uint64_t)(uintptr_t)raw,
-                                   /*subresource=*/0,
-                                   /*row_pitch=*/0,
-                                   /*depth_pitch=*/0,
-                                   /*box=*/NULL,
-                                   pInitialData->pSysMem,
-                                   pDesc->ByteWidth, pDesc->ByteWidth);
+      const struct npt_update_split split = {
+         .extent = { 0, 0, 0, pDesc->ByteWidth, 1, 1 },
+         .rows = 1, .row_texels = 1, .buffer = true,
+      };
+      npt_resource_update(npt_device_method_ring(dev),
+                          (uint64_t)(uintptr_t)raw, /*subresource=*/0,
+                          /*box=*/NULL, /*row_pitch=*/0, /*depth_pitch=*/0,
+                          pInitialData->pSysMem, pDesc->ByteWidth,
+                          pDesc->ByteWidth, &split);
    }
 
    if (NPT_SUCCEEDED(hr) && raw) {
@@ -164,13 +165,19 @@ npt_upload_texture_initial_data(struct npt_device *dev,
       }
       if (copy > full)
          copy = full;
-      if (full == 0 || copy == 0 || full > (uint64_t)(64u << 20))
+      if (full == 0 || copy == 0)
          continue;
-      npt_dispatch_resource_update(npt_device_method_ring(dev), tex_id, sub,
-                                   d->SysMemPitch, d->SysMemSlicePitch,
-                                   /*box=*/NULL,
-                                   d->pSysMem, (uint32_t)full,
-                                   (uint32_t)copy);
+      const struct npt_update_split split = {
+         .extent = { 0, 0, 0, mw, mh, md },
+         .rows = rows,
+         .row_texels = npt_dxgi_format_row_texels(format),
+         .buffer = false,
+      };
+      const bool planar = rows != npt_dxgi_format_block_rows(format, mh);
+      const bool banded = !planar && (depth <= 1u || d->SysMemPitch);
+      npt_resource_update(npt_device_method_ring(dev), tex_id, sub,
+                          /*box=*/NULL, d->SysMemPitch, d->SysMemSlicePitch,
+                          d->pSysMem, full, copy, banded ? &split : NULL);
    }
 }
 

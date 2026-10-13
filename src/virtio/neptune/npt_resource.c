@@ -944,6 +944,107 @@ npt_dxgi_format_block_rows(DXGI_FORMAT fmt, uint32_t texel_rows)
    return (texel_rows + bh - 1u) / bh;
 }
 
+uint32_t
+npt_dxgi_format_row_texels(DXGI_FORMAT fmt)
+{
+   return format_block_height(fmt);
+}
+
+static bool
+update_send(struct npt_ring *ring, uint64_t resource_id, uint32_t subresource,
+            const D3D11_BOX *box, uint32_t row_pitch, uint32_t depth_pitch,
+            const uint8_t *data, uint64_t full, uint64_t copy)
+{
+   return npt_dispatch_resource_update(ring, resource_id, subresource,
+                                       row_pitch, depth_pitch, box, data,
+                                       (uint32_t)full, (uint32_t)copy);
+}
+
+bool
+npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
+                    uint32_t subresource, const D3D11_BOX *box,
+                    uint32_t row_pitch, uint32_t depth_pitch,
+                    const void *data, uint64_t full, uint64_t copy,
+                    const struct npt_update_split *split)
+{
+   if (!full || !copy || copy > full)
+      return false;
+   if (full <= NPT_RESOURCE_UPDATE_CHUNK_BYTES)
+      return update_send(ring, resource_id, subresource, box, row_pitch,
+                         depth_pitch, data, full, copy);
+
+   const uint64_t cap = NPT_RESOURCE_UPDATE_CHUNK_BYTES;
+   const uint8_t *src = data;
+   /* Only the region's last row may end short of a full pitch, so every
+    * band but the final one reads its whole footprint. */
+   const uint64_t tail = full - copy;
+   bool ok = true;
+
+   if (split && split->buffer) {
+      const uint32_t left = split->extent.left;
+      const uint32_t right = split->extent.right;
+      for (uint32_t l = left; l < right && ok; ) {
+         const uint32_t r = right - l > cap ? l + (uint32_t)cap : right;
+         const D3D11_BOX b = { l, 0, 0, r, 1, 1 };
+         ok = update_send(ring, resource_id, subresource, &b, 0, 0,
+                          src + (l - left), r - l, r - l);
+         l = r;
+      }
+      return ok;
+   }
+
+   if (!split || !row_pitch || !split->rows || !split->row_texels) {
+      npt_log("resource_update: %llu-byte transfer to 0x%llx sub %u has no "
+              "band layout -- dropped",
+              (unsigned long long)full, (unsigned long long)resource_id,
+              subresource);
+      return false;
+   }
+
+   const D3D11_BOX *e = &split->extent;
+   const uint32_t slices = e->back - e->front;
+   const uint64_t slice_bytes = (uint64_t)row_pitch * split->rows;
+
+   if (slices > 1 && depth_pitch >= slice_bytes && slice_bytes <= cap) {
+      const uint32_t per = 1u + (uint32_t)((cap - slice_bytes) / depth_pitch);
+      for (uint32_t s0 = 0; s0 < slices && ok; s0 += per) {
+         const uint32_t n = slices - s0 < per ? slices - s0 : per;
+         const uint64_t band = (uint64_t)depth_pitch * (n - 1u) + slice_bytes;
+         const bool last = s0 + n == slices;
+         D3D11_BOX b = *e;
+         b.front = e->front + s0;
+         b.back = b.front + n;
+         ok = update_send(ring, resource_id, subresource, &b, row_pitch,
+                          depth_pitch, src + (uint64_t)depth_pitch * s0, band,
+                          last ? band - tail : band);
+      }
+      return ok;
+   }
+
+   uint32_t per = (uint32_t)(cap / row_pitch);
+   if (!per)
+      per = 1;
+   for (uint32_t s = 0; s < (slices ? slices : 1u) && ok; s++) {
+      for (uint32_t r0 = 0; r0 < split->rows && ok; r0 += per) {
+         const uint32_t n = split->rows - r0 < per ? split->rows - r0 : per;
+         const uint64_t band = (uint64_t)row_pitch * n;
+         const bool last = s + 1u >= slices && r0 + n == split->rows;
+         D3D11_BOX b = *e;
+         b.front = e->front + s;
+         b.back = b.front + 1u;
+         b.top = e->top + r0 * split->row_texels;
+         const uint32_t bottom = e->top + (r0 + n) * split->row_texels;
+         b.bottom = bottom < e->bottom ? bottom : e->bottom;
+         ok = update_send(ring, resource_id, subresource, &b, row_pitch,
+                          depth_pitch,
+                          src + (uint64_t)depth_pitch * s +
+                             (uint64_t)row_pitch * r0,
+                          band, last ? band - tail : band);
+      }
+   }
+   return ok;
+}
+
 /* Bytes actually occupied by one row of blocks: the tight
  * RowSizeInBytes of D3D's UpdateSubresource source contract.
  * Returns 0 when the format's size is unknown (callers keep
@@ -1248,22 +1349,25 @@ npt_d3d11_texture_get_map_extent(const struct npt_d3d11_texture *t,
  * layout as rowPitch * subresource_rows with no final-row discount.
  * Returns 0 (with *out_copy_size = 0) when the transfer cannot be
  * sized. */
-uint32_t
+uint64_t
 npt_d3d11_texture_get_subresource_update_sizes(const struct npt_d3d11_texture *t,
                                                uint32_t subresource,
                                                uint32_t row_pitch,
                                                uint32_t depth_pitch,
-                                               uint32_t *out_copy_size)
+                                               uint64_t *out_copy_size,
+                                               struct npt_update_split *out_split,
+                                               bool *split_ok)
 {
    *out_copy_size = 0;
+   *split_ok = false;
    const struct npt_d3d11_texture_aux *aux = tex_aux(t);
    if (!aux) return 0;
    const uint32_t mip = texture_subresource_mip(aux, subresource);
+   const uint32_t mw  = mip_dim(aux->width, mip);
    const uint32_t mh  = mip_dim(aux->height, mip);
    const uint32_t d   = mip_dim(aux->depth, mip);
    const uint32_t rows = npt_dxgi_format_subresource_rows(aux->format, mh);
-   const uint32_t last_row =
-      npt_dxgi_format_row_bytes(aux->format, mip_dim(aux->width, mip));
+   const uint32_t last_row = npt_dxgi_format_row_bytes(aux->format, mw);
    const bool tight = last_row &&
       rows == npt_dxgi_format_block_rows(aux->format, mh);
    const uint64_t slice = (uint64_t)row_pitch * rows;
@@ -1276,10 +1380,17 @@ npt_d3d11_texture_get_subresource_update_sizes(const struct npt_d3d11_texture *t
       : full;
    if (copy > full)
       copy = full;
-   if (!full || full > 0xffffffffu)
+   if (!full)
       return 0;
-   *out_copy_size = (uint32_t)copy;
-   return (uint32_t)full;
+   *out_copy_size = copy;
+   const D3D11_BOX extent = { 0, 0, 0, mw, mh, d };
+   out_split->extent = extent;
+   out_split->rows = rows;
+   out_split->row_texels = npt_dxgi_format_row_texels(aux->format);
+   out_split->buffer = false;
+   *split_ok = rows == npt_dxgi_format_block_rows(aux->format, mh) &&
+               (d <= 1u || depth_pitch);
+   return full;
 }
 
 void

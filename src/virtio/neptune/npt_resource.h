@@ -162,6 +162,41 @@ void npt_d3d_map_ring_close(struct npt_d3d_map_ring *r, const void *context,
 void npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot);
 
 /* ==========================================================================
+ * RESOURCE_UPDATE transfers (UpdateSubresource, initial data,
+ * WriteToSubresource)
+ * ========================================================================== */
+
+/* Largest payload one RESOURCE_UPDATE carries.  The ring's upload buffer
+ * grows to fit the biggest payload it has seen and never shrinks, so a
+ * larger transfer is sent as several bands of the same region. */
+#define NPT_RESOURCE_UPDATE_CHUNK_BYTES (64u << 20)
+
+/* How to cut a transfer into bands.  `extent` is the destination region
+ * in texels (bytes for a buffer) whether or not the caller sends a box;
+ * `rows` is rows of memory per slice and `row_texels` the texel rows one
+ * row of memory covers (4 under block compression). */
+struct npt_update_split {
+   D3D11_BOX extent;
+   uint32_t rows;
+   uint32_t row_texels;
+   bool buffer;
+};
+
+/* Sends `full` bytes (reserved for the host) of which `copy` are read
+ * from `data`, as one RESOURCE_UPDATE when it fits the chunk size and
+ * as bands of `split` otherwise.  A NULL `split` marks a region with no
+ * band layout (planar formats); an oversized one is then refused. */
+bool npt_resource_update(struct npt_ring *ring, uint64_t resource_id,
+                         uint32_t subresource, const D3D11_BOX *box,
+                         uint32_t row_pitch, uint32_t depth_pitch,
+                         const void *data, uint64_t full, uint64_t copy,
+                         const struct npt_update_split *split);
+
+/* Texel rows covered by one row of memory: 4 for block-compressed
+ * formats, else 1. */
+uint32_t npt_dxgi_format_row_texels(DXGI_FORMAT fmt);
+
+/* ==========================================================================
  * ID3D11Buffer wrapper
  * ========================================================================== */
 
@@ -364,12 +399,16 @@ void npt_d3d11_texture_get_map_extent(const struct npt_d3d11_texture *t,
 
 /* Returns the full-pitch footprint of a no-box UpdateSubresource and
  * stores the D3D-guaranteed readable extent of its source in
- * *out_copy_size; both 0 when the transfer cannot be sized. */
-uint32_t npt_d3d11_texture_get_subresource_update_sizes(const struct npt_d3d11_texture *t,
+ * *out_copy_size; both 0 when the transfer cannot be sized.  *out_split
+ * gets the subresource's band layout, and `split_ok` says whether it has
+ * one (false for planar formats). */
+uint64_t npt_d3d11_texture_get_subresource_update_sizes(const struct npt_d3d11_texture *t,
                                                         uint32_t subresource,
                                                         uint32_t row_pitch,
                                                         uint32_t depth_pitch,
-                                                        uint32_t *out_copy_size);
+                                                        uint64_t *out_copy_size,
+                                                        struct npt_update_split *out_split,
+                                                        bool *split_ok);
 
 void npt_d3d11_texture_get_mip_dimensions(const struct npt_d3d11_texture *t,
                                           uint32_t subresource,
