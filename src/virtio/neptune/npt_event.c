@@ -304,15 +304,17 @@ static void *event_waiter_thread(void *arg)
           * this thread's only job left is the token release. */
          if (!p->direct)
             do_set_event(p->handle);
+      } else if (rc == 0) {
+         /* Device teardown with the fence still pending.  The event may
+          * be the app's own, and signalling it would claim a completion
+          * that never happened. */
+         npt_log("event: dropping arm for handle %p at shutdown", p->handle);
       } else {
-         /* Never swallow the wake: a lost SetEvent is the worst fence
-          * failure mode (the app parks on its event forever), while a
-          * spurious early one is absorbed by the value-checked waiters
-          * upstream (see the invariant in npt_event.h).  Signal on the
-          * error/shutdown path too and log loudly. */
-         npt_log("event: wait failed for handle %p (rc=%d%s) -- "
-                 "signaling anyway", p->handle,
-                 rc, rc == 0 ? ", shutdown" : "");
+         /* The wait itself failed, so this arm can never complete.  A
+          * lost SetEvent parks the app on its event forever, which is
+          * worse than an early one; signal and log loudly. */
+         npt_log("event: wait failed for handle %p (rc=%d) -- signaling "
+                 "anyway", p->handle, rc);
          do_set_event(p->handle);
       }
       if (p->push_us) {
