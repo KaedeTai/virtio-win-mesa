@@ -1180,12 +1180,64 @@ virtgpu_create_context_virtual(struct npt_virtgpu *gpu)
    return true;
 }
 
+/* How far virtgpu_open got. */
+enum virtgpu_open_result {
+   VIRTGPU_OPEN_FAILED,
+   /* viogpu3d with 3D, shmem and the Neptune capset; gpu->wddm2 valid. */
+   VIRTGPU_OPEN_VIOGPU,
+   /* ...and the host capset matches the wire format; *capset valid. */
+   VIRTGPU_OPEN_HOST_OK,
+};
+
+/* The bring-up shared by the adapter probe and the transport, so the two
+ * can never disagree about the KMD mode or the host: load D3DKMT, open
+ * the viogpu adapter, create a device, validate the KMD and fetch the
+ * host capset.  No kernel context is created. */
+static enum virtgpu_open_result
+virtgpu_open(struct npt_virtgpu *gpu, struct npt_capset *capset)
+{
+   if (!virtgpu_load_d3dkmt(gpu) || !virtgpu_find_adapter(gpu) ||
+       !virtgpu_create_device(gpu))
+      return VIRTGPU_OPEN_FAILED;
+
+   VIOGPU_ADAPTERINFO info = { 0 };
+   NTSTATUS status = virtgpu_query_adapter_info(gpu, &info, sizeof(info));
+   if (!NT_SUCCESS(status)) {
+      npt_log("virtgpu: QueryAdapterInfo failed 0x%lx", status);
+      return VIRTGPU_OPEN_FAILED;
+   }
+   if (info.IamVioGPU != VIOGPU_IAM || !info.Flags.Supports3d ||
+       !info.Flags.HasShmem) {
+      npt_log("virtgpu: KMD reports no 3D/shmem support (iam=0x%llx flags=0x%x)",
+              (unsigned long long)info.IamVioGPU,
+              *(unsigned *)&info.Flags);
+      return VIRTGPU_OPEN_FAILED;
+   }
+   if (!(info.SupportedCapsetIDs & (1ull << NPT_CAPSET_ID))) {
+      npt_log("virtgpu: KMD does not advertise Neptune capset");
+      return VIRTGPU_OPEN_FAILED;
+   }
+   gpu->wddm2 = info.Flags.Wddm2 != 0;
+
+   memset(capset, 0, sizeof(*capset));
+   status = virtgpu_get_caps(gpu, NPT_CAPSET_ID, 0, capset, sizeof(*capset));
+   if (!NT_SUCCESS(status)) {
+      npt_log("virtgpu: GET_CAPS for Neptune failed 0x%lx", status);
+      return VIRTGPU_OPEN_VIOGPU;
+   }
+   if (capset->wire_format_version != NPT_PROTOCOL_WIRE_VERSION) {
+      npt_log("virtgpu: wire format mismatch host=0x%08x guest=0x%08x",
+              capset->wire_format_version,
+              (unsigned)NPT_PROTOCOL_WIRE_VERSION);
+      return VIRTGPU_OPEN_VIOGPU;
+   }
+   return VIRTGPU_OPEN_HOST_OK;
+}
+
 static struct npt_adapter_probe g_adapter_probe;
 
-/* One-shot adapter/host capability probe on a throwaway D3DKMT device;
- * no kernel context is created and everything is torn down before
- * returning.  Runs the same bring-up sequence as the real transport so
- * the two can never disagree about the KMD mode. */
+/* One-shot adapter/host capability probe on a throwaway D3DKMT device,
+ * torn down before returning. */
 static void
 npt_adapter_probe_impl(void)
 {
@@ -1195,33 +1247,17 @@ npt_adapter_probe_impl(void)
    InitializeCriticalSection(&gpu->cs);
    InitializeCriticalSection(&gpu->drain_cs);
 
-   if (!virtgpu_load_d3dkmt(gpu))
-      goto out;
-   if (!virtgpu_find_adapter(gpu))
-      goto out;
-   if (!virtgpu_create_device(gpu))
-      goto out;
+   struct npt_capset capset;
+   const enum virtgpu_open_result r = virtgpu_open(gpu, &capset);
+   if (r >= VIRTGPU_OPEN_VIOGPU) {
+      g_adapter_probe.viogpu = true;
+      g_adapter_probe.wddm2 = gpu->wddm2;
+   }
+   if (r == VIRTGPU_OPEN_HOST_OK) {
+      g_adapter_probe.host_ok = true;
+      g_adapter_probe.caps_flags = capset.caps_flags;
+   }
 
-   VIOGPU_ADAPTERINFO info = { 0 };
-   if (!NT_SUCCESS(virtgpu_query_adapter_info(gpu, &info, sizeof(info))))
-      goto out;
-   if (info.IamVioGPU != VIOGPU_IAM || !info.Flags.Supports3d ||
-       !info.Flags.HasShmem ||
-       !(info.SupportedCapsetIDs & (1ull << NPT_CAPSET_ID)))
-      goto out;
-   g_adapter_probe.viogpu = true;
-   g_adapter_probe.wddm2 = info.Flags.Wddm2 != 0;
-
-   struct npt_capset capset = { 0 };
-   if (!NT_SUCCESS(virtgpu_get_caps(gpu, NPT_CAPSET_ID, 0, &capset,
-                                    sizeof(capset))))
-      goto out;
-   if (capset.wire_format_version != NPT_PROTOCOL_WIRE_VERSION)
-      goto out;
-   g_adapter_probe.host_ok = true;
-   g_adapter_probe.caps_flags = capset.caps_flags;
-
-out:
    npt_vgw32_destroy(&gpu->base);
 }
 
@@ -1242,45 +1278,10 @@ npt_renderer_create_virtgpu(void)
    InitializeCriticalSection(&gpu->cs);
    InitializeCriticalSection(&gpu->drain_cs);
 
-   if (!virtgpu_load_d3dkmt(gpu))
+   struct npt_capset capset;
+   if (virtgpu_open(gpu, &capset) != VIRTGPU_OPEN_HOST_OK)
       goto fail;
-   if (!virtgpu_find_adapter(gpu))
-      goto fail;
-   if (!virtgpu_create_device(gpu))
-      goto fail;
-
-   VIOGPU_ADAPTERINFO info = { 0 };
-   NTSTATUS status = virtgpu_query_adapter_info(gpu, &info, sizeof(info));
-   if (!NT_SUCCESS(status)) {
-      npt_log("virtgpu: QueryAdapterInfo failed 0x%lx", status);
-      goto fail;
-   }
-   if (info.IamVioGPU != VIOGPU_IAM || !info.Flags.Supports3d ||
-       !info.Flags.HasShmem) {
-      npt_log("virtgpu: KMD reports no 3D/shmem support (iam=0x%llx flags=0x%x)",
-              (unsigned long long)info.IamVioGPU,
-              *(unsigned *)&info.Flags);
-      goto fail;
-   }
-   if (!(info.SupportedCapsetIDs & (1ull << NPT_CAPSET_ID))) {
-      npt_log("virtgpu: KMD does not advertise Neptune capset");
-      goto fail;
-   }
-   gpu->wddm2 = info.Flags.Wddm2 != 0;
    npt_log("virtgpu: KMD mode %s", gpu->wddm2 ? "WDDM2 (GpuMmu)" : "WDDM 1.3");
-
-   struct npt_capset capset = { 0 };
-   status = virtgpu_get_caps(gpu, NPT_CAPSET_ID, 0, &capset, sizeof(capset));
-   if (!NT_SUCCESS(status)) {
-      npt_log("virtgpu: GET_CAPS for Neptune failed 0x%lx", status);
-      goto fail;
-   }
-   if (capset.wire_format_version != NPT_PROTOCOL_WIRE_VERSION) {
-      npt_log("virtgpu: wire format mismatch host=0x%08x guest=0x%08x",
-              capset.wire_format_version,
-              (unsigned)NPT_PROTOCOL_WIRE_VERSION);
-      goto fail;
-   }
 
    VIOGPU_ESCAPE ctx_init = {
       .Type = VIOGPU_CTX_INIT,
@@ -1291,7 +1292,7 @@ npt_renderer_create_virtgpu(void)
          .DebugName = "neptune-win32",
       },
    };
-   status = virtgpu_escape(gpu, &ctx_init);
+   NTSTATUS status = virtgpu_escape(gpu, &ctx_init);
    if (!NT_SUCCESS(status)) {
       npt_log("virtgpu: CTX_INIT failed 0x%lx", status);
       goto fail;
