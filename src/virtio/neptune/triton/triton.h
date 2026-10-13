@@ -305,6 +305,11 @@ typedef struct TRITON_RESOURCE {
 
     ID3D11Resource        *pResource;
 
+    /* Single-sample, single-mip, single-slice shared texture a back buffer of
+     * any other shape presents through (the host exports only that shape);
+     * hKMAllocation then names its blob.  NULL otherwise. */
+    ID3D11Resource        *pPresentCompanion;
+
     /* Head of the intrusive list of live views wrapping this resource. */
     TRITON_VIEWLINK       *pViewList;
 } TRITON_RESOURCE, *PTRITON_RESOURCE;
@@ -440,6 +445,9 @@ void tritonResourceLinkView(PTRITON_RESOURCE r, TRITON_VIEWLINK *l,
                             TRITON_VIEW_KIND kind);
 void tritonViewUnlink(TRITON_VIEWLINK *l);
 HRESULT tritonResourceRecreateViews(PTRITON_DEVICE pD, PTRITON_RESOURCE r);
+
+/* Fill r's present companion, if any (tritonResource.c). */
+void tritonResourceSyncPresentCompanion(PTRITON_DEVICE pD, PTRITON_RESOURCE r);
 
 #ifdef __cplusplus
 } /* extern "C" */

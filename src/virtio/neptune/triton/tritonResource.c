@@ -130,6 +130,7 @@ tritonBuildInitData(const D3D11DDIARG_CREATERESOURCE *a)
  * residency + scanout promotion in the KMD). */
 static BOOL
 tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
+                         ID3D11Resource *pTex,
                          UINT d3d11Usage, UINT d3d11Bind, UINT d3d11Cpu,
                          UINT d3d11Misc, DXGI_FORMAT hostFmt, BOOL primary)
 {
@@ -144,10 +145,12 @@ tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
     memset(&d, 0, sizeof(d));
     d.Width          = r->Width;
     d.Height         = r->Height;
-    d.MipLevels      = r->MipLevels;
-    d.ArraySize      = r->ArraySize;
     d.Format         = hostFmt;
-    d.SampleCount    = r->SampleDesc.Count;
+    if (pTex == r->pResource) {
+        d.MipLevels   = r->MipLevels;
+        d.ArraySize   = r->ArraySize;
+        d.SampleCount = r->SampleDesc.Count;
+    }
     d.Is2D           = TRUE;
     d.Usage          = d3d11Usage;
     d.BindFlags      = d3d11Bind;
@@ -155,7 +158,7 @@ tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
     d.MiscFlags      = d3d11Misc;
 
     VIOGPU_CREATE_ALLOCATION_EXCHANGE ax;
-    if (!tritonKmFillSharedExchange(&ax, r->pResource, &d, primary))
+    if (!tritonKmFillSharedExchange(&ax, pTex, &d, primary))
         return FALSE;
 
     D3DDDI_ALLOCATIONINFO2 ai;
@@ -179,7 +182,7 @@ tritonRegisterSharedBlob(PTRITON_DEVICE pD, PTRITON_RESOURCE r,
         return FALSE;
     }
     r->hKMAllocation = ai.hAllocation;
-    r->IsShared      = TRUE;
+    r->IsShared      = pTex == r->pResource;
     tritonKmRequestResidency(&pD->Km, ai.hAllocation);
     TR_LOG_HOT("shared: exporter blob_id=0x%llx alloc=0x%x %ux%u primary=%d",
                ax.OptionsShared.blob_id, ai.hAllocation, r->Width, r->Height,
@@ -211,6 +214,7 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
     r->SampleDesc  = pArgs->SampleDesc;
     r->ByteStride  = pArgs->ByteStride;
     r->pResource        = NULL;
+    r->pPresentCompanion = NULL;
     r->pViewList        = NULL;
     /* A resource is a display primary only when the runtime supplies
      * pPrimaryDesc (d3d10umddi.h: "If pPrimaryDesc absent, blt/copy style
@@ -234,11 +238,24 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
      * allocation tritonDxgiPresent has nothing to submit and the window is
      * never composed.  Blob-backed shared storage supplies that allocation;
      * primary=FALSE keeps it off the scanout, exactly like a flip-model back
-     * buffer. */
-    BOOL isShared = !r->IsPresentable &&
-                    pArgs->ResourceDimension == D3D10DDIRESOURCE_TEXTURE2D &&
+     * buffer.
+     *
+     * The host exports only single-sample, single-mip, single-slice
+     * textures.  A back buffer of any other shape keeps its own storage and
+     * presents through a shared companion of that shape instead, filled at
+     * present time (tritonResourceSyncPresentCompanion). */
+    const BOOL is2D = !r->IsPresentable &&
+                      pArgs->ResourceDimension == D3D10DDIRESOURCE_TEXTURE2D;
+    const BOOL presentOnly = is2D &&
+        (pArgs->MiscFlags & D3D10_DDI_RESOURCE_MISC_SHARED) == 0 &&
+        (pArgs->BindFlags & D3D10_DDI_BIND_PRESENT) != 0;
+    const BOOL exportableShape = pArgs->MipLevels <= 1 &&
+                                 pArgs->ArraySize <= 1 &&
+                                 pArgs->SampleDesc.Count <= 1;
+    BOOL isShared = is2D &&
                     ((pArgs->MiscFlags & D3D10_DDI_RESOURCE_MISC_SHARED) != 0 ||
-                     (pArgs->BindFlags & D3D10_DDI_BIND_PRESENT) != 0);
+                     (presentOnly && exportableShape));
+    const BOOL needCompanion = presentOnly && !exportableShape;
 
 
     /* Top-level dimensions come from the mip-0 entry of pMipInfoList. */
@@ -308,7 +325,7 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
         }
         r->pResource = (ID3D11Resource *)tex;
 
-        if (!tritonRegisterSharedBlob(pD, r, D3D11_USAGE_DEFAULT,
+        if (!tritonRegisterSharedBlob(pD, r, r->pResource, D3D11_USAGE_DEFAULT,
                                       D3D11_BIND_RENDER_TARGET |
                                       D3D11_BIND_SHADER_RESOURCE,
                                       0, D3D11_RESOURCE_MISC_SHARED,
@@ -440,10 +457,52 @@ tritonCreateResource(D3D10DDI_HDEVICE hDevice,
     }
 
     if (isShared) {
-        if (!tritonRegisterSharedBlob(pD, r, (UINT)usage, bind, cpuAccess,
-                                      misc, r->Format, FALSE))
+        if (!tritonRegisterSharedBlob(pD, r, r->pResource, (UINT)usage, bind,
+                                      cpuAccess, misc, r->Format, FALSE))
             TR_LOG("shared: registration failed; texture stays process-local");
+    } else if (needCompanion) {
+        D3D11_TEXTURE2D_DESC cd = {};
+        cd.Width            = r->Width;
+        cd.Height           = r->Height;
+        cd.MipLevels        = 1;
+        cd.ArraySize        = 1;
+        cd.Format           = r->Format;
+        cd.SampleDesc.Count = 1;
+        cd.Usage            = D3D11_USAGE_DEFAULT;
+        cd.BindFlags        = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        cd.MiscFlags        = D3D11_RESOURCE_MISC_SHARED;
+        ID3D11Texture2D *comp = NULL;
+        if (SUCCEEDED(ID3D11Device1_CreateTexture2D(pD->pDev1, &cd, NULL, &comp)) &&
+            comp) {
+            r->pPresentCompanion = (ID3D11Resource *)comp;
+            if (!tritonRegisterSharedBlob(pD, r, r->pPresentCompanion,
+                                          D3D11_USAGE_DEFAULT, cd.BindFlags, 0,
+                                          cd.MiscFlags, r->Format, FALSE)) {
+                ID3D11Resource_Release(r->pPresentCompanion);
+                r->pPresentCompanion = NULL;
+            }
+        }
+        if (!r->pPresentCompanion)
+            TR_LOG("shared: present companion failed; back buffer cannot present");
     }
+}
+
+/* Fill a back buffer's present companion from its first subresource: a
+ * resolve for a multisampled back buffer, a copy of mip 0 / slice 0
+ * otherwise.  Caller holds presentLock (the immediate context is shared with
+ * the present threads). */
+void
+tritonResourceSyncPresentCompanion(PTRITON_DEVICE pD, PTRITON_RESOURCE r)
+{
+    if (!r->pPresentCompanion || !r->pResource)
+        return;
+    if (r->SampleDesc.Count > 1)
+        ID3D11DeviceContext1_ResolveSubresource(pD->pCtx1, r->pPresentCompanion, 0,
+                                                r->pResource, 0, r->Format);
+    else
+        ID3D11DeviceContext1_CopySubresourceRegion(pD->pCtx1, r->pPresentCompanion,
+                                                   0, 0, 0, 0, r->pResource, 0,
+                                                   NULL);
 }
 
 void APIENTRY
@@ -465,6 +524,10 @@ tritonDestroyResource(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hResource)
     if (r->pResource) {
         ID3D11Resource_Release(r->pResource);
         r->pResource = NULL;
+    }
+    if (r->pPresentCompanion) {
+        ID3D11Resource_Release(r->pPresentCompanion);
+        r->pPresentCompanion = NULL;
     }
 
     /* Exporter: the KM allocation owns the virtio blob; deallocating it

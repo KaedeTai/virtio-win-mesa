@@ -606,6 +606,11 @@ tritonDxgiPresent(DXGI_DDI_ARG_PRESENT *pArgs)
     * submits), composited surfaces block until the GPU finishes (DWM's
     * sampling cannot be ordered any other way).  See
     * tritonPresentFlushAndGate. */
+   if (src->pPresentCompanion) {
+      tritonPresentLock(pD);
+      tritonResourceSyncPresentCompanion(pD, src);
+      tritonPresentUnlock(pD);
+   }
    tritonPresentFlushAndGate(pD, TRUE /* arm */, !src->IsPresentable /* wait */);
 
    /* DXGIDDICB_PRESENT (MSDN):
@@ -721,12 +726,13 @@ tritonDxgiRotateResourceIdentities(DXGI_DDI_ARG_ROTATE_RESOURCE_IDENTITIES *pArg
     * primaries) are DISTINCT host textures, each with its own blob-
     * backed KM allocation that consumers have imported.  Left-rotate
     * the backing tuples (resource[i] adopts resource[i+1]'s storage;
-    * MSDN: "0 <= 1, 1 <= 2, etc."), keeping (host texture, allocation,
-    * import rig) together so present tokens keep naming the storage
+    * MSDN: "0 <= 1, 1 <= 2, etc."), keeping (host texture, present
+    * companion, allocation, import rig) together so present tokens keep naming the storage
     * that was actually rendered. */
    {
       PTRITON_RESOURCE r0 = (PTRITON_RESOURCE)(uintptr_t)pArgs->pResources[0];
       ID3D11Resource *tmpRes    = r0->pResource;
+      ID3D11Resource *tmpComp   = r0->pPresentCompanion;
       D3DKMT_HANDLE   tmpAlloc  = r0->hKMAllocation;
       BOOL            tmpShared = r0->IsShared;
       D3DKMT_HANDLE   tmpImpA   = r0->hImportAlloc;
@@ -735,6 +741,7 @@ tritonDxgiRotateResourceIdentities(DXGI_DDI_ARG_ROTATE_RESOURCE_IDENTITIES *pArg
          PTRITON_RESOURCE a = (PTRITON_RESOURCE)(uintptr_t)pArgs->pResources[i];
          PTRITON_RESOURCE b = (PTRITON_RESOURCE)(uintptr_t)pArgs->pResources[i + 1];
          a->pResource     = b->pResource;
+         a->pPresentCompanion = b->pPresentCompanion;
          a->hKMAllocation = b->hKMAllocation;
          a->IsShared      = b->IsShared;
          a->hImportAlloc  = b->hImportAlloc;
@@ -744,6 +751,7 @@ tritonDxgiRotateResourceIdentities(DXGI_DDI_ARG_ROTATE_RESOURCE_IDENTITIES *pArg
          PTRITON_RESOURCE last =
             (PTRITON_RESOURCE)(uintptr_t)pArgs->pResources[n - 1];
          last->pResource     = tmpRes;
+         last->pPresentCompanion = tmpComp;
          last->hKMAllocation = tmpAlloc;
          last->IsShared      = tmpShared;
          last->hImportAlloc  = tmpImpA;
@@ -1304,6 +1312,11 @@ tritonDxgiPresent1(DXGI_DDI_ARG_PRESENT1 *pArgs)
     * the shared dmabuf.  Arm always -- the KMD's flip gate is keyed on the
     * token the arm submits; wait only for composited (non-primary)
     * surfaces. */
+   if (src->pPresentCompanion) {
+      tritonPresentLock(pD);
+      tritonResourceSyncPresentCompanion(pD, src);
+      tritonPresentUnlock(pD);
+   }
    tritonPresentFlushAndGate(pD, TRUE /* arm */, !src->IsPresentable /* wait */);
 
    DXGIDDICB_PRESENT cb;
