@@ -153,6 +153,13 @@ t12CreateCommandQueueWithPriority(D3D12DDI_HDEVICE hDevice,
     EnterCriticalSection(&p->QueueLock);
     if (p->QueueCount < TRITON12_MAX_QUEUES) {
         q->Slot = p->QueueCount;
+        /* Siblings may hold a high-water mark for this slot from a queue
+         * that left it; this queue's drain values restart at 1. */
+        for (UINT j = 0; j < p->QueueCount; j++) {
+            PTRITON12_QUEUE s = (PTRITON12_QUEUE)p->Queues[j];
+            if (s)
+                s->XQueueSeen[q->Slot] = 0;
+        }
         p->Queues[p->QueueCount++] = (struct TRITON12_QUEUE *)q;
     }
     LeaveCriticalSection(&p->QueueLock);
