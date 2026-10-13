@@ -436,29 +436,37 @@ npt_com_iid_needs_instance_ring(const struct npt_device *dev,
 static struct npt_ring *
 npt_com_acquire_dc_sc_ring(struct npt_device *dev)
 {
+   /* Fast path only while a holder keeps the ring alive: the last
+    * release destroys it under the mutex, so a ref taken from a zero
+    * count could land on a freed ring. */
+   uint32_t refs =
+      atomic_load_explicit(&dev->dc_sc_ring_refs, memory_order_relaxed);
+   while (refs) {
+      if (atomic_compare_exchange_weak_explicit(&dev->dc_sc_ring_refs, &refs,
+                                                refs + 1,
+                                                memory_order_acquire,
+                                                memory_order_relaxed))
+         return atomic_load_explicit(&dev->dc_sc_ring, memory_order_acquire);
+   }
+
+   mtx_lock(&dev->instance_rings_mutex);
    struct npt_ring *ring =
-      atomic_load_explicit(&dev->dc_sc_ring, memory_order_acquire);
+      atomic_load_explicit(&dev->dc_sc_ring, memory_order_relaxed);
    if (!ring) {
-      mtx_lock(&dev->instance_rings_mutex);
-      ring = atomic_load_explicit(&dev->dc_sc_ring, memory_order_relaxed);
-      if (!ring) {
-         const size_t extra_size = sizeof(uint32_t);
-         struct npt_ring_layout layout;
-         npt_ring_get_layout(NPT_DC_SC_RING_BUFFER_SIZE, extra_size, &layout);
-         const uint64_t ring_id = atomic_fetch_add(&dev->next_ring_id, 1);
-         ring = npt_ring_create(dev, &layout, ring_id,
-                                false /* is_tls_ring */);
-         if (ring) {
-            list_addtail(&ring->instance_head, &dev->instance_rings);
-            atomic_store_explicit(&dev->dc_sc_ring, ring,
-                                  memory_order_release);
-         }
+      const size_t extra_size = sizeof(uint32_t);
+      struct npt_ring_layout layout;
+      npt_ring_get_layout(NPT_DC_SC_RING_BUFFER_SIZE, extra_size, &layout);
+      const uint64_t ring_id = atomic_fetch_add(&dev->next_ring_id, 1);
+      ring = npt_ring_create(dev, &layout, ring_id, false /* is_tls_ring */);
+      if (ring) {
+         list_addtail(&ring->instance_head, &dev->instance_rings);
+         atomic_store_explicit(&dev->dc_sc_ring, ring, memory_order_release);
       }
-      mtx_unlock(&dev->instance_rings_mutex);
    }
    if (ring)
       atomic_fetch_add_explicit(&dev->dc_sc_ring_refs, 1,
                                 memory_order_relaxed);
+   mtx_unlock(&dev->instance_rings_mutex);
    return ring;
 }
 
