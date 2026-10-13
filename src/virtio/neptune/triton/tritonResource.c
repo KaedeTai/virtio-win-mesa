@@ -640,8 +640,8 @@ tritonOpenResource(D3D10DDI_HDEVICE hDevice, const D3D10DDIARG_OPENRESOURCE *pAr
         return;
     }
     r->pResource = (ID3D11Resource *)imported;
-    TR_LOG("shared: consumer opened res_id=%u %ux%u", res_id,
-           r->Width, r->Height);
+    TR_LOG_HOT("shared: consumer opened res_id=%u %ux%u", res_id,
+               r->Width, r->Height);
 }
 
 /* D3D10_DDI_MAP enum values match D3D11_MAP (READ=1, WRITE=2,

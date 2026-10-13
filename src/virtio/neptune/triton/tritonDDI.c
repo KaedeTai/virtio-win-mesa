@@ -1115,7 +1115,7 @@ static HRESULT APIENTRY tritonGetCaps(D3D10DDI_HADAPTER hAdapter,
                                       const D3D10_2DDIARG_GETCAPS *pArgs)
 {
     PTRITON_ADAPTER pAdapter = (PTRITON_ADAPTER)hAdapter.pDrvPrivate;
-    TR_LOG("GetCaps: Type=%d", pArgs->Type);
+    TR_LOG_HOT("GetCaps: Type=%d", pArgs->Type);
     if (!pArgs->pData || !pArgs->DataSize) return S_OK;
     ZeroMemory(pArgs->pData, pArgs->DataSize);
 
