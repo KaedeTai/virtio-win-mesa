@@ -253,24 +253,7 @@ void   APIENTRY tritonDsSetShaderResources(D3D10DDI_HDEVICE, UINT, UINT, const D
 void   APIENTRY tritonCsSetShaderResources(D3D10DDI_HDEVICE, UINT, UINT, const D3D10DDI_HSHADERRESOURCEVIEW *);
 
 /* tritonResource.c (WDDM 1.3 / 2.0 / 2.1) */
-void   APIENTRY tritonUpdateTileMappings(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE, UINT,
-                                         const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *,
-                                         const D3DWDDM1_3DDI_TILE_REGION_SIZE *, D3D10DDI_HRESOURCE, UINT,
-                                         const UINT *, const UINT *, const UINT *, UINT);
-void   APIENTRY tritonCopyTileMappings(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE,
-                                       const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *, D3D10DDI_HRESOURCE,
-                                       const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *,
-                                       const D3DWDDM1_3DDI_TILE_REGION_SIZE *, UINT);
-void   APIENTRY tritonCopyTiles(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE,
-                                const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *,
-                                const D3DWDDM1_3DDI_TILE_REGION_SIZE *, D3D10DDI_HRESOURCE, UINT64, UINT);
-void   APIENTRY tritonUpdateTiles(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE,
-                                  const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *,
-                                  const D3DWDDM1_3DDI_TILE_REGION_SIZE *,
-                                  const VOID *, UINT);
-void   APIENTRY tritonTiledResourceBarrier(D3D10DDI_HDEVICE, D3D11DDI_HANDLETYPE, VOID *, D3D11DDI_HANDLETYPE, VOID *);
 void   APIENTRY tritonGetMipPacking(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE, UINT *, UINT *);
-void   APIENTRY tritonResizeTilePool(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE, UINT64);
 void   APIENTRY tritonGetResourceLayout(D3D10DDI_HDEVICE, D3D10DDI_HRESOURCE, UINT,
                                         D3DKMT_HANDLE *, D3DWDDM2_0DDI_TEXTURE_LAYOUT *,
                                         UINT *, D3DWDDM2_0DDI_SUBRESOURCE_LAYOUT *);
@@ -557,13 +540,13 @@ static void tritonFillWDDM1_3DeviceFuncs(D3DWDDM1_3DDI_DEVICEFUNCS *p)
     p->pfnRelocateDeviceFuncs           = (PFND3DWDDM1_3DDI_RELOCATEDEVICEFUNCS)TR_STUB_V;
     p->pfnCheckMultisampleQualityLevels = tritonCheckMultisampleQualityLevels_1_3;
 
-    p->pfnUpdateTileMappings   = tritonUpdateTileMappings;
-    p->pfnCopyTileMappings     = tritonCopyTileMappings;
-    p->pfnCopyTiles            = tritonCopyTiles;
-    p->pfnUpdateTiles          = tritonUpdateTiles;
-    p->pfnTiledResourceBarrier = tritonTiledResourceBarrier;
+    p->pfnUpdateTileMappings   = (PFND3DWDDM1_3DDI_UPDATETILEMAPPINGS)TR_STUB_V;
+    p->pfnCopyTileMappings     = (PFND3DWDDM1_3DDI_COPYTILEMAPPINGS)TR_STUB_V;
+    p->pfnCopyTiles            = (PFND3DWDDM1_3DDI_COPYTILES)TR_STUB_V;
+    p->pfnUpdateTiles          = (PFND3DWDDM1_3DDI_UPDATETILES)TR_STUB_V;
+    p->pfnTiledResourceBarrier = (PFND3DWDDM1_3DDI_TILEDRESOURCEBARRIER)TR_STUB_V;
     p->pfnGetMipPacking        = tritonGetMipPacking;
-    p->pfnResizeTilePool       = tritonResizeTilePool;
+    p->pfnResizeTilePool       = (PFND3DWDDM1_3DDI_RESIZETILEPOOL)TR_STUB_V;
     p->pfnSetMarker            = tritonSetMarker;
     p->pfnSetMarkerMode        = tritonSetMarkerMode;
 }
@@ -751,10 +734,8 @@ static void APIENTRY tritonDestroyDevice(D3D10DDI_HDEVICE hDevice)
         p->presentLockInit = FALSE;
     }
     if (p->pCtx3) { ID3D11DeviceContext3_Release(p->pCtx3); p->pCtx3 = NULL; }
-    if (p->pCtx2) { ID3D11DeviceContext2_Release(p->pCtx2); p->pCtx2 = NULL; }
     if (p->pCtx1) { ID3D11DeviceContext1_Release(p->pCtx1); p->pCtx1 = NULL; }
     if (p->pDev3) { ID3D11Device3_Release(p->pDev3);        p->pDev3 = NULL; }
-    if (p->pDev2) { ID3D11Device2_Release(p->pDev2);        p->pDev2 = NULL; }
     if (p->pDev1) { ID3D11Device1_Release(p->pDev1);        p->pDev1 = NULL; }
     /* The runtime owns the TRITON_DEVICE memory (allocated via
      * pfnCalcPrivateDeviceSize); just clear the back-pointer. */
@@ -831,10 +812,8 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     tritonKmInit(&p->Km, pAdapter->hRTAdapter.handle, pArgs->hRTDevice.handle,
                  &p->KTCallbacks);
     p->pDev1          = NULL;
-    p->pDev2          = NULL;
     p->pDev3          = NULL;
     p->pCtx1          = NULL;
-    p->pCtx2          = NULL;
     p->pCtx3          = NULL;
     p->FeatureLevel   = D3D_FEATURE_LEVEL_11_0;
     p->pCurrentVS     = NULL;
@@ -930,24 +909,16 @@ static HRESULT APIENTRY tritonCreateDevice(D3D10DDI_HADAPTER hAdapter,
     }
     TR_LOG("CreateDevice: got Neptune device, feature level 0x%x", p->FeatureLevel);
 
-    /* QI for higher-tier interfaces so WDDM 1.3 / 2.0 handlers can
-     * forward instead of stub. NULL is non-fatal — handlers fall back
-     * to TR_STUB when the pointer is missing. */
-    if (FAILED(ID3D11Device1_QueryInterface(p->pDev1, &IID_ID3D11Device2,
-                                            (void **)&p->pDev2)))
-        p->pDev2 = NULL;
+    /* QI for the 11.3 interfaces the WDDM 2.0 handlers forward to. NULL
+     * is non-fatal: those handlers fall back to the 11.1 forms. */
     if (FAILED(ID3D11Device1_QueryInterface(p->pDev1, &IID_ID3D11Device3,
                                             (void **)&p->pDev3)))
         p->pDev3 = NULL;
-    if (FAILED(ID3D11DeviceContext1_QueryInterface(p->pCtx1, &IID_ID3D11DeviceContext2,
-                                                   (void **)&p->pCtx2)))
-        p->pCtx2 = NULL;
     if (FAILED(ID3D11DeviceContext1_QueryInterface(p->pCtx1, &IID_ID3D11DeviceContext3,
                                                    (void **)&p->pCtx3)))
         p->pCtx3 = NULL;
-    TR_LOG("CreateDevice: Neptune interface tier: Device2=%s Device3=%s Context2=%s Context3=%s",
-           p->pDev2 ? "yes" : "no", p->pDev3 ? "yes" : "no",
-           p->pCtx2 ? "yes" : "no", p->pCtx3 ? "yes" : "no");
+    TR_LOG("CreateDevice: Neptune interface tier: Device3=%s Context3=%s",
+           p->pDev3 ? "yes" : "no", p->pCtx3 ? "yes" : "no");
 
     /* Wire DXGI runtime callbacks once the D3D11 device is up; this also
      * records pfnPresentCb from the DXGI base callbacks. */
@@ -1239,7 +1210,7 @@ static HRESULT APIENTRY tritonGetCaps(D3D10DDI_HADAPTER hAdapter,
     }
     case D3DWDDM1_3DDICAPS_D3D11_OPTIONS1: {
         /* Tiled resources need the WDDM 1.3 tile-mapping DDI entry
-         * points, which are not implemented; the flags stay clear
+         * points, which are stubs; the flags stay clear
          * whatever the host's tier.  The field is a cumulative
          * D3DWDDM1_3DDI_TILED_RESOURCES_SUPPORT_FLAG bitmask (tier N =
          * (1 << N) - 1), not the API's ordinal tier, so the host tier
@@ -1249,7 +1220,7 @@ static HRESULT APIENTRY tritonGetCaps(D3D10DDI_HADAPTER hAdapter,
         CAP11_TODO("D3D11_OPTIONS1.TiledResourcesSupportFlags",
                    pCaps->TiledResourcesSupportFlags, OPTIONS2,
                    (1u << hc->options2.TiledResourcesTier) - 1, 0,
-                   "D3D11 tiled-resource DDI (UpdateTileMappings etc.) not implemented");
+                   "tiled resources not wired (MISC_TILED/TILE_POOL dropped at create, tile DDIs stubbed)");
         break;
     }
     case D3DWDDM2_0DDICAPS_D3D11_OPTIONS2: {

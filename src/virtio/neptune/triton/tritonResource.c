@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  *
  * Resource lifecycle, Map/Unmap, UpdateSubresource, copies, hazards,
- * constant-buffer binds, tiled-resource forwarders, and the various
+ * constant-buffer binds, and the various
  * unimplementable WDDM 2.0+ stubs.
  */
 
@@ -899,176 +899,16 @@ tritonDefaultCbUpdateSubresourceUP_11_1(D3D10DDI_HDEVICE hDevice,
                                            pDstBox, pSrc, SrcRowPitch, SrcDepthPitch, CopyFlags);
 }
 
-/* WDDM 1.3 tiled-resources.
- *
- * D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE / TILE_REGION_SIZE are
- * layout-compatible with D3D11_TILED_RESOURCE_COORDINATE /
- * D3D11_TILE_REGION_SIZE (same field types in the same order). The DDI
- * flag enums match the D3D11 ones bit-for-bit. Forward verbatim. */
-
-void APIENTRY
-tritonUpdateTileMappings(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hTiledRes,
-                         UINT NumRegions,
-                         const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *pRegionCoords,
-                         const D3DWDDM1_3DDI_TILE_REGION_SIZE *pRegionSizes,
-                         D3D10DDI_HRESOURCE hTilePool, UINT NumRanges,
-                         const UINT *pRangeFlags, const UINT *pTilePoolStartOffsets,
-                         const UINT *pRangeTileCounts, UINT Flags)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hTiledRes.pDrvPrivate);
-    PTRITON_RESOURCE pool = (PTRITON_RESOURCE)(hTilePool.pDrvPrivate);
-    if (!pD || !pD->pCtx2 || !r || !r->pResource) {
-        if (!pD || !pD->pCtx2) TR_STUB("UpdateTileMappings (no Device2)");
-        return;
-    }
-    HRESULT hr = ID3D11DeviceContext2_UpdateTileMappings(
-        pD->pCtx2, r->pResource, NumRegions,
-        (const D3D11_TILED_RESOURCE_COORDINATE *)pRegionCoords,
-        (const D3D11_TILE_REGION_SIZE *)pRegionSizes,
-        pool ? (ID3D11Buffer *)pool->pResource : NULL,
-        NumRanges, pRangeFlags, pTilePoolStartOffsets, pRangeTileCounts, Flags);
-    if (FAILED(hr)) tritonSetError(pD, hr);
-}
-
-void APIENTRY
-tritonCopyTileMappings(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hDstRes,
-                       const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *pDstCoord,
-                       D3D10DDI_HRESOURCE hSrcRes,
-                       const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *pSrcCoord,
-                       const D3DWDDM1_3DDI_TILE_REGION_SIZE *pRegionSize, UINT Flags)
-{
-    PTRITON_DEVICE   pD  = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE rD  = (PTRITON_RESOURCE)(hDstRes.pDrvPrivate);
-    PTRITON_RESOURCE rS  = (PTRITON_RESOURCE)(hSrcRes.pDrvPrivate);
-    if (!pD || !pD->pCtx2 || !rD || !rS || !rD->pResource || !rS->pResource) {
-        if (!pD || !pD->pCtx2) TR_STUB("CopyTileMappings (no Device2)");
-        return;
-    }
-    HRESULT hr = ID3D11DeviceContext2_CopyTileMappings(
-        pD->pCtx2, rD->pResource, (const D3D11_TILED_RESOURCE_COORDINATE *)pDstCoord,
-        rS->pResource, (const D3D11_TILED_RESOURCE_COORDINATE *)pSrcCoord,
-        (const D3D11_TILE_REGION_SIZE *)pRegionSize, Flags);
-    if (FAILED(hr)) tritonSetError(pD, hr);
-}
-
-void APIENTRY
-tritonCopyTiles(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hTiledRes,
-                const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *pCoord,
-                const D3DWDDM1_3DDI_TILE_REGION_SIZE *pSize,
-                D3D10DDI_HRESOURCE hBuffer, UINT64 BufferStartOffsetBytes, UINT Flags)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hTiledRes.pDrvPrivate);
-    PTRITON_RESOURCE b  = (PTRITON_RESOURCE)(hBuffer.pDrvPrivate);
-    if (!pD || !pD->pCtx2 || !r || !b || !r->pResource || !b->pResource) {
-        if (!pD || !pD->pCtx2) TR_STUB("CopyTiles (no Device2)");
-        return;
-    }
-    ID3D11DeviceContext2_CopyTiles(pD->pCtx2, r->pResource,
-        (const D3D11_TILED_RESOURCE_COORDINATE *)pCoord,
-        (const D3D11_TILE_REGION_SIZE *)pSize,
-        (ID3D11Buffer *)b->pResource, BufferStartOffsetBytes, Flags);
-}
-
-void APIENTRY
-tritonUpdateTiles(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hDstRes,
-                  const D3DWDDM1_3DDI_TILED_RESOURCE_COORDINATE *pDstCoord,
-                  const D3DWDDM1_3DDI_TILE_REGION_SIZE *pDstSize,
-                  const VOID *pSourceTileData, UINT Flags)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hDstRes.pDrvPrivate);
-    if (!pD || !pD->pCtx2 || !r || !r->pResource) {
-        if (!pD || !pD->pCtx2) TR_STUB("UpdateTiles (no Device2)");
-        return;
-    }
-    ID3D11DeviceContext2_UpdateTiles(pD->pCtx2, r->pResource,
-        (const D3D11_TILED_RESOURCE_COORDINATE *)pDstCoord,
-        (const D3D11_TILE_REGION_SIZE *)pDstSize, pSourceTileData, Flags);
-}
-
-/* Convert (HandleType, void*) → ID3D11DeviceChild* using the leading
- * PTRITON_*VIEW / PTRITON_RESOURCE layouts. NULL handle stays NULL. */
-static ID3D11DeviceChild *tritonHandleToDeviceChild(D3D11DDI_HANDLETYPE t, void *h)
-{
-    if (!h) return NULL;
-    switch (t) {
-    case D3D10DDI_HT_RESOURCE: {
-        PTRITON_RESOURCE r = (PTRITON_RESOURCE)(h);
-        return r ? (ID3D11DeviceChild *)r->pResource : NULL;
-    }
-    case D3D10DDI_HT_SHADERRESOURCEVIEW: {
-        PTRITON_SRVIEW v = (PTRITON_SRVIEW)(h);
-        return v ? (ID3D11DeviceChild *)v->pSRV : NULL;
-    }
-    case D3D10DDI_HT_RENDERTARGETVIEW: {
-        PTRITON_RTVIEW v = (PTRITON_RTVIEW)(h);
-        return v ? (ID3D11DeviceChild *)v->pRTV : NULL;
-    }
-    case D3D10DDI_HT_DEPTHSTENCILVIEW: {
-        PTRITON_DSVIEW v = (PTRITON_DSVIEW)(h);
-        return v ? (ID3D11DeviceChild *)v->pDSV : NULL;
-    }
-    case D3D11DDI_HT_UNORDEREDACCESSVIEW: {
-        PTRITON_UAVIEW v = (PTRITON_UAVIEW)(h);
-        return v ? (ID3D11DeviceChild *)v->pUAV : NULL;
-    }
-    default:
-        return NULL;
-    }
-}
-
-void APIENTRY
-tritonTiledResourceBarrier(D3D10DDI_HDEVICE hDevice,
-                           D3D11DDI_HANDLETYPE tBefore, VOID *hBefore,
-                           D3D11DDI_HANDLETYPE tAfter,  VOID *hAfter)
-{
-    PTRITON_DEVICE pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    if (!pD || !pD->pCtx2) { TR_STUB("TiledResourceBarrier (no Device2)"); return; }
-    ID3D11DeviceContext2_TiledResourceBarrier(pD->pCtx2,
-        tritonHandleToDeviceChild(tBefore, hBefore),
-        tritonHandleToDeviceChild(tAfter,  hAfter));
-}
-
+/* Tiled resources are not offered (D3DWDDM1_3DDICAPS_D3D11_OPTIONS1 reports
+ * no tier), so the runtime never creates one and the tile DDIs are never
+ * reached; GetMipPacking still answers "no packed mips". */
 void APIENTRY
 tritonGetMipPacking(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hTiledRes,
                     UINT *pNumPackedMips, UINT *pNumTilesForPackedMips)
 {
+    (void)hDevice; (void)hTiledRes;
     if (pNumPackedMips)         *pNumPackedMips = 0;
     if (pNumTilesForPackedMips) *pNumTilesForPackedMips = 0;
-
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hTiledRes.pDrvPrivate);
-    if (!pD || !pD->pDev2 || !r || !r->pResource) {
-        if (!pD || !pD->pDev2) TR_STUB("GetMipPacking (no Device2)");
-        return;
-    }
-    /* The DDI only asks for the packed-mip subset of GetResourceTiling's
-     * output; pass NULLs for the rest. */
-    D3D11_PACKED_MIP_DESC mipDesc = {};
-    UINT numSubresourceTilings = 0;
-    ID3D11Device2_GetResourceTiling(pD->pDev2, r->pResource,
-        NULL /* total tiles */, &mipDesc,
-        NULL /* tile shape */, &numSubresourceTilings,
-        0 /* first */, NULL /* per-subresource tilings */);
-    if (pNumPackedMips)         *pNumPackedMips         = mipDesc.NumPackedMips;
-    if (pNumTilesForPackedMips) *pNumTilesForPackedMips = mipDesc.NumTilesForPackedMips;
-}
-
-void APIENTRY
-tritonResizeTilePool(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hTilePool,
-                     UINT64 NewSizeInBytes)
-{
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hTilePool.pDrvPrivate);
-    if (!pD || !pD->pCtx2 || !r || !r->pResource) {
-        if (!pD || !pD->pCtx2) TR_STUB("ResizeTilePool (no Device2)");
-        return;
-    }
-    HRESULT hr = ID3D11DeviceContext2_ResizeTilePool(
-        pD->pCtx2, (ID3D11Buffer *)r->pResource, NewSizeInBytes);
-    if (FAILED(hr)) tritonSetError(pD, hr);
 }
 
 /* WDDM 2.0: GetResourceLayout returns the kernel allocation handle plus

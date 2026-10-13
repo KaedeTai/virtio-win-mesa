@@ -53,7 +53,7 @@ libneptune_umd = shared_library(
   # those have external linkage, so every TU that includes the umddi
   # header emits an identical symbol and the linker raises LNK2005.
   # Both definitions agree, so picking the first instance is safe.
-  # dxguid.lib provides IID_ID3D11Device2/3 + IID_ID3D11DeviceContext2/3.
+  # dxguid.lib provides the IID_ID3D11Device*/IID_ID3D11DeviceContext* GUIDs.
   link_args : ['/FORCE:MULTIPLE', '/IGNORE:4006', 'dxguid.lib'],
   vs_module_defs : 'neptune_umd.def',
   name_prefix : '',

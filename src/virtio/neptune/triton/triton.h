@@ -68,15 +68,12 @@ typedef struct TRITON_DEVICE {
     PTRITON_ADAPTER                 pAdapter;
     D3DDDI_DEVICECALLBACKS          KTCallbacks;
 
-    /* pDev1/pCtx1 come from the Neptune factory. pDev2/pDev3/pCtx2/pCtx3
-     * are QI'd in tritonCreateDevice and may be NULL when the host stack
-     * does not expose the newer interfaces. WDDM 1.3+ handlers check for
-     * NULL and fall back to TR_STUB. */
+    /* pDev1/pCtx1 come from the Neptune factory. pDev3/pCtx3 are QI'd in
+     * tritonCreateDevice and may be NULL when the host stack does not
+     * expose them; the WDDM 2.0 handlers fall back to the 11.1 forms. */
     ID3D11Device1                  *pDev1;
-    ID3D11Device2                  *pDev2;
     ID3D11Device3                  *pDev3;
     ID3D11DeviceContext1           *pCtx1;
-    ID3D11DeviceContext2           *pCtx2;
     ID3D11DeviceContext3           *pCtx3;
     D3D_FEATURE_LEVEL               FeatureLevel;
 
