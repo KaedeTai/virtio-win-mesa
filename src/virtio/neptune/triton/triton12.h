@@ -154,6 +154,9 @@ typedef struct TRITON12_RESOURCE
      * Borrowed from the owning TRITON12_HEAP (which releases it); placed
      * creates reach it via ReuseBufferGPUVA.BaseAddress.UMD.hResource. */
     ID3D12Heap                  *pPlaceHeap;
+    /* That inner heap's properties, so a placed texture can take the
+     * layout its heap's CPU visibility calls for (t12UseCpuLayout). */
+    D3D12_HEAP_PROPERTIES        PlaceProps;
     /* Runtime resource handle + the shared-blob KM allocation the
      * runtime's kernel present flips.  Presentable resources only. */
     D3D12DDI_HRTRESOURCE         hRTResource;

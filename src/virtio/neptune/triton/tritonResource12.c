@@ -180,20 +180,16 @@ t12RowMajorCapable(const D3D12DDIARG_CREATERESOURCE_0003 *pRes)
            t12RowMajorFormat(pRes->Format);
 }
 
-/* A texture on a CPU-visible custom heap is reached by the runtime through
- * the layout this driver reports (Map, WriteToSubresource -- the UMA upload
- * path), so it needs a linear layout: only ROW_MAJOR has a CPU address.
- * The DDI does not say so -- the runtime passes D3D12DDI_TL_UNDEFINED and
- * expects the driver to know -- and t12ResourceDesc
- * maps UNDEFINED to D3D12_TEXTURE_LAYOUT_UNKNOWN, which builds a host
- * resource with an opaque swizzle and no mappable pointer.  When the host
- * gives a texture no CPU address (its backend refuses ROW_MAJOR textures;
- * triton12CpuVisibleTextures) it stays opaque and
- * t12CheckResourceAllocationInfo reports it so.
- *
- * A texture PLACED on a CPU-visible app heap is governed by the same rule;
- * that path is left alone because it would need the heap's properties fetched
- * over the wire per create. */
+/* A texture on a CPU-visible heap -- committed, or placed on an app heap --
+ * is reached by the runtime through the layout this driver reports (Map,
+ * WriteToSubresource -- the UMA upload path), so it needs a linear layout:
+ * only ROW_MAJOR has a CPU address.  The DDI does not say so -- the runtime
+ * passes D3D12DDI_TL_UNDEFINED and expects the driver to know -- and
+ * t12ResourceDesc maps UNDEFINED to D3D12_TEXTURE_LAYOUT_UNKNOWN, which
+ * builds a host resource with an opaque swizzle and no mappable pointer.
+ * When the host gives a texture no CPU address (its backend refuses
+ * ROW_MAJOR textures; triton12CpuVisibleTextures) it stays opaque and
+ * t12CheckResourceAllocationInfo reports it so. */
 static void
 t12ForceRowMajorOnCpuHeap(BOOL cpuVisibleTextures,
                           const D3D12DDIARG_CREATERESOURCE_0003 *pRes,
@@ -212,6 +208,22 @@ t12ForceRowMajorOnCpuHeap(BOOL cpuVisibleTextures,
         pProps->CPUPageProperty == D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
     if (cpuVisible)
         pDesc->Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+}
+
+/* t12ForceRowMajorOnCpuHeap for a create on a heap with props, recording
+ * the layout used in r->Desc: the allocation-info and subresource-info
+ * DDIs answer from it, and the runtime refuses CPU access to a resource it
+ * believes is swizzled. */
+static void
+t12UseCpuLayout(PTRITON12_DEVICE p, PTRITON12_RESOURCE r,
+                const D3D12DDIARG_CREATERESOURCE_0003 *pRes,
+                const D3D12_HEAP_PROPERTIES *pProps, D3D12_RESOURCE_DESC *pDesc)
+{
+    t12ForceRowMajorOnCpuHeap(triton12CpuVisibleTextures(p->pAdapter), pRes,
+                              pProps, pDesc);
+    if (r && pDesc->Layout == D3D12_TEXTURE_LAYOUT_ROW_MAJOR &&
+        pRes->ResourceType != D3D12DDI_RT_BUFFER)
+        r->Desc.Layout = D3D12DDI_TL_ROW_MAJOR;
 }
 
 /* Create the present-copy companion for a native simple-2D texture (a
@@ -289,14 +301,7 @@ t12CreateHeapAndResourceCore(D3D12DDI_HDEVICE hDevice,
         D3D12_RESOURCE_DESC desc;
         t12HeapProps(pHeapDesc, &props);
         t12ResourceDesc(pResDesc, &desc);
-        t12ForceRowMajorOnCpuHeap(triton12CpuVisibleTextures(p->pAdapter),
-                                  pResDesc, &props, &desc);
-        /* The recorded desc must state the layout actually used: the
-         * allocation-info and subresource-info DDIs answer from it, and the
-         * runtime refuses CPU access to a resource it believes is swizzled. */
-        if (r && desc.Layout == D3D12_TEXTURE_LAYOUT_ROW_MAJOR &&
-            pResDesc->ResourceType != D3D12DDI_RT_BUFFER)
-            r->Desc.Layout = D3D12DDI_TL_ROW_MAJOR;
+        t12UseCpuLayout(p, r, pResDesc, &props, &desc);
         const BOOL primary = !!(pHeapDesc->Flags & D3D12DDI_HEAP_FLAG_PRIMARY);
         /* PRIMARY or RT texture.  COHERENT_SYSTEMWIDE (0x8) is NOT a
          * sharing flag: it marks CPU-coherent (UPLOAD/READBACK) memory
@@ -387,6 +392,7 @@ t12CreateHeapAndResourceCore(D3D12DDI_HDEVICE hDevice,
                     h->pResource = r->pResource;
                     h->Desc = hd;
                     r->pPlaceHeap = h->pHeap;
+                    r->PlaceProps = hd.Properties;
                     TR_LOG_HOT("12.CreateHeapAndResource(heap+buf): heap=%p size=%llu "
                            "heapFlags=0x%x state=0x%x -> 0x%08lx", (void *)h,
                            (unsigned long long)hd.SizeInBytes,
@@ -557,6 +563,7 @@ t12CreateHeapAndResourceCore(D3D12DDI_HDEVICE hDevice,
             return hr;
         }
         if (base && base->pPlaceHeap) {
+            t12UseCpuLayout(p, r, pResDesc, &base->PlaceProps, &desc);
             hr = ID3D12Device_CreatePlacedResource(
                 p->pDev, base->pPlaceHeap, off, &desc,
                 (D3D12_RESOURCE_STATES)pResDesc->InitialResourceState,
@@ -806,6 +813,34 @@ t12InfoCacheSlot(const D3D12_RESOURCE_DESC *desc, UINT extra)
     return h & (T12_INFO_CACHE_SIZE - 1);
 }
 
+static void
+t12HostAllocInfo(PTRITON12_DEVICE p, const D3D12_RESOURCE_DESC *desc,
+                 D3D12_RESOURCE_ALLOCATION_INFO *info)
+{
+    const UINT slot = t12InfoCacheSlot(desc, 0);
+    BOOL hit = FALSE;
+    AcquireSRWLockShared(&t12InfoCacheLock);
+    if (t12AICache[slot].valid &&
+        memcmp(&t12AICache[slot].desc, desc, sizeof(*desc)) == 0) {
+        *info = t12AICache[slot].info;
+        hit = TRUE;
+    }
+    ReleaseSRWLockShared(&t12InfoCacheLock);
+    if (!hit) {
+        p->pDev->lpVtbl->GetResourceAllocationInfo(p->pDev, info, 0, 1, desc);
+        /* A failed round trip leaves info zeroed; a real answer is
+         * never zero-sized (an invalid desc reports UINT64_MAX).
+         * Only host answers may enter the memo. */
+        if (info->SizeInBytes) {
+            AcquireSRWLockExclusive(&t12InfoCacheLock);
+            t12AICache[slot].desc = *desc;
+            t12AICache[slot].info = *info;
+            t12AICache[slot].valid = TRUE;
+            ReleaseSRWLockExclusive(&t12InfoCacheLock);
+        }
+    }
+}
+
 static VOID APIENTRY
 t12CheckResourceAllocationInfo(D3D12DDI_HDEVICE hDevice,
                                const D3D12DDIARG_CREATERESOURCE_0003 *pRes,
@@ -831,29 +866,7 @@ t12CheckResourceAllocationInfo(D3D12DDI_HDEVICE hDevice,
     D3D12_RESOURCE_DESC desc;
     t12ResourceDesc(pRes, &desc);
     D3D12_RESOURCE_ALLOCATION_INFO info;
-    const UINT slot = t12InfoCacheSlot(&desc, 0);
-    BOOL hit = FALSE;
-    AcquireSRWLockShared(&t12InfoCacheLock);
-    if (t12AICache[slot].valid &&
-        memcmp(&t12AICache[slot].desc, &desc, sizeof(desc)) == 0) {
-        info = t12AICache[slot].info;
-        hit = TRUE;
-    }
-    ReleaseSRWLockShared(&t12InfoCacheLock);
-    if (!hit) {
-        p->pDev->lpVtbl->GetResourceAllocationInfo(p->pDev, &info, 0, 1,
-                                                   &desc);
-        /* A failed round trip leaves info zeroed; a real answer is
-         * never zero-sized (an invalid desc reports UINT64_MAX).
-         * Only host answers may enter the memo. */
-        if (info.SizeInBytes) {
-            AcquireSRWLockExclusive(&t12InfoCacheLock);
-            t12AICache[slot].desc = desc;
-            t12AICache[slot].info = info;
-            t12AICache[slot].valid = TRUE;
-            ReleaseSRWLockExclusive(&t12InfoCacheLock);
-        }
-    }
+    t12HostAllocInfo(p, &desc, &info);
 
     pOut->ResourceDataSize = info.SizeInBytes;
     UINT64 align = info.Alignment;
@@ -865,27 +878,43 @@ t12CheckResourceAllocationInfo(D3D12DDI_HDEVICE hDevice,
      * the info as invalid: it computes the resource size as ~0 aligned
      * down (18446744073709486080 in the debug-layer message) and every
      * placed-texture create then fails E_INVALIDARG. */
-    if (pRes->ResourceType == D3D12DDI_RT_BUFFER)
+    if (pRes->ResourceType == D3D12DDI_RT_BUFFER) {
         pOut->Layout = D3D12DDI_TL_ROW_MAJOR;
-    else if (pRes->Layout == D3D12DDI_TL_UNDEFINED)
+    } else if (pRes->Layout != D3D12DDI_TL_UNDEFINED) {
+        pOut->Layout = pRes->Layout;
+    } else {
         /* Where textures can be CPU-visible, ROW_MAJOR for a CPU-mappable
          * shape and an opaque 64KB swizzle for everything else.  The
          * runtime takes this answer as the concrete layout and refuses CPU
          * access to a resource it believes is swizzled -- Map fails
          * E_OUTOFMEMORY inside the runtime, without ever reaching this
          * driver, which breaks upload by Map + WriteToSubresource, the
-         * documented UMA path.  It is what t12ForceRowMajorOnCpuHeap
-         * builds, so the two agree.  Where the host gives a texture no CPU
-         * address every texture is opaque, and the refusal is the right
-         * answer.  The GPU-side layout of a DEFAULT-heap texture is
-         * unaffected: it is chosen at create time and its strides are
-         * reported truthfully by t12CheckSubresourceInfo. */
+         * documented UMA path.  It is what t12UseCpuLayout builds, so the
+         * two agree.  Where the host gives a texture no CPU address every
+         * texture is opaque, and the refusal is the right answer.  The
+         * GPU-side layout of a DEFAULT-heap texture is unaffected: it is
+         * chosen at create time and its strides are reported truthfully by
+         * t12CheckSubresourceInfo. */
         pOut->Layout = triton12CpuVisibleTextures(p->pAdapter) &&
                                t12RowMajorCapable(pRes)
                            ? D3D12DDI_TL_ROW_MAJOR
                            : D3D12DDI_TL_64KB_TILE_UNDEFINED_SWIZZLE;
-    else
-        pOut->Layout = pRes->Layout;
+        /* The texture is created ROW_MAJOR if it lands on a CPU-visible
+         * heap and opaque otherwise, and a placement must hold either:
+         * report the larger of the two host answers. */
+        if (pOut->Layout == D3D12DDI_TL_ROW_MAJOR) {
+            D3D12_RESOURCE_DESC rm = desc;
+            D3D12_RESOURCE_ALLOCATION_INFO rmInfo;
+            rm.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+            t12HostAllocInfo(p, &rm, &rmInfo);
+            if (rmInfo.SizeInBytes && rmInfo.SizeInBytes != ~0ull) {
+                if (rmInfo.SizeInBytes > pOut->ResourceDataSize)
+                    pOut->ResourceDataSize = rmInfo.SizeInBytes;
+                if (rmInfo.Alignment > pOut->ResourceDataAlignment)
+                    pOut->ResourceDataAlignment = (UINT32)rmInfo.Alignment;
+            }
+        }
+    }
 }
 
 static VOID APIENTRY
