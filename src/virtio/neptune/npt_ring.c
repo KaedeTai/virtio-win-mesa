@@ -263,13 +263,8 @@ npt_ring_store_tail(struct npt_ring *ring)
     * arm64ec must not take the MSVC x86 branch: MSVC defines _M_X64 for it
     * (it uses the x64 ABI for source compatibility) while emitting ARM64
     * code, so that branch would publish the tail with a plain relaxed store
-    * on ARM.  The idle handshake needs store->load ordering here --
-    * npt_ring_submit_locked stores the tail, then loads status to decide
-    * whether an IDLE host needs a notify -- and a relaxed tail store lets
-    * ARM order that load first while the host, which sets IDLE and then
-    * re-reads the tail, still observes the old value.  Both sides then miss
-    * each other: the guest skips the notify and the host stays parked.
-    * seq_cst (STLR) supplies the required Dekker ordering. */
+    * on ARM, where nothing would then order it ahead of the submit path's
+    * later loads.  seq_cst (STLR) publishes it promptly. */
 #if (defined(__x86_64__) || defined(__i386__)) && \
     __has_builtin(__builtin_ia32_sfence)
    __builtin_ia32_sfence();
@@ -281,17 +276,11 @@ npt_ring_store_tail(struct npt_ring *ring)
 #else
    atomic_store_explicit(ring->tail, ring->cur, memory_order_seq_cst);
 #endif
-   /* Dekker pairing with the host's idle transition.  The submit path
-    * follows this store with a status load to decide whether to ring
-    * the doorbell; the host sets IDLE (seq_cst RMW) then re-reads the
-    * tail.  With only the SFENCE above, this producer's status load
-    * can execute while the tail store still sits in the store buffer:
-    * host misses the tail AND we miss IDLE -> no notify, host sleeps
-    * in cnd_wait forever (the load-correlated "status=0x0" transport
-    * wedge, with every host decoder left idle).  A
-    * full fence makes the tail globally visible before the status
-    * read on x86 (the store buffer is already SFENCE-drained, so this
-    * is cheap here). */
+   /* Make the tail globally visible before the submit path goes on: a
+    * host deciding whether to park reads it, and the doorbell rule only
+    * covers work published after that decision (npt_ring_doorbell_locked).
+    * The store buffer is already SFENCE-drained on x86, so this is cheap
+    * there. */
    atomic_thread_fence(memory_order_seq_cst);
 }
 
@@ -308,6 +297,81 @@ npt_ring_has_space(const struct npt_ring *ring, uint32_t size)
 {
    const uint32_t head = npt_ring_load_head(ring);
    return ring->cur + size - head <= ring->buffer_size;
+}
+
+/* A cheap monotonic tick for the doorbell rule, which runs on every
+ * submit.  QueryPerformanceCounter is a ~77 ns syscall under Wine on FEX
+ * (RDTSC: 0.3 ns) and cost a busy recording thread ~10% of Fire Strike
+ * GT1 there, so x86/x64 builds read the TSC, its rate calibrated once
+ * against QPC.  Native arm64 Windows reads QPC in user mode, so keeps it. */
+#if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__) || \
+                        defined(_M_IX86) || \
+                        (defined(_M_X64) && !defined(_M_ARM64EC)))
+#define NPT_RING_TICKS_TSC 1
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
+#endif
+
+static inline uint64_t
+npt_ring_ticks(void)
+{
+#if defined(NPT_RING_TICKS_TSC)
+   return __rdtsc();
+#elif defined(_WIN32)
+   LARGE_INTEGER c;
+   QueryPerformanceCounter(&c);
+   return (uint64_t)c.QuadPart;
+#else
+   return (uint64_t)os_time_get_nano();
+#endif
+}
+
+/* npt_ring_ticks() per second. */
+static uint64_t
+npt_ring_tick_hz(void)
+{
+   static uint64_t hz;
+   if (hz)
+      return hz;
+#if defined(NPT_RING_TICKS_TSC)
+   LARGE_INTEGER f, q0, q1;
+   QueryPerformanceFrequency(&f);
+   QueryPerformanceCounter(&q0);
+   const uint64_t t0 = __rdtsc();
+   do {
+      QueryPerformanceCounter(&q1);
+   } while (q1.QuadPart - q0.QuadPart < f.QuadPart / 500); /* 2 ms */
+   const uint64_t t1 = __rdtsc();
+   hz = (t1 - t0) * (uint64_t)f.QuadPart / (uint64_t)(q1.QuadPart - q0.QuadPart);
+#elif defined(_WIN32)
+   LARGE_INTEGER f;
+   QueryPerformanceFrequency(&f);
+   hz = (uint64_t)f.QuadPart;
+#else
+   hz = 1000000000ull;
+#endif
+   return hz;
+}
+
+static void
+npt_ring_request_notify_locked(struct npt_ring *ring);
+
+/* Caller holds ring->lock, after publishing the tail.  The host parks only
+ * after the ring's idle timeout without work, and it saw this ring's
+ * previous submit no earlier than that submit was made, so it can be
+ * parked only if this submit follows the previous one by at least the idle
+ * timeout: ring exactly then.  One doorbell per idle gap, and nothing here
+ * depends on host-written state reaching this side in time. */
+static inline void
+npt_ring_doorbell_locked(struct npt_ring *ring)
+{
+   const uint64_t now = npt_ring_ticks();
+   if (now - ring->doorbell_last_submit >= ring->doorbell_idle_ticks)
+      npt_ring_request_notify_locked(ring);
+   ring->doorbell_last_submit = now;
 }
 
 /* Caller holds ring->lock.  Defer the doorbell to unlock: the escape
@@ -338,11 +402,9 @@ npt_ring_flush_notify_locked(struct npt_ring *ring)
 }
 
 /* Drop ring->lock, then deliver any deferred doorbell.  Late delivery
- * is safe: the host re-checks the tail after setting IDLE (Dekker
- * pairing in npt_ring_store_tail), so it never parks with the tail
- * already visible, and a concurrent submitter that still sees IDLE
- * requests its own notify -- a redundant wake at worst, never a
- * missed one. */
+ * is safe: the host re-reads the tail before it parks and takes
+ * ring->mutex to do so, so a doorbell that lands after its decision
+ * still finds it in the wait. */
 static void
 npt_ring_unlock_and_notify(struct npt_ring *ring)
 {
@@ -735,18 +797,7 @@ npt_ring_submit_locked(struct npt_ring *ring,
       return false;
    }
 
-   if (status & NPT_RING_STATUS_IDLE_BIT) {
-#ifndef _WIN32
-      const int64_t now = os_time_get_nano();
-      if (os_time_timeout(ring->last_notify, ring->next_notify, now)) {
-         ring->last_notify = now;
-         ring->next_notify = now + NPT_RING_IDLE_TIMEOUT_NS;
-         npt_ring_request_notify_locked(ring);
-      }
-#else
-      npt_ring_request_notify_locked(ring);
-#endif
-   }
+   npt_ring_doorbell_locked(ring);
 
    return true;
 }
@@ -1237,18 +1288,7 @@ npt_ring_submit_locked_split(struct npt_ring *ring,
               ring->cur, (int)ring->is_tls_ring);
       return false;
    }
-   if (status & NPT_RING_STATUS_IDLE_BIT) {
-#ifndef _WIN32
-      const int64_t now = os_time_get_nano();
-      if (os_time_timeout(ring->last_notify, ring->next_notify, now)) {
-         ring->last_notify = now;
-         ring->next_notify = now + NPT_RING_IDLE_TIMEOUT_NS;
-         npt_ring_request_notify_locked(ring);
-      }
-#else
-      npt_ring_request_notify_locked(ring);
-#endif
-   }
+   npt_ring_doorbell_locked(ring);
    return true;
 }
 
@@ -1603,6 +1643,10 @@ npt_ring_create(struct npt_device *device,
    create_cmd.idle_timeout = is_tls_ring
                                 ? NPT_TLS_RING_IDLE_TIMEOUT_NS
                                 : NPT_RING_IDLE_TIMEOUT_NS;
+   /* 10% early: a tick-rate error may cost a doorbell, never miss one. */
+   ring->doorbell_idle_ticks =
+      create_cmd.idle_timeout / 1000 * npt_ring_tick_hz() / 1000000 * 9 / 10;
+   ring->doorbell_last_submit = 0;
    /* Monitor every ring so the guest watchdog covers each one. */
    create_cmd.monitor_report_period_us = NPT_RING_WATCHDOG_REPORT_PERIOD_US;
 

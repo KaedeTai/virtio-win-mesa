@@ -255,13 +255,14 @@ struct npt_ring {
 
    struct npt_ring_lock lock;
 
-   /* Rate-limit idle notifications: only notify if
-    * NPT_RING_IDLE_TIMEOUT_NS elapsed since the last one, to avoid
-    * EXECBUFFER round-trips when the host is briefly idle. */
-   int64_t last_notify;
-   int64_t next_notify;
+   /* Doorbell rule (npt_ring_doorbell_locked): the host parks only after
+    * the ring's idle timeout without work, so it can be parked only when a
+    * submit follows the previous one by at least that long.  In
+    * npt_ring_ticks() units, under ring->lock. */
+   uint64_t doorbell_last_submit;
+   uint64_t doorbell_idle_ticks;
 
-   /* Set under lock when a submit finds the host IDLE; the doorbell
+   /* Set under lock when a submit may find the host parked; the doorbell
     * itself (a kernel escape through the renderer) fires after the
     * lock is dropped.  Lock-held waits on host progress must flush it
     * first or a parked host never wakes to make that progress. */
