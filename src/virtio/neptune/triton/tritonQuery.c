@@ -192,16 +192,30 @@ tritonSetPredication(D3D10DDI_HDEVICE hDevice, D3D10DDI_HQUERY hPred, BOOL Predi
  * whose reply-wait sleeps the calling (compositor) thread.  Answer re-queries
  * from a local cache.
  *
- * Validity lives in bit 31 of the value rather than in a separate array, so a
- * reader observes both through a single load and a plain load is sufficient.
- * Split arrays would instead need the publish's two stores ordered against the
+ * Validity lives in bit 32 of a single 64-bit entry rather than in a separate
+ * array, so a reader observes both through a single aligned load.  Split
+ * arrays would instead need the publish's two stores ordered against the
  * read's two loads: on ARM64 the validity store may become visible first and
  * hand back a stale zero, which is then latched and never re-derived.  Bit 31
- * is free in both caches -- the format cache holds only the DDI support bits,
- * the MSAA cache a quality count for SampleCount <= 32. */
-#define TRITON_CACHE_VALID 0x80000000u
-static volatile LONG s_msaaCache[256][33];
-static volatile LONG s_fmtCache[256];
+ * is not free: it is D3D10_DDI_FORMAT_SUPPORT_NOT_SUPPORTED.  The load is
+ * interlocked because a plain 64-bit load can tear in the 32-bit UMD. */
+#define TRITON_CACHE_VALID (1ll << 32)
+static volatile LONG64 s_msaaCache[256][33];
+static volatile LONG64 s_fmtCache[256];
+
+static LONG64 tritonCacheLoad(volatile LONG64 *slot)
+{
+    return InterlockedCompareExchange64(slot, 0, 0);
+}
+
+/* Whether a host query's result is the host's answer.  E_FAIL and
+ * E_INVALIDARG are how the API reports an unsupported format; anything else
+ * (device removed, transport failure) is no answer, and a zero cached from
+ * it would outlive the failure. */
+static BOOL tritonHostAnswered(HRESULT hr)
+{
+    return SUCCEEDED(hr) || hr == E_FAIL || hr == E_INVALIDARG;
+}
 
 /* Every DXGI typeless format family: the typeless parent together with all
  * its typed view formats (depth, colour, integer, sRGB).  MSAA is a
@@ -322,16 +336,20 @@ static BOOL tritonMsaaForbidden(DXGI_FORMAT Format)
  * formats; requiring the host's MULTISAMPLE_RENDERTARGET bit first keeps the
  * per-format quality truthful for DXVK, DXMT and D3DMetal alike. */
 static UINT tritonNativeMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format,
-                                    UINT SampleCount)
+                                    UINT SampleCount, BOOL *pAnswered)
 {
     UINT support = 0;
     UINT quality = 0;
-    if (FAILED(ID3D11Device1_CheckFormatSupport(pD->pDev1, Format, &support)) ||
-        !(support & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET) ||
-        FAILED(ID3D11Device1_CheckMultisampleQualityLevels(pD->pDev1, Format,
-                                                           SampleCount, &quality)))
+    HRESULT hr = ID3D11Device1_CheckFormatSupport(pD->pDev1, Format, &support);
+    if (!tritonHostAnswered(hr))
+        *pAnswered = FALSE;
+    if (FAILED(hr) || !(support & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET))
         return 0;
-    return quality;
+    hr = ID3D11Device1_CheckMultisampleQualityLevels(pD->pDev1, Format,
+                                                     SampleCount, &quality);
+    if (!tritonHostAnswered(hr))
+        *pAnswered = FALSE;
+    return SUCCEEDED(hr) ? quality : 0;
 }
 
 /* Whether the host can use Format as a render target at all (colour or
@@ -340,21 +358,26 @@ static UINT tritonNativeMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format,
  * the members that must be lifted to the family value; a member that is not a
  * render target (an SRV-only or otherwise non-renderable format) is exempt and
  * stays at zero. */
-static BOOL tritonHostRenderTargetable(PTRITON_DEVICE pD, DXGI_FORMAT Format)
+static BOOL tritonHostRenderTargetable(PTRITON_DEVICE pD, DXGI_FORMAT Format,
+                                       BOOL *pAnswered)
 {
     UINT support = 0;
-    if (FAILED(ID3D11Device1_CheckFormatSupport(pD->pDev1, Format, &support)))
+    HRESULT hr = ID3D11Device1_CheckFormatSupport(pD->pDev1, Format, &support);
+    if (!tritonHostAnswered(hr))
+        *pAnswered = FALSE;
+    if (FAILED(hr))
         return FALSE;
     return (support & (D3D11_FORMAT_SUPPORT_RENDER_TARGET |
                        D3D11_FORMAT_SUPPORT_DEPTH_STENCIL)) != 0;
 }
 
-static UINT tritonMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format, UINT SampleCount)
+static UINT tritonMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format,
+                              UINT SampleCount, BOOL *pAnswered)
 {
     if ((UINT)Format < 256u && SampleCount <= 32u) {
-        const UINT e = (UINT)s_msaaCache[Format][SampleCount];
+        const LONG64 e = tritonCacheLoad(&s_msaaCache[Format][SampleCount]);
         if (e & TRITON_CACHE_VALID)
-            return e & ~TRITON_CACHE_VALID;
+            return (UINT)e;
     }
 
     /* Required DDI edge cases, independent of format capability. */
@@ -374,7 +397,7 @@ static UINT tritonMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format, UINT Sample
         for (unsigned j = 0; j < 7 && group[j] != DXGI_FORMAT_UNKNOWN; j++) {
             if (tritonMsaaForbidden(group[j]))
                 continue;
-            UINT m = tritonNativeMsaaQuality(pD, group[j], SampleCount);
+            UINT m = tritonNativeMsaaQuality(pD, group[j], SampleCount, pAnswered);
             if (m > famMax)
                 famMax = m;
         }
@@ -388,32 +411,32 @@ static UINT tritonMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format, UINT Sample
          * sibling UP, rather than dragging the colour target down to its zero,
          * keeps the family uniform without losing MSAA on the common render
          * targets. */
-        for (unsigned j = 0; j < 7 && group[j] != DXGI_FORMAT_UNKNOWN; j++)
-            if ((UINT)group[j] < 256u) {
-                UINT val;
-                if (tritonMsaaReadOnlyDepthView(group[j]))
-                    val = 0;
-                else if (j == 0 || tritonHostRenderTargetable(pD, group[j]))
-                    val = famMax;
-                else
-                    val = 0;
-                InterlockedExchange(&s_msaaCache[group[j]][SampleCount],
-                                    (LONG)(val | TRITON_CACHE_VALID));
-            }
+        UINT vals[7] = { 0 };
+        for (unsigned j = 0; j < 7 && group[j] != DXGI_FORMAT_UNKNOWN; j++) {
+            if (tritonMsaaReadOnlyDepthView(group[j]))
+                vals[j] = 0;
+            else if (j == 0 || tritonHostRenderTargetable(pD, group[j], pAnswered))
+                vals[j] = famMax;
+        }
+        if (*pAnswered)
+            for (unsigned j = 0; j < 7 && group[j] != DXGI_FORMAT_UNKNOWN; j++)
+                if ((UINT)group[j] < 256u)
+                    InterlockedExchange64(&s_msaaCache[group[j]][SampleCount],
+                                          TRITON_CACHE_VALID | (LONG64)vals[j]);
         /* Re-derive rather than read back: this format's own entry is what the
          * loop just published, and deriving keeps the >= 256 case correct. */
         if (tritonMsaaReadOnlyDepthView(Format))    return 0;
         if (Format == group[0] ||
-            tritonHostRenderTargetable(pD, Format)) return famMax;
+            tritonHostRenderTargetable(pD, Format, pAnswered)) return famMax;
         return 0;
     }
 
     /* Standalone format with no typeless family: its own native quality, with
      * no parent/child constraint to satisfy. */
-    UINT n = tritonNativeMsaaQuality(pD, Format, SampleCount);
-    if ((UINT)Format < 256u && SampleCount <= 32u)
-        InterlockedExchange(&s_msaaCache[Format][SampleCount],
-                            (LONG)(n | TRITON_CACHE_VALID));
+    UINT n = tritonNativeMsaaQuality(pD, Format, SampleCount, pAnswered);
+    if (*pAnswered && (UINT)Format < 256u && SampleCount <= 32u)
+        InterlockedExchange64(&s_msaaCache[Format][SampleCount],
+                              TRITON_CACHE_VALID | (LONG64)n);
     return n;
 }
 
@@ -423,16 +446,16 @@ static UINT tritonMsaaQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format, UINT Sample
  * from tritonMsaaQuality), but they are the only way to READ one, so
  * their load capability follows the family. */
 static UINT tritonMsaaFamilyQuality(PTRITON_DEVICE pD, DXGI_FORMAT Format,
-                                    UINT SampleCount)
+                                    UINT SampleCount, BOOL *pAnswered)
 {
     const DXGI_FORMAT *group = tritonMsaaGroup(Format);
     if (!group)
-        return tritonNativeMsaaQuality(pD, Format, SampleCount);
+        return tritonNativeMsaaQuality(pD, Format, SampleCount, pAnswered);
     UINT famMax = 0;
     for (unsigned j = 0; j < 7 && group[j] != DXGI_FORMAT_UNKNOWN; j++) {
         if (tritonMsaaForbidden(group[j]))
             continue;
-        UINT m = tritonNativeMsaaQuality(pD, group[j], SampleCount);
+        UINT m = tritonNativeMsaaQuality(pD, group[j], SampleCount, pAnswered);
         if (m > famMax)
             famMax = m;
     }
@@ -482,8 +505,8 @@ tritonCheckFormatSupport(D3D10DDI_HDEVICE hDevice, DXGI_FORMAT Format, UINT *pOu
     if (!pD || !pOut) { if (pOut) *pOut = 0; return; }
     *pOut = 0;
     if ((UINT)Format < 256u) {
-        const UINT e = (UINT)s_fmtCache[Format];
-        if (e & TRITON_CACHE_VALID) { *pOut = e & ~TRITON_CACHE_VALID; return; }
+        const LONG64 e = tritonCacheLoad(&s_fmtCache[Format]);
+        if (e & TRITON_CACHE_VALID) { *pOut = (UINT)e; return; }
     }
     UINT s1 = 0;
     HRESULT cfsHr = ID3D11Device1_CheckFormatSupport(pD->pDev1, Format, &s1);
@@ -496,11 +519,15 @@ tritonCheckFormatSupport(D3D10DDI_HDEVICE hDevice, DXGI_FORMAT Format, UINT *pOu
     }
     /* FORMAT_SUPPORT2 carries the typed UAV load/store and OM logic-op
      * per-format claims, translated above. */
+    BOOL answered = TRUE;
     UINT s2 = 0;
     D3D11_FEATURE_DATA_FORMAT_SUPPORT2 fs2 = { Format, 0 };
-    if (SUCCEEDED(ID3D11Device1_CheckFeatureSupport(pD->pDev1,
-            D3D11_FEATURE_FORMAT_SUPPORT2, &fs2, sizeof(fs2))))
+    HRESULT fs2Hr = ID3D11Device1_CheckFeatureSupport(pD->pDev1,
+            D3D11_FEATURE_FORMAT_SUPPORT2, &fs2, sizeof(fs2));
+    if (SUCCEEDED(fs2Hr))
         s2 = fs2.OutFormatSupport2;
+    else if (!tritonHostAnswered(fs2Hr))
+        answered = FALSE;
     *pOut = tritonTranslateFormatSupport(s1, s2);
 
     /* A typeless parent reports what its family can do: the host answers for
@@ -532,7 +559,7 @@ tritonCheckFormatSupport(D3D10DDI_HDEVICE hDevice, DXGI_FORMAT Format, UINT *pOu
      * quality-level query agree for every format; the helper already reports 0
      * for shader-resource-only depth/stencil view formats, which are not valid
      * MSAA targets.  A 4x query is the FL10.1+ gate. */
-    if (tritonMsaaQuality(pD, Format, 4) > 0)
+    if (tritonMsaaQuality(pD, Format, 4, &answered) > 0)
         *pOut |= D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET;
     else
         *pOut &= ~(UINT)D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET;
@@ -566,14 +593,14 @@ tritonCheckFormatSupport(D3D10DDI_HDEVICE hDevice, DXGI_FORMAT Format, UINT *pOu
     if (*pOut & D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET)
         *pOut |= D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_LOAD;
     else if (tritonMsaaReadOnlyDepthView(Format) &&
-             tritonMsaaFamilyQuality(pD, Format, 4) > 0)
+             tritonMsaaFamilyQuality(pD, Format, 4, &answered) > 0)
         *pOut |= D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_LOAD;
 
     TR_LOG_HOT("CheckFormatSupport fmt=%u -> ddi=0x%08x (host s1=0x%08x s2=0x%08x)",
            (UINT)Format, *pOut, s1, s2);
-    if ((UINT)Format < 256u)
-        InterlockedExchange(&s_fmtCache[Format],
-                            (LONG)(*pOut | TRITON_CACHE_VALID));
+    if (answered && (UINT)Format < 256u)
+        InterlockedExchange64(&s_fmtCache[Format],
+                              TRITON_CACHE_VALID | (LONG64)*pOut);
 }
 
 void APIENTRY
@@ -592,8 +619,10 @@ tritonCheckMultisampleQualityLevels(D3D10DDI_HDEVICE hDevice, DXGI_FORMAT Format
     tritonCheckFormatSupport(hDevice, Format, &support);
     if (!(support & D3D10_DDI_FORMAT_SUPPORT_MULTISAMPLE_RENDERTARGET))
         *pNumQualityLevels = (SampleCount == 1 && support) ? 1 : 0;
-    else
-        *pNumQualityLevels = tritonMsaaQuality(pD, Format, SampleCount);
+    else {
+        BOOL answered = TRUE;
+        *pNumQualityLevels = tritonMsaaQuality(pD, Format, SampleCount, &answered);
+    }
     TR_LOG_HOT("CheckMSQL fmt=%u samples=%u -> q=%u",
            (UINT)Format, SampleCount, *pNumQualityLevels);
 }
