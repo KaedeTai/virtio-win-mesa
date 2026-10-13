@@ -698,39 +698,18 @@ tritonResourceUnmap(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hResource, UINT
     ID3D11DeviceContext1_Unmap(pD->pCtx1, r->pResource, Subresource);
 }
 
+/* No side-effect-free busy query reaches the host: probing with a Map/Unmap
+ * of a subresource would share the sync map region with the app's own
+ * mappings (the DDI allows this call while other subresources are mapped)
+ * and replace its map record, and costs a full readback.  "Not busy" is
+ * always safe -- the Map that follows still honours DONOTWAIT and reports
+ * WASSTILLDRAWING from the host. */
 BOOL APIENTRY
 tritonResourceIsStagingBusy(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hResource)
 {
-    PTRITON_DEVICE   pD = (PTRITON_DEVICE)(hDevice.pDrvPrivate);
-    PTRITON_RESOURCE r  = (PTRITON_RESOURCE)(hResource.pDrvPrivate);
-    /* Conservative on missing inputs: returning FALSE would let the
-     * runtime read garbage from a non-existent / bad staging map;
-     * TRUE is always a legal, if pessimistic, answer. */
-    if (!pD || !r || !r->pResource) return TRUE;
-
-    /* D3D11 has no side-effect-free "is busy" query, so probe with a
-     * non-blocking Map/Unmap. The map type MUST match the resource's CPU
-     * access: a MAP_READ probe on a write-only (CPU_ACCESS_WRITE) staging
-     * resource fails E_INVALIDARG, which would report "busy" forever and
-     * defeat the runtime's non-blocking fast path. Prefer READ when the
-     * resource is readable, else WRITE; no CPU access → not mappable. */
-    D3D11_MAP mapType;
-    if (r->MapFlags & D3D10_DDI_CPU_ACCESS_READ)
-        mapType = D3D11_MAP_READ;
-    else if (r->MapFlags & D3D10_DDI_CPU_ACCESS_WRITE)
-        mapType = D3D11_MAP_WRITE;
-    else
-        return TRUE;
-
-    D3D11_MAPPED_SUBRESOURCE m = {};
-    HRESULT hr = ID3D11DeviceContext1_Map(pD->pCtx1, r->pResource, 0,
-                                          mapType, D3D11_MAP_FLAG_DO_NOT_WAIT, &m);
-    if (hr == DXGI_ERROR_WAS_STILL_DRAWING) return TRUE;
-    if (SUCCEEDED(hr)) {
-        ID3D11DeviceContext1_Unmap(pD->pCtx1, r->pResource, 0);
-        return FALSE;
-    }
-    return TRUE;
+    (void)hDevice;
+    (void)hResource;
+    return FALSE;
 }
 
 void APIENTRY
