@@ -696,7 +696,7 @@ npt_gsc_GetDesc(void *self, DXGI_SWAP_CHAIN_DESC *pDesc)
    pDesc->BufferUsage = c->desc.BufferUsage;
    pDesc->BufferCount = c->desc.BufferCount;
    pDesc->OutputWindow = c->hwnd;
-   pDesc->Windowed = c->fs_desc.Windowed;
+   pDesc->Windowed = !c->fullscreen;
    pDesc->SwapEffect = c->desc.SwapEffect;
    pDesc->Flags = c->desc.Flags;
    return NPT_S_OK;
@@ -719,6 +719,7 @@ npt_gsc_GetFullscreenDesc(void *self, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
    if (!pDesc)
       return NPT_E_POINTER;
    *pDesc = c->fs_desc;
+   pDesc->Windowed = !c->fullscreen;
    return NPT_S_OK;
 }
 

@@ -659,7 +659,6 @@ gsc12_SetFullscreenState(void *self, BOOL Fullscreen, IDXGIOutput *pTarget)
    if (!Fullscreen && pTarget)
       return NPT_DXGI_ERROR_INVALID_CALL;
    s->base.fullscreen = Fullscreen;
-   s->base.fs_desc.Windowed = !Fullscreen;
    return NPT_S_OK;
 }
 
