@@ -214,13 +214,13 @@ typedef struct TRITON12_QUEUE
      * that the KMD parks until the host GPU truly reached DrainValue --
      * making every fence the app observes GPU-true.  See tritonQueue12.c. */
     ID3D12Fence                 *pDrainFence;
+    /* Guards DrainValue and the Signal that publishes it (t12DrainSignal). */
+    SRWLOCK                      DrainLock;
     UINT64                       DrainValue;
     /* Highest drain value whose Signal is already encoded into the wire
      * ring.  Cross-queue ordering must wait only on values a sibling has
-     * actually sent: DrainValue is incremented BEFORE its Signal is
-     * encoded, so ordering against it can place a Wait ahead of the
-     * matching Signal in ring order, which the host's in-order submission
-     * never resolves. */
+     * actually sent: a Wait on a value whose Signal is not yet in the
+     * ring is never resolved by the host's in-order submission. */
     UINT64                       DrainVisible;
     /* Auto-reset event the present-fence arm in t12Present waits on, so the
      * frame is not reported to the compositor until the GPU has finished it.
@@ -259,20 +259,36 @@ typedef struct TRITON12_QUEUE
     BOOL                         CopyRigDead; /* build failed; don't retry */
 } TRITON12_QUEUE, *PTRITON12_QUEUE;
 
-/* Publish DrainVisible after a drain Signal has been issued.  Monotonic:
- * concurrent gates on one queue can mint values in one order and return in
- * another. */
-static __inline void
-t12PublishDrainVisible(PTRITON12_QUEUE q, UINT64 v)
+/* A 64-bit value another thread updates: a plain load can tear on x86.
+ * The x86 path writes (lock cmpxchg8b), so it is for guest-owned writable
+ * memory only, never a read-only fence or feedback mapping. */
+static __inline UINT64
+t12Load64(volatile const UINT64 *p)
 {
-    UINT64 cur = q->DrainVisible;
-    while (v > cur) {
-        UINT64 got = (UINT64)InterlockedCompareExchange64(
-            (volatile LONG64 *)&q->DrainVisible, (LONG64)v, (LONG64)cur);
-        if (got == cur)
-            break;
-        cur = got;
-    }
+#ifdef _WIN64
+    return *p;
+#else
+    return (UINT64)InterlockedCompareExchange64((volatile LONG64 *)p, 0, 0);
+#endif
+}
+
+/* Mint the queue's next drain value, Signal it on the host queue and
+ * publish it as DrainVisible, as one step: values minted concurrently
+ * must reach the wire in order, or the fence override sees a Signal below
+ * its high-water mark, treats the fence as rewound and drops its
+ * completed-value fast paths for good.  Returns the Signal's HRESULT;
+ * *pValue gets the minted value either way. */
+static __inline HRESULT
+t12DrainSignal(PTRITON12_QUEUE q, UINT64 *pValue)
+{
+    AcquireSRWLockExclusive(&q->DrainLock);
+    const UINT64 v = ++q->DrainValue;
+    const HRESULT hr = ID3D12CommandQueue_Signal(q->pQueue, q->pDrainFence, v);
+    if (SUCCEEDED(hr))
+        InterlockedExchange64((volatile LONG64 *)&q->DrainVisible, (LONG64)v);
+    ReleaseSRWLockExclusive(&q->DrainLock);
+    *pValue = v;
+    return hr;
 }
 
 typedef struct TRITON12_ALLOCATOR

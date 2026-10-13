@@ -282,19 +282,13 @@ triton12QueueGate(PTRITON12_QUEUE q)
         return FALSE;
     }
 
-    /* Interlocked: t12Present bumps DrainValue too, on the app's present
-     * thread, and a racing plain ++ can mint the same value twice --
-     * double-signalled values stay non-decreasing (benign) but the gates
-     * behind them stop being one-per-batch. */
-    const UINT64 v =
-        (UINT64)InterlockedIncrement64((volatile LONG64 *)&q->DrainValue);
-    HRESULT hr = ID3D12CommandQueue_Signal(q->pQueue, q->pDrainFence, v);
+    UINT64 v;
+    HRESULT hr = t12DrainSignal(q, &v);
     if (FAILED(hr)) {
         TR_LOG("12.QueueGate: drain Signal FAILED 0x%08lx v=%llu",
                (unsigned long)hr, (unsigned long long)v);
         return FALSE;
     }
-    t12PublishDrainVisible(q, v);
 
     UINT64 kmdToken = 0;
     if (!npt_d3d12_ecl_gate_arm(q->pDrainFence, v, &kmdToken)) {
@@ -409,12 +403,11 @@ t12OrderAgainstSiblings(PTRITON12_QUEUE q)
         PTRITON12_QUEUE s = (PTRITON12_QUEUE)p->Queues[i];
         if (!s || s == q || !s->pDrainFence)
             continue;
-        /* Aligned 64-bit read on x64 is atomic; a stale (lower) value only
-         * means a weaker edge this time, never a wrong one.  DrainVisible
-         * carries only values whose Signal is already encoded into the
-         * wire ring (see t12PublishDrainVisible), so waiting on it cannot
-         * deadlock. */
-        const UINT64 v = s->DrainVisible;
+        /* A stale (lower) value only means a weaker edge this time, never
+         * a wrong one.  DrainVisible carries only values whose Signal is
+         * already encoded into the wire ring (t12DrainSignal), so waiting
+         * on it cannot deadlock. */
+        const UINT64 v = t12Load64(&s->DrainVisible);
         if (v == 0 || s->Slot >= TRITON12_MAX_QUEUES ||
             v <= q->XQueueSeen[s->Slot])
             continue;

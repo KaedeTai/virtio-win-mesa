@@ -403,12 +403,9 @@ t12PresentCompanionCopy(PTRITON12_QUEUE q, PTRITON12_RESOURCE src)
      * has something to key on.  This signal also floors the present arm's
      * value: the arm increments past it, keeping values monotonic. */
     if (q->pDrainFence) {
-        const UINT64 v =
-            (UINT64)InterlockedIncrement64((volatile LONG64 *)&q->DrainValue);
-        if (SUCCEEDED(ID3D12CommandQueue_Signal(q->pQueue, q->pDrainFence, v))) {
+        UINT64 v;
+        if (SUCCEEDED(t12DrainSignal(q, &v)))
             q->CopyAllocValue[idx] = v;
-            t12PublishDrainVisible(q, v);
-        }
     }
 }
 
@@ -505,10 +502,10 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
              * the CPU for the drain value already signalled behind the copy
              * instead. */
             if (blt && !triton12QueueGate(q) && q->pDrainFence &&
-                !t12PollDrain(q, q->DrainVisible, 1000))
+                !t12PollDrain(q, t12Load64(&q->DrainVisible), 1000))
                 npt_log("present: blt copy not done after 1s (v=%llu "
                         "done=%llu); presenting anyway",
-                        (unsigned long long)q->DrainVisible,
+                        (unsigned long long)t12Load64(&q->DrainVisible),
                         (unsigned long long)
                             ID3D12Fence_GetCompletedValue(q->pDrainFence));
         }
@@ -554,12 +551,9 @@ t12Present(D3D12DDI_HCOMMANDLIST hList, D3D12DDI_HCOMMANDQUEUE hQueue,
      * undercuts.  The wait is bounded so a lost completion degrades to a
      * late frame rather than a hung present. */
     if (!blt && q->pQueue && q->pDrainFence && q->hPresentArmEvent) {
-        const UINT64 v =
-            (UINT64)InterlockedIncrement64((volatile LONG64 *)&q->DrainValue);
+        UINT64 v;
         const double t0 = TRITON_PT_NOW();
-        HRESULT shr = ID3D12CommandQueue_Signal(q->pQueue, q->pDrainFence, v);
-        if (SUCCEEDED(shr))
-            t12PublishDrainVisible(q, v);
+        HRESULT shr = t12DrainSignal(q, &v);
         HRESULT ehr = shr;
         UINT64 done = SUCCEEDED(shr)
             ? ID3D12Fence_GetCompletedValue(q->pDrainFence) : v;
