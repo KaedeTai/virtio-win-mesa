@@ -506,14 +506,6 @@ t12WaitForFence(D3D12DDI_HCOMMANDQUEUE hQueue, D3D12DDIARG_FENCE_OPERATION *pOp)
     (void)hr; /* only consumed by TR_LOG_HOT, which compiles out by default */
 }
 
-static SIZE_T APIENTRY
-t12CalcPrivateCommandQueueSize0023(D3D12DDI_HDEVICE hDevice,
-                                   const D3D12DDIARG_CREATECOMMANDQUEUE_0023 *pArgs)
-{
-    (void)hDevice; (void)pArgs;
-    return sizeof(TRITON12_QUEUE);
-}
-
 static HRESULT APIENTRY
 t12CreateCommandQueue(D3D12DDI_HDEVICE hDevice,
                       const D3D12DDIARG_CREATECOMMANDQUEUE_0001 *pArgs)
@@ -522,10 +514,9 @@ t12CreateCommandQueue(D3D12DDI_HDEVICE hDevice,
         hDevice, pArgs, D3D12_COMMAND_QUEUE_PRIORITY_NORMAL);
 }
 
-/* _0023 moved the two queue handles out of the arg struct and added
- * QueueCreationFlags: GLOBAL_REALTIME_PRIORITY is only requested for
- * the queue types GetCaps(UMD_BASED_COMMAND_QUEUE_PRIORITY) admitted,
- * and becomes the host queue's priority. */
+/* _0023 added QueueCreationFlags: GLOBAL_REALTIME_PRIORITY is only
+ * requested for the queue types GetCaps(UMD_BASED_COMMAND_QUEUE_PRIORITY)
+ * admitted, and becomes the host queue's priority. */
 static D3D12_COMMAND_QUEUE_PRIORITY
 t12QueueCreationPriority(D3D12DDI_COMMAND_QUEUE_CREATION_FLAGS flags)
 {
@@ -534,51 +525,37 @@ t12QueueCreationPriority(D3D12DDI_COMMAND_QUEUE_CREATION_FLAGS flags)
                : D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 }
 
-static HRESULT APIENTRY
-t12CreateCommandQueue0023(D3D12DDI_HDEVICE hDevice,
-                          const D3D12DDIARG_CREATECOMMANDQUEUE_0023 *pArgs,
-                          D3D12DDI_HCOMMANDQUEUE hDrvCommandQueue,
-                          D3D12DDI_HRTCOMMANDQUEUE hRTCommandQueue)
-{
-    if (!pArgs)
-        return E_INVALIDARG;
-    D3D12DDIARG_CREATECOMMANDQUEUE_0001 a;
-    memset(&a, 0, sizeof(a));
-    a.hDrvCommandQueue = hDrvCommandQueue;
-    a.hRTCommandQueue  = hRTCommandQueue;
-    a.QueueFlags       = pArgs->QueueFlags;
-    a.NodeMask         = pArgs->NodeMask;
-    return t12CreateCommandQueueWithPriority(
-        hDevice, &a, t12QueueCreationPriority(pArgs->QueueCreationFlags));
+/* _0023 and _0050 move the two queue handles out of the arg struct;
+ * _0050 adds a scheduling group, which HARDWARE_SCHEDULING_CAPS reports as
+ * never used (ComputeQueuesPer3DQueue = 0), so it is always null. */
+#define T12_QUEUE_CREATE_VARIANT(ver)                                          \
+static SIZE_T APIENTRY                                                         \
+t12CalcPrivateCommandQueueSize##ver(D3D12DDI_HDEVICE hDevice,                  \
+                                    const D3D12DDIARG_CREATECOMMANDQUEUE_##ver *pArgs) \
+{                                                                              \
+    (void)hDevice; (void)pArgs;                                                \
+    return sizeof(TRITON12_QUEUE);                                             \
+}                                                                              \
+static HRESULT APIENTRY                                                        \
+t12CreateCommandQueue##ver(D3D12DDI_HDEVICE hDevice,                           \
+                           const D3D12DDIARG_CREATECOMMANDQUEUE_##ver *pArgs,  \
+                           D3D12DDI_HCOMMANDQUEUE hDrvCommandQueue,            \
+                           D3D12DDI_HRTCOMMANDQUEUE hRTCommandQueue)           \
+{                                                                              \
+    if (!pArgs)                                                                \
+        return E_INVALIDARG;                                                   \
+    D3D12DDIARG_CREATECOMMANDQUEUE_0001 a;                                     \
+    memset(&a, 0, sizeof(a));                                                  \
+    a.hDrvCommandQueue = hDrvCommandQueue;                                     \
+    a.hRTCommandQueue  = hRTCommandQueue;                                      \
+    a.QueueFlags       = pArgs->QueueFlags;                                    \
+    a.NodeMask         = pArgs->NodeMask;                                      \
+    return t12CreateCommandQueueWithPriority(                                  \
+        hDevice, &a, t12QueueCreationPriority(pArgs->QueueCreationFlags));     \
 }
 
-static SIZE_T APIENTRY
-t12CalcPrivateCommandQueueSize0050(D3D12DDI_HDEVICE hDevice,
-                                   const D3D12DDIARG_CREATECOMMANDQUEUE_0050 *pArgs)
-{
-    (void)hDevice; (void)pArgs;
-    return sizeof(TRITON12_QUEUE);
-}
-
-/* _0050 adds a scheduling group, which HARDWARE_SCHEDULING_CAPS reports
- * as never used (ComputeQueuesPer3DQueue = 0), so it is always null. */
-static HRESULT APIENTRY
-t12CreateCommandQueue0050(D3D12DDI_HDEVICE hDevice,
-                          const D3D12DDIARG_CREATECOMMANDQUEUE_0050 *pArgs,
-                          D3D12DDI_HCOMMANDQUEUE hDrvCommandQueue,
-                          D3D12DDI_HRTCOMMANDQUEUE hRTCommandQueue)
-{
-    if (!pArgs)
-        return E_INVALIDARG;
-    D3D12DDIARG_CREATECOMMANDQUEUE_0001 a;
-    memset(&a, 0, sizeof(a));
-    a.hDrvCommandQueue = hDrvCommandQueue;
-    a.hRTCommandQueue  = hRTCommandQueue;
-    a.QueueFlags       = pArgs->QueueFlags;
-    a.NodeMask         = pArgs->NodeMask;
-    return t12CreateCommandQueueWithPriority(
-        hDevice, &a, t12QueueCreationPriority(pArgs->QueueCreationFlags));
-}
+T12_QUEUE_CREATE_VARIANT(0023)
+T12_QUEUE_CREATE_VARIANT(0050)
 
 void
 triton12InstallQueueDeviceFuncs0062(D3D12DDI_DEVICE_FUNCS_CORE_0062 *t)

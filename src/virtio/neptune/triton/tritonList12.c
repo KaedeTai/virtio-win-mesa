@@ -57,6 +57,33 @@ t12ListIface(PTRITON12_LIST l, UINT which)
     return l->pIface[which];
 }
 
+/* Hand the runtime the list's dispatch table (direct or bundle), captured
+ * in pfnFillDDITable. */
+static void
+t12ListSetTable(PTRITON12_DEVICE p, D3D12DDI_COMMAND_LIST_TYPE type,
+                D3D12DDI_HRTCOMMANDLIST hRTList)
+{
+    if (!p->pUMCallbacks || !p->pUMCallbacks->pfnSetCommandListDDITableCb ||
+        !p->pAdapter)
+        return;
+    const UINT idx = (type == D3D12DDI_COMMAND_LIST_TYPE_BUNDLE) ? 1 : 0;
+    p->pUMCallbacks->pfnSetCommandListDDITableCb(
+        hRTList, p->pAdapter->hRTTableCmdList[idx]);
+}
+
+/* A failed host Reset/Close on a VOID DDI: without pfnSetErrorCb the API
+ * call returns S_OK and the failure surfaces only later (a failed Reset at
+ * Close, a failed Close as device removal at ExecuteCommandLists).  Logged
+ * unconditionally, since the per-call traces compile out by default. */
+static void
+t12ListError(PTRITON12_LIST l, const char *what, HRESULT hr)
+{
+    TR_LOG("12.%s FAILED hr=0x%08lx list=%p tid=%lu", what,
+           (unsigned long)hr, (void *)l, (unsigned long)GetCurrentThreadId());
+    if (l->pDev && l->pDev->pUMCallbacks && l->pDev->pUMCallbacks->pfnSetErrorCb)
+        l->pDev->pUMCallbacks->pfnSetErrorCb(l->pDev->hRTDevice, hr);
+}
+
 /* ---------- command allocator ---------- */
 
 static SIZE_T APIENTRY
@@ -251,13 +278,7 @@ t12CreateCommandList(D3D12DDI_HDEVICE hDevice,
     if (FAILED(hr))
         return hr;
 
-    /* Hand the runtime this list's dispatch table. */
-    if (p->pUMCallbacks && p->pUMCallbacks->pfnSetCommandListDDITableCb &&
-        p->pAdapter) {
-        UINT idx = (pArgs->Type == D3D12DDI_COMMAND_LIST_TYPE_BUNDLE) ? 1 : 0;
-        p->pUMCallbacks->pfnSetCommandListDDITableCb(
-            pArgs->hRTCommandList, p->pAdapter->hRTTableCmdList[idx]);
-    }
+    t12ListSetTable(p, pArgs->Type, pArgs->hRTCommandList);
     return S_OK;
 }
 
@@ -325,12 +346,7 @@ t12CreateCommandList0040(D3D12DDI_HDEVICE hDevice,
         return hr;
     l->AwaitingReset = TRUE;
 
-    if (p->pUMCallbacks && p->pUMCallbacks->pfnSetCommandListDDITableCb &&
-        p->pAdapter) {
-        UINT idx = (pArgs->Type == D3D12DDI_COMMAND_LIST_TYPE_BUNDLE) ? 1 : 0;
-        p->pUMCallbacks->pfnSetCommandListDDITableCb(
-            hRTList, p->pAdapter->hRTTableCmdList[idx]);
-    }
+    t12ListSetTable(p, pArgs->Type, hRTList);
     return S_OK;
 }
 
@@ -356,14 +372,8 @@ t12ResetCommandList0040(D3D12DDI_HCOMMANDLIST hList,
     l->AwaitingReset = FALSE;
     HRESULT hr = ID3D12GraphicsCommandList_Reset(l->pList, alloc, NULL);
     TR_LOG_HOT("12.ResetCommandList(0040) -> 0x%08lx", (unsigned long)hr);
-    if (FAILED(hr)) {
-        /* pfnResetCommandList is VOID: without pfnSetErrorCb the API-level
-         * Reset returns S_OK and the failure resurfaces only at Close. */
-        TR_LOG("12.ResetCommandList(0040) FAILED hr=0x%08lx list=%p",
-               (unsigned long)hr, (void *)l);
-        if (l->pDev->pUMCallbacks && l->pDev->pUMCallbacks->pfnSetErrorCb)
-            l->pDev->pUMCallbacks->pfnSetErrorCb(l->pDev->hRTDevice, hr);
-    }
+    if (FAILED(hr))
+        t12ListError(l, "ResetCommandList(0040)", hr);
 }
 
 static VOID APIENTRY
@@ -406,17 +416,8 @@ t12CloseCommandList(D3D12DDI_HCOMMANDLIST hList)
     t12ListStampTid(l);
     HRESULT hr = ID3D12GraphicsCommandList_Close(l->pList);
     TR_LOG_HOT("12.CloseCommandList -> 0x%08lx", (unsigned long)hr);
-    if (FAILED(hr)) {
-        /* A failed Close surfaces to the app only as device removal at
-         * ExecuteCommandLists, and TR_LOG_HOT compiles out by default, so
-         * this trace is unconditional. */
-        TR_LOG("12.CloseCommandList FAILED hr=0x%08lx list=%p tid=%lu",
-               (unsigned long)hr, (void *)l,
-               (unsigned long)GetCurrentThreadId());
-        if (l->pDev && l->pDev->pUMCallbacks &&
-            l->pDev->pUMCallbacks->pfnSetErrorCb)
-            l->pDev->pUMCallbacks->pfnSetErrorCb(l->pDev->hRTDevice, hr);
-    }
+    if (FAILED(hr))
+        t12ListError(l, "CloseCommandList", hr);
 }
 
 static VOID APIENTRY
@@ -431,15 +432,8 @@ t12ResetCommandList(D3D12DDI_HCOMMANDLIST hList,
     l->RecordTid = GetCurrentThreadId();
     HRESULT hr = ID3D12GraphicsCommandList_Reset(l->pList, a->pAlloc, NULL);
     TR_LOG_HOT("12.ResetCommandList -> 0x%08lx", (unsigned long)hr);
-    if (FAILED(hr)) {
-        /* pfnResetCommandList is VOID: without pfnSetErrorCb the API-level
-         * Reset returns S_OK and the failure resurfaces only at Close. */
-        TR_LOG("12.ResetCommandList FAILED hr=0x%08lx list=%p",
-               (unsigned long)hr, (void *)l);
-        if (l->pDev && l->pDev->pUMCallbacks &&
-            l->pDev->pUMCallbacks->pfnSetErrorCb)
-            l->pDev->pUMCallbacks->pfnSetErrorCb(l->pDev->hRTDevice, hr);
-    }
+    if (FAILED(hr))
+        t12ListError(l, "ResetCommandList", hr);
 }
 
 static VOID APIENTRY
