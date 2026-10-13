@@ -863,7 +863,8 @@ HRESULT NPT_STDMETHODCALLTYPE
 npt_gsc_SetMaximumFrameLatency(void *self, UINT MaxLatency)
 {
    struct npt_guest_swapchain_common *c = npt_gsc(self);
-   if (!MaxLatency || MaxLatency > NPT_SC_MAX_SWAP_CHAIN_BUFFERS)
+   if (!(c->desc.Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT) ||
+       !MaxLatency || MaxLatency > NPT_SC_MAX_SWAP_CHAIN_BUFFERS)
       return NPT_DXGI_ERROR_INVALID_CALL;
    /* Waitable object: grow the semaphore by the delta and never shrink
     * it (matching DXGI -- shrinking could strand an app mid-wait). */
