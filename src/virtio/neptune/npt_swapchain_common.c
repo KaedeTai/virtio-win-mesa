@@ -559,6 +559,7 @@ npt_gsc_init(struct npt_guest_swapchain_common *c, struct npt_com_base *com,
 {
    c->com = com;
    c->tag = tag;
+   npt_private_data_init(&c->private_data);
    mtx_init(&c->present_mutex, mtx_plain);
    mtx_init(&c->output_lock, mtx_plain);
    mtx_init(&c->wsi_mutex, mtx_plain);
@@ -618,6 +619,7 @@ npt_gsc_fini(struct npt_guest_swapchain_common *c)
    mtx_destroy(&c->wsi_mutex);
    mtx_destroy(&c->present_mutex);
    mtx_destroy(&c->output_lock);
+   npt_private_data_fini(&c->private_data);
    /* Workers joined by the WSI teardown, so these are unreferenced. */
    if (c->image_release_evt)
       CloseHandle(c->image_release_evt);
@@ -653,26 +655,24 @@ HRESULT NPT_STDMETHODCALLTYPE
 npt_gsc_SetPrivateData(void *self, const GUID *Name, UINT DataSize,
                        const void *pData)
 {
-   (void)self; (void)Name; (void)DataSize; (void)pData;
-   return NPT_S_OK;
+   return npt_private_data_set(&npt_gsc(self)->private_data, Name, DataSize,
+                               pData);
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_gsc_SetPrivateDataInterface(void *self, const GUID *Name,
                                 const IUnknown *pUnknown)
 {
-   (void)self; (void)Name; (void)pUnknown;
-   return NPT_S_OK;
+   return npt_private_data_set_interface(&npt_gsc(self)->private_data, Name,
+                                         pUnknown);
 }
 
 HRESULT NPT_STDMETHODCALLTYPE
 npt_gsc_GetPrivateData(void *self, const GUID *Name, UINT *pDataSize,
                        void *pData)
 {
-   (void)self; (void)Name; (void)pData;
-   if (pDataSize)
-      *pDataSize = 0;
-   return NPT_DXGI_ERROR_NOT_FOUND;
+   return npt_private_data_get(&npt_gsc(self)->private_data, Name, pDataSize,
+                               pData);
 }
 
 /* ------------------------------------------------------------------ */

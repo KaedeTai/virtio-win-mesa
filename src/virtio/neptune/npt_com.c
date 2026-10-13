@@ -929,6 +929,145 @@ npt_com_query_interface_family(void *self, const GUID *riid, void **out)
    return npt_com_query_interface_host(self, riid, out);
 }
 
+struct npt_private_data_entry {
+   struct npt_private_data_entry *next;
+   GUID name;
+   /* Non-NULL: an interface, held; else `size` bytes of data follow. */
+   void *unknown;
+   UINT size;
+   uint8_t data[];
+};
+
+static void
+npt_private_data_entry_free(struct npt_private_data_entry *e)
+{
+   if (e->unknown)
+      ((npt_com_unknown_ref_fn)(*(void ***)e->unknown)[2])(e->unknown);
+   free(e);
+}
+
+void
+npt_private_data_init(struct npt_private_data *pd)
+{
+   mtx_init(&pd->lock, mtx_plain);
+   pd->head = NULL;
+}
+
+void
+npt_private_data_fini(struct npt_private_data *pd)
+{
+   struct npt_private_data_entry *e = pd->head;
+   pd->head = NULL;
+   while (e) {
+      struct npt_private_data_entry *next = e->next;
+      npt_private_data_entry_free(e);
+      e = next;
+   }
+   mtx_destroy(&pd->lock);
+}
+
+/* Replaces `name`'s entry with `fresh` (NULL: removes it); the old entry
+ * is freed outside the lock, since releasing its interface may run
+ * arbitrary app code. */
+static void
+npt_private_data_replace(struct npt_private_data *pd, const GUID *name,
+                         struct npt_private_data_entry *fresh)
+{
+   struct npt_private_data_entry *old = NULL;
+   mtx_lock(&pd->lock);
+   for (struct npt_private_data_entry **link = &pd->head; *link;
+        link = &(*link)->next) {
+      if (npt_com_iid_equal(&(*link)->name, name)) {
+         old = *link;
+         *link = old->next;
+         break;
+      }
+   }
+   if (fresh) {
+      fresh->next = pd->head;
+      pd->head = fresh;
+   }
+   mtx_unlock(&pd->lock);
+   if (old)
+      npt_private_data_entry_free(old);
+}
+
+HRESULT
+npt_private_data_set(struct npt_private_data *pd, const GUID *name,
+                     UINT size, const void *data)
+{
+   if (!name)
+      return NPT_E_INVALIDARG;
+   if (!data || !size) {
+      npt_private_data_replace(pd, name, NULL);
+      return NPT_S_OK;
+   }
+   struct npt_private_data_entry *e = malloc(sizeof(*e) + size);
+   if (!e)
+      return NPT_E_OUTOFMEMORY;
+   e->name = *name;
+   e->unknown = NULL;
+   e->size = size;
+   memcpy(e->data, data, size);
+   npt_private_data_replace(pd, name, e);
+   return NPT_S_OK;
+}
+
+HRESULT
+npt_private_data_set_interface(struct npt_private_data *pd, const GUID *name,
+                               const void *unknown)
+{
+   if (!name)
+      return NPT_E_INVALIDARG;
+   if (!unknown) {
+      npt_private_data_replace(pd, name, NULL);
+      return NPT_S_OK;
+   }
+   struct npt_private_data_entry *e = malloc(sizeof(*e));
+   if (!e)
+      return NPT_E_OUTOFMEMORY;
+   e->name = *name;
+   e->unknown = (void *)unknown;
+   e->size = sizeof(void *);
+   ((npt_com_unknown_ref_fn)(*(void ***)e->unknown)[1])(e->unknown);
+   npt_private_data_replace(pd, name, e);
+   return NPT_S_OK;
+}
+
+HRESULT
+npt_private_data_get(struct npt_private_data *pd, const GUID *name,
+                     UINT *size, void *data)
+{
+   if (!name || !size)
+      return NPT_E_INVALIDARG;
+   HRESULT hr = NPT_S_OK;
+   void *unknown = NULL;
+   mtx_lock(&pd->lock);
+   struct npt_private_data_entry *e = pd->head;
+   while (e && !npt_com_iid_equal(&e->name, name))
+      e = e->next;
+   if (!e) {
+      *size = 0;
+      hr = NPT_DXGI_ERROR_NOT_FOUND;
+   } else if (!data) {
+      *size = e->size;
+   } else if (*size < e->size) {
+      *size = e->size;
+      hr = NPT_DXGI_ERROR_MORE_DATA;
+   } else {
+      *size = e->size;
+      if (e->unknown) {
+         unknown = e->unknown;
+         memcpy(data, &unknown, sizeof(unknown));
+         ((npt_com_unknown_ref_fn)(*(void ***)unknown)[1])(unknown);
+      } else {
+         memcpy(data, e->data, e->size);
+      }
+   }
+   mtx_unlock(&pd->lock);
+   return hr;
+}
+
 void
 npt_com_assert_overridden(const char *iid_name, const char *method_name)
 {

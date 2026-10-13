@@ -66,6 +66,7 @@ struct npt_output_aux {
    DXGI_GAMMA_CONTROL gamma;
    /* Per-output WaitForVBlank pacing anchor. */
    _Atomic uint64_t wfvb_anchor_ns;
+   struct npt_private_data private_data;
 };
 
 static struct npt_output_aux *
@@ -132,10 +133,20 @@ npt_output_aux_populate(struct npt_com_base *out_com,
 }
 
 static void
+out_aux_destroy(void *aux_raw)
+{
+   struct npt_output_aux *aux = aux_raw;
+   npt_private_data_fini(&aux->private_data);
+   free(aux);
+}
+
+static void
 out_aux_init(struct npt_com_base *com, struct npt_device *dev, uint64_t host_id)
 {
    (void)dev; (void)host_id;
-   com->aux_destroy = free;
+   struct npt_output_aux *aux = com->aux;
+   npt_private_data_init(&aux->private_data);
+   com->aux_destroy = out_aux_destroy;
 }
 
 /* Returns 0 for non-scanout-capable formats. */
@@ -256,34 +267,40 @@ out_GetParent_override(void *self, REFIID riid, void **ppParent)
    return hr;
 }
 
-/* The generated defaults for these encode on the wire, but every output
+/* The generated defaults would encode on the wire, but every output
  * wrapper carries a guest-fabricated id the host never registered --
- * any wire method is a fatal host decode error.  Stub locally, matching
- * the guest swapchain. */
+ * any wire method is a fatal host decode error. */
 static HRESULT NPT_STDMETHODCALLTYPE
 out_SetPrivateData_override(void *self, const GUID *Name, UINT DataSize,
                             const void *pData)
 {
-   (void)self; (void)Name; (void)DataSize; (void)pData;
-   return NPT_S_OK;
+   struct npt_output_aux *aux = out_aux(self);
+   if (!aux)
+      return NPT_E_OUTOFMEMORY;
+   return npt_private_data_set(&aux->private_data, Name, DataSize, pData);
 }
 
 static HRESULT NPT_STDMETHODCALLTYPE
 out_SetPrivateDataInterface_override(void *self, const GUID *Name,
                                      const IUnknown *pUnknown)
 {
-   (void)self; (void)Name; (void)pUnknown;
-   return NPT_S_OK;
+   struct npt_output_aux *aux = out_aux(self);
+   if (!aux)
+      return NPT_E_OUTOFMEMORY;
+   return npt_private_data_set_interface(&aux->private_data, Name, pUnknown);
 }
 
 static HRESULT NPT_STDMETHODCALLTYPE
 out_GetPrivateData_override(void *self, const GUID *Name, UINT *pDataSize,
                             void *pData)
 {
-   (void)self; (void)Name; (void)pData;
-   if (pDataSize)
-      *pDataSize = 0;
-   return NPT_DXGI_ERROR_NOT_FOUND;
+   struct npt_output_aux *aux = out_aux(self);
+   if (!aux) {
+      if (pDataSize)
+         *pDataSize = 0;
+      return NPT_DXGI_ERROR_NOT_FOUND;
+   }
+   return npt_private_data_get(&aux->private_data, Name, pDataSize, pData);
 }
 
 static HRESULT NPT_STDMETHODCALLTYPE

@@ -77,6 +77,7 @@ struct npt_guest_swapchain_common {
    UINT max_frame_latency;
    DXGI_RGBA background;
    UINT present_count;
+   struct npt_private_data private_data;
 
    /* Frame-latency waitable object (non-NULL only when the app created
     * the swapchain with FRAME_LATENCY_WAITABLE_OBJECT).  Released once

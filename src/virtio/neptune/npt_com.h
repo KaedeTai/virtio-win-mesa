@@ -379,4 +379,26 @@ npt_com_query_interface_host(void *self, const GUID *riid, void **ppvObject);
 struct npt_ring *
 npt_com_object_ring_seqno(void *self, uint32_t *out_seqno);
 
+/*
+ * IDXGIObject private data for wrappers the host never sees (guest
+ * swapchains and outputs): SetPrivateData keeps a copy,
+ * SetPrivateDataInterface holds a ref until the entry is replaced or the
+ * store is finalised, GetPrivateData hands an interface back AddRef'd.
+ */
+struct npt_private_data_entry;
+
+struct npt_private_data {
+   mtx_t lock;
+   struct npt_private_data_entry *head;
+};
+
+void npt_private_data_init(struct npt_private_data *pd);
+void npt_private_data_fini(struct npt_private_data *pd);
+HRESULT npt_private_data_set(struct npt_private_data *pd, const GUID *name,
+                             UINT size, const void *data);
+HRESULT npt_private_data_set_interface(struct npt_private_data *pd,
+                                       const GUID *name, const void *unknown);
+HRESULT npt_private_data_get(struct npt_private_data *pd, const GUID *name,
+                             UINT *size, void *data);
+
 #endif /* NPT_COM_H */
