@@ -432,6 +432,9 @@ gsc12_present_common(void *self, UINT SyncInterval, UINT Flags)
    struct npt_guest_swapchain12 *s = gsc12(self);
    struct npt_guest_swapchain_common *c = &s->base;
 
+   HRESULT hr = npt_gsc_present_validate(c, SyncInterval, Flags);
+   if (NPT_FAILED(hr))
+      return hr;
    if (Flags & NPT_DXGI_PRESENT_TEST)
       return (c->wsi_failed || c->occluded_streak >= NPT_SC_OCCLUDED_STREAK)
                 ? NPT_DXGI_STATUS_OCCLUDED : NPT_S_OK;
@@ -456,6 +459,14 @@ gsc12_present_common(void *self, UINT SyncInterval, UINT Flags)
    }
 
    struct npt_device *dev = c->com->base.device;
+   const uint32_t bb = c->present_count % c->desc.BufferCount;
+   const uint32_t img = c->present_count % NPT_SC_PRESENT_IMAGES;
+
+   if ((Flags & NPT_DXGI_PRESENT_DO_NOT_WAIT) &&
+       npt_gsc_present_would_block(c, img)) {
+      mtx_unlock(&c->present_mutex);
+      return NPT_DXGI_ERROR_WAS_STILL_DRAWING;
+   }
 
    /* CPU-runahead backpressure before issuing more work: blocks the
     * caller until the host GPU has progressed.  Combined with the
@@ -464,8 +475,6 @@ gsc12_present_common(void *self, UINT SyncInterval, UINT Flags)
    npt_gsc_backpressure_wait(c);
    if (prof) t1 = npt_profile_now_ns();
 
-   const uint32_t bb = c->present_count % c->desc.BufferCount;
-   const uint32_t img = c->present_count % NPT_SC_PRESENT_IMAGES;
    npt_gsc_reuse_gate(c, img);
 
    /* Through the queue wrapper's vtbl slot so the ECL override's

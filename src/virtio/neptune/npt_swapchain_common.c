@@ -474,6 +474,40 @@ npt_gsc_reuse_gate(struct npt_guest_swapchain_common *c, uint32_t image)
    }
 }
 
+HRESULT
+npt_gsc_present_validate(const struct npt_guest_swapchain_common *c,
+                         UINT SyncInterval, UINT Flags)
+{
+   if (SyncInterval > 4)
+      return NPT_DXGI_ERROR_INVALID_CALL;
+   if ((Flags & NPT_DXGI_PRESENT_ALLOW_TEARING) &&
+       (SyncInterval ||
+        !(c->desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) ||
+        c->fullscreen))
+      return NPT_DXGI_ERROR_INVALID_CALL;
+   return NPT_S_OK;
+}
+
+bool
+npt_gsc_present_would_block(struct npt_guest_swapchain_common *c,
+                            uint32_t image)
+{
+   if (atomic_load(&c->image_inflight[image]) != 0)
+      return true;
+   UINT cap = c->max_frame_latency;
+   if (cap > NPT_SC_PRESENT_LATENCY)
+      cap = NPT_SC_PRESENT_LATENCY;
+   if (c->latency_count < cap || c->latency_fences[0] < 0)
+      return false;
+   if (npt_unixlib_ensure_init() != 0)
+      return false;
+   struct npt_unix_wait_fd_params p = {
+      .fd = c->latency_fences[0], .timeout_ms = 0, .result = -1,
+   };
+   npt_wine_unix_call(npt_unix_wait_fd, &p);
+   return p.result == 0;
+}
+
 void
 npt_gsc_query_window_size(struct npt_guest_swapchain_common *c,
                           UINT *width, UINT *height)

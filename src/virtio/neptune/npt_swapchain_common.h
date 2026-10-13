@@ -28,7 +28,10 @@
 
 /* DXGI constants the protocol types header doesn't carry. */
 #define NPT_DXGI_PRESENT_TEST            0x00000001u
+#define NPT_DXGI_PRESENT_DO_NOT_WAIT     0x00000008u
+#define NPT_DXGI_PRESENT_ALLOW_TEARING   0x00000200u
 #define NPT_DXGI_STATUS_OCCLUDED         ((HRESULT)0x087A0001)
+#define NPT_DXGI_ERROR_WAS_STILL_DRAWING ((HRESULT)0x887A000A)
 
 /* Present-pool depth: enough for one on-screen + one queued + one
  * being written.  Must fit the unixlib's image table. */
@@ -201,6 +204,18 @@ npt_gsc_backpressure_record(struct npt_guest_swapchain_common *c,
 
 void
 npt_gsc_reuse_gate(struct npt_guest_swapchain_common *c, uint32_t image);
+
+/* Present's argument rules: DXGI_ERROR_INVALID_CALL or S_OK. */
+HRESULT
+npt_gsc_present_validate(const struct npt_guest_swapchain_common *c,
+                         UINT SyncInterval, UINT Flags);
+
+/* True when presenting into `image` now would block on backpressure or
+ * on the image's reuse gate: DXGI_PRESENT_DO_NOT_WAIT's
+ * DXGI_ERROR_WAS_STILL_DRAWING case.  Caller holds present_mutex. */
+bool
+npt_gsc_present_would_block(struct npt_guest_swapchain_common *c,
+                            uint32_t image);
 
 void
 npt_gsc_query_window_size(struct npt_guest_swapchain_common *c,
