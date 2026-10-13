@@ -13,8 +13,6 @@
 
 #include "npt_env.h"
 
-#include <stdlib.h>
-
 #include "virtio/virtio-gpu/wddm_hw.h"   /* VIOGPU_CMD_GATE / VIOGPU_DMA_PRIVATE */
 
 /* Arm a GPU-true gate on the queue's drain fence reaching `value`;
@@ -446,26 +444,23 @@ t12ExecuteCommandLists(D3D12DDI_HCOMMANDQUEUE hQueue, UINT Count,
      * host queue's timeline ahead of this batch's work. */
     t12OrderAgainstSiblings(q);
 
-    ID3D12CommandList *stackLists[8];
-    ID3D12CommandList **lists = stackLists;
-    if (Count > 8) {
-        lists = (ID3D12CommandList **)malloc(Count * sizeof(*lists));
-        if (!lists)
-            return;
-    }
-    UINT n = 0;
+    /* Forwarded in stack-sized chunks: a heap allocation that could fail
+     * would drop the whole batch. */
+    ID3D12CommandList *lists[64];
+    UINT n = 0, total = 0;
     for (UINT i = 0; i < Count; i++) {
         PTRITON12_LIST l = (PTRITON12_LIST)pCommandLists[i].pDrvPrivate;
         if (l && l->pList)
             lists[n++] = (ID3D12CommandList *)l->pList;
+        if (n == ARRAYSIZE(lists) || (i + 1 == Count && n)) {
+            ID3D12CommandQueue_ExecuteCommandLists(q->pQueue, n, lists);
+            total += n;
+            n = 0;
+        }
     }
-    TR_LOG_HOT("12.ExecuteCommandLists: %u list(s)", n);
-    if (n) {
-        ID3D12CommandQueue_ExecuteCommandLists(q->pQueue, n, lists);
+    TR_LOG_HOT("12.ExecuteCommandLists: %u list(s)", total);
+    if (total)
         triton12QueueGate(q);
-    }
-    if (lists != stackLists)
-        free(lists);
 }
 
 static void APIENTRY

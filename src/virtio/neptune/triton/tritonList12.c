@@ -494,15 +494,15 @@ t12ResourceBarrier(D3D12DDI_HCOMMANDLIST hList, UINT Count,
     if (!l || !l->pList || !Count || !pBarriers)
         return;
 
-    D3D12_RESOURCE_BARRIER stackBar[8];
-    D3D12_RESOURCE_BARRIER *bar = stackBar;
-    if (Count > 8) {
-        bar = (D3D12_RESOURCE_BARRIER *)malloc(Count * sizeof(*bar));
-        if (!bar)
-            return;
-    }
+    /* Forwarded in stack-sized chunks: a heap allocation that could fail
+     * would drop every barrier of the call. */
+    D3D12_RESOURCE_BARRIER bar[32];
     UINT n = 0;
     for (UINT i = 0; i < Count; i++) {
+        if (n == ARRAYSIZE(bar)) {
+            ID3D12GraphicsCommandList_ResourceBarrier(l->pList, n, bar);
+            n = 0;
+        }
         const D3D12DDIARG_RESOURCE_BARRIER_0022 *b = &pBarriers[i];
         memset(&bar[n], 0, sizeof(bar[n]));
         switch (b->Type) {
@@ -566,8 +566,6 @@ t12ResourceBarrier(D3D12DDI_HCOMMANDLIST hList, UINT Count,
     }
     if (n)
         ID3D12GraphicsCommandList_ResourceBarrier(l->pList, n, bar);
-    if (bar != stackBar)
-        free(bar);
 }
 
 /* ---------- command signatures (ExecuteIndirect) ----------
