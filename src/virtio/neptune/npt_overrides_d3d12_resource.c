@@ -186,6 +186,7 @@ npt_d3d12_sync_maps_flush(struct npt_ring *queue_ring)
        * resource dies.  That requires unmapping a buffer the app is
        * concurrently submitting from. */
       const uint64_t id = ((struct npt_com_base *)aux->self)->base.id;
+      npt_d3d_map_ring_slot_visible(&aux->map_ring, 0, queue_ring);
       npt_dispatch_resource_unmap12_async(
          queue_ring, id, 0,
          npt_d3d_map_ring_slot_res_id(&aux->map_ring, 0),
@@ -444,8 +445,10 @@ res12_Map_locked(void *self, struct npt_d3d12_resource_aux *aux,
       return NPT_E_OUTOFMEMORY;
 
    struct npt_device *dev = npt_com_self_device(self);
+   struct npt_ring *ring = npt_device_method_ring(dev);
+   npt_d3d_map_ring_slot_visible(&aux->map_ring, 0, ring);
    HRESULT hr = npt_dispatch_resource_map12(
-      npt_device_method_ring(dev),
+      ring,
       ((struct npt_com_base *)self)->base.id,
       Subresource,
       NPT_MAP_ACCESS_READ | NPT_MAP_ACCESS_WRITE,

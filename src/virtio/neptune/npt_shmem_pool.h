@@ -19,10 +19,6 @@ struct npt_shmem_pool {
    struct npt_renderer_shmem *shmem;
    size_t size;
    size_t used;
-   /* True when shmem was just created and no caller has yet
-    * roundtripped to ensure the host's RESOURCE_CREATE_BLOB has
-    * landed. */
-   bool shmem_needs_roundtrip;
 };
 
 void
@@ -34,14 +30,12 @@ npt_shmem_pool_fini(struct npt_renderer *renderer,
 
 /*
  * Caller takes the returned shmem ref and must unref when done with
- * the region.  *out_shmem_fresh=true => shmem was just created;
- * caller must roundtrip before naming res_id over the ring.  NULL
- * out_shmem_fresh is fine if the shmem is never handed to the host.
+ * the region.  A command naming the shmem's res_id must first pass
+ * npt_ring_ensure_shmem_visible on its ring.
  */
 struct npt_renderer_shmem *
 npt_shmem_pool_alloc(struct npt_renderer *renderer,
                      struct npt_shmem_pool *pool,
-                     size_t size, size_t *out_offset,
-                     bool *out_shmem_fresh);
+                     size_t size, size_t *out_offset);
 
 #endif /* NPT_SHMEM_POOL_H */

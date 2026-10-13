@@ -61,6 +61,10 @@ struct npt_renderer_shmem {
     * lock (WDDM 1.3) frees nothing, so those windows are permanent and
     * the flag stays clear. */
    bool window_reclaimable;
+   /* Id of a ring that has already been ordered after this shmem's
+    * create (a WAIT_VIRTQUEUE_SEQNO the host decodes before anything
+    * later on that ring), or 0.  See npt_ring_ensure_shmem_visible. */
+   _Atomic uint64_t visible_ring;
 };
 
 struct npt_renderer_info {

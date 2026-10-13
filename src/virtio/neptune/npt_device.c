@@ -571,10 +571,8 @@ npt_device_release(void)
 struct npt_renderer_shmem *
 npt_device_alloc_data(struct npt_device *dev, size_t size, size_t *out_offset)
 {
-   /* RESOURCE_UPDATE payloads ride the ring's WAIT_RING_SEQNO; no
-    * extra freshness roundtrip needed. */
    return npt_shmem_pool_alloc(dev->renderer, &dev->data_pool,
-                               size, out_offset, NULL);
+                               size, out_offset);
 }
 
 /* Bounds the shmem refs the free list can pin; past it a released slot is
@@ -641,8 +639,7 @@ npt_device_take_free_feedback_slot(struct npt_device *dev, uint32_t slot_size)
 struct npt_renderer_shmem *
 npt_device_alloc_feedback_slot(struct npt_device *dev,
                                uint32_t slot_size,
-                               uint32_t *out_offset,
-                               bool *out_fresh)
+                               uint32_t *out_offset)
 {
    if (!slot_size)
       return NULL;
@@ -660,8 +657,6 @@ npt_device_alloc_feedback_slot(struct npt_device *dev,
       memset((uint8_t *)shmem->mmap_ptr + off, 0, slot_size);
       if (out_offset)
          *out_offset = off;
-      if (out_fresh)
-         *out_fresh = false;
       return shmem;
    }
 
@@ -679,10 +674,9 @@ npt_device_alloc_feedback_slot(struct npt_device *dev,
    }
 
    size_t off = 0;
-   bool fresh = false;
    struct npt_renderer_shmem *shmem =
       npt_shmem_pool_alloc(dev->renderer, &dev->feedback_pool,
-                           slot_size, &off, &fresh);
+                           slot_size, &off);
    if (!shmem)
       return NULL;
    /* The shmem pool returns whatever bytes were last written; zero
@@ -691,8 +685,6 @@ npt_device_alloc_feedback_slot(struct npt_device *dev,
    memset(base, 0, slot_size);
    if (out_offset)
       *out_offset = (uint32_t)off;
-   if (out_fresh)
-      *out_fresh = fresh;
    return shmem;
 }
 

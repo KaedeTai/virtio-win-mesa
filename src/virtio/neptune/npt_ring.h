@@ -384,6 +384,17 @@ npt_ring_submit_raw_with_payload(struct npt_ring *ring,
 void
 npt_ring_force_roundtrip(struct npt_ring *ring);
 
+/* Order `ring` after the host's create of `shmem`, once per shmem and
+ * ring: every later command on `ring` may name shmem->res_id.  Call
+ * outside ring->lock.  No-op where creates are host-visible on return.
+ *
+ * Use this rather than a "fresh" flag handed to the first allocation of
+ * a new pool shmem: a second thread allocating from the same shmem can
+ * reach the ring before the first thread's roundtrip does. */
+void
+npt_ring_ensure_shmem_visible(struct npt_ring *ring,
+                              struct npt_renderer_shmem *shmem);
+
 /* Yield-heavy poll until head is past seqno.  Returns the relax-
  * iteration count (sync-reply path feeds it to the profiler).
  * Callers may ignore the return value. */

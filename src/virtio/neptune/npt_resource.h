@@ -157,6 +157,11 @@ void npt_d3d_map_ring_close(struct npt_d3d_map_ring *r, const void *context,
                             uint32_t subresource, struct npt_ring *ring,
                             uint32_t seqno);
 
+/* Orders `ring` after the host's create of the slot's shmem; call before
+ * a command on `ring` names the slot. */
+void npt_d3d_map_ring_slot_visible(const struct npt_d3d_map_ring *r,
+                                   uint32_t slot, struct npt_ring *ring);
+
 /* Block until the host has consumed the Unmap last submitted from slot,
  * for a caller about to write a slot NEXT did not choose. */
 void npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot);
@@ -287,6 +292,8 @@ void npt_d3d11_buffer_map_close(struct npt_d3d11_buffer *b,
 /* Byte offset of a slot in its (pool-shared) shmem. */
 uint32_t npt_d3d11_buffer_slot_offset(const struct npt_d3d11_buffer *b,
                                       uint32_t slot);
+void npt_d3d11_buffer_slot_visible(const struct npt_d3d11_buffer *b,
+                                   uint32_t slot, struct npt_ring *ring);
 void *npt_d3d11_buffer_slot_ptr(const struct npt_d3d11_buffer *b,
                                 uint32_t slot);
 
@@ -358,6 +365,8 @@ void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t);
 
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t,
                                        uint32_t slot);
+void npt_d3d11_texture_slot_visible(const struct npt_d3d11_texture *t,
+                                    uint32_t slot, struct npt_ring *ring);
 void *npt_d3d11_texture_slot_ptr(const struct npt_d3d11_texture *t,
                                  uint32_t slot);
 

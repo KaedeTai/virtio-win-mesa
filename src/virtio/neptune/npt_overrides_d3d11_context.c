@@ -105,6 +105,7 @@ ctx_Map_buffer_shared_discard(void *self, struct npt_d3d11_buffer *b,
                                   &slot))
       return NPT_E_OUTOFMEMORY;
 
+   npt_d3d11_buffer_slot_visible(b, 0, ring);
    /* D3D11_MAP_FLAG_DO_NOT_WAIT is invalid with WRITE_DISCARD, and the
     * map ring this Map stands in for never waits. */
    uint32_t row_pitch = 0, depth_pitch = 0;
@@ -250,9 +251,11 @@ ctx_Map_buffer(void *self, struct npt_d3d11_buffer *b, UINT Subresource,
    uint64_t context_id = ((struct npt_com_base *)self)->base.id;
    uint64_t buffer_id  = ((struct npt_com_base *)b)->base.id;
 
+   struct npt_ring *ring = npt_com_self_ring(self);
+   npt_d3d11_buffer_slot_visible(b, 0, ring);
    uint32_t row_pitch = 0, depth_pitch = 0;
    HRESULT hr = npt_dispatch_resource_map(
-      npt_com_self_ring(self), context_id, buffer_id, Subresource,
+      ring, context_id, buffer_id, Subresource,
       npt_d3d11_map_to_access_flags(MapType), MapFlags,
       npt_d3d11_buffer_get_map_shmem_res_id(b),
       /*pessimistic_size=*/npt_d3d11_buffer_get_byte_width(b),
@@ -335,9 +338,11 @@ ctx_Map_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource,
    uint32_t mip_rows = 0, mip_d = 0;
    npt_d3d11_texture_get_map_extent(t, Subresource, &mip_rows, &mip_d);
 
+   struct npt_ring *ring = npt_com_self_ring(self);
+   npt_d3d11_texture_slot_visible(t, slot, ring);
    uint32_t row_pitch = 0, depth_pitch = 0;
    HRESULT hr = npt_dispatch_resource_map(
-      npt_com_self_ring(self), context_id, resource_id, Subresource,
+      ring, context_id, resource_id, Subresource,
       npt_d3d11_map_to_access_flags(MapType), MapFlags,
       npt_d3d11_texture_get_map_shmem_res_id(t),
       /*byte_size=*/per_slot,
@@ -389,6 +394,7 @@ ctx_Unmap_buffer(void *self, struct npt_d3d11_buffer *b, UINT Subresource)
    }
 
    struct npt_ring *ring = npt_com_self_ring(self);
+   npt_d3d11_buffer_slot_visible(b, rec.slot, ring);
    uint32_t seqno = 0;
    npt_dispatch_resource_unmap_seqno(ring,
       ((struct npt_com_base *)self)->base.id,
@@ -414,6 +420,7 @@ ctx_Unmap_texture(void *self, struct npt_d3d11_texture *t, UINT Subresource)
       return;
 
    struct npt_ring *ring = npt_com_self_ring(self);
+   npt_d3d11_texture_slot_visible(t, rec.slot, ring);
    uint32_t seqno = 0;
    if (rec.access_flags) {
       npt_dispatch_resource_unmap_seqno(ring,

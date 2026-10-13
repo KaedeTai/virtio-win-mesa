@@ -256,11 +256,8 @@ npt_d3d12_heap_create_shmem_backed(void *device_wrapper, const GUID *riid,
    h->size = size;
    heap_trim_register(h, dev->renderer);
 
-   /* The blob was just created on the KMD/context path; the host ring
-    * thread may not have observed the resource-table insert yet.
-    * Force a virtqueue roundtrip before CREATE_HEAP_FROM_SHMEM names
-    * the res_id. */
-   npt_ring_force_roundtrip(ring);
+   /* CREATE_HEAP_FROM_SHMEM names the new blob's res_id. */
+   npt_ring_ensure_shmem_visible(ring, h->shmem);
 
    const uint64_t mint_heap_id = npt_com_allocate_next_id();
    HRESULT hr = npt_dispatch_create_heap_from_shmem(

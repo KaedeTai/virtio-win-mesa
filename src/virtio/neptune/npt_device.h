@@ -144,16 +144,14 @@ npt_device_alloc_data(struct npt_device *dev, size_t size, size_t *out_offset);
 
 /*
  * Allocate a feedback slot (rounded to NPT_FEEDBACK_SLOT_ALIGN).
- * Caller takes a ref on the returned shmem.  *out_fresh==true means
- * the host hasn't seen this shmem yet -- caller must issue a
- * virtqueue-seqno roundtrip before sending any command that names
- * the res_id.  NULL return => caller falls back to the sync wire path.
+ * Caller takes a ref on the returned shmem and passes it through
+ * npt_ring_ensure_shmem_visible before naming its res_id.  NULL return
+ * => caller falls back to the sync wire path.
  */
 struct npt_renderer_shmem *
 npt_device_alloc_feedback_slot(struct npt_device *dev,
                                uint32_t slot_size,
-                               uint32_t *out_offset,
-                               bool *out_fresh);
+                               uint32_t *out_offset);
 
 /*
  * Give a query's feedback slot back for reuse, transferring the caller's

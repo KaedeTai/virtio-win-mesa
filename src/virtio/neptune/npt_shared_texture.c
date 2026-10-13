@@ -52,6 +52,7 @@ npt_shared_texture_export_blob(void *texture_wrapper,
       return false;
    memset((uint8_t *)shm->mmap_ptr + info_off, 0,
           sizeof(struct npt_blob_export_info));
+   npt_ring_ensure_shmem_visible(npt_com_self_ring(texture_wrapper), shm);
 
    /* blob_id = the texture's object id: unique within this context,
     * which is the scope of the host's pending-blob table. */

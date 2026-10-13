@@ -200,22 +200,13 @@ alloc_slot_locked(struct npt_d3d_map_ring *r, uint32_t idx)
     * grows the pool's shmem when there isn't room; old shmem stays
     * alive via prior slot refs. */
    size_t off = 0;
-   bool fresh = false;
    struct npt_renderer_shmem *s =
-      npt_shmem_pool_alloc(rndr, &dev->map_pool, r->aligned_slot_size,
-                           &off, &fresh);
+      npt_shmem_pool_alloc(rndr, &dev->map_pool, r->aligned_slot_size, &off);
    if (!s) {
       npt_log("d3d_map_ring: pool_alloc slot %u (%u bytes) failed",
               idx, r->aligned_slot_size);
       return false;
    }
-   /* Pool growth races the ring thread; a fresh pool shmem must be
-    * roundtripped before any ring command names its res_id.  Map cmds
-    * are synchronous and the ring layer already roundtrips for sync
-    * calls, so the first slot of a freshly-grown pool is naturally
-    * registered in time.  Pure-async lifecycles would need explicit
-    * handling. */
-   (void)fresh;
    r->slots[idx].shmem = s;
    r->slots[idx].shmem_res_id = s->res_id;
    r->slots[idx].offset = (uint32_t)off;
@@ -463,6 +454,14 @@ npt_d3d_map_ring_close(struct npt_d3d_map_ring *r, const void *context,
 }
 
 void
+npt_d3d_map_ring_slot_visible(const struct npt_d3d_map_ring *r, uint32_t slot,
+                              struct npt_ring *ring)
+{
+   if (r->slots && slot < r->max_slots && r->slots[slot].shmem)
+      npt_ring_ensure_shmem_visible(ring, r->slots[slot].shmem);
+}
+
+void
 npt_d3d_map_ring_wait_slot(struct npt_d3d_map_ring *r, uint32_t slot)
 {
    mtx_lock(&r->lock);
@@ -665,9 +664,8 @@ npt_d3d11_buffer_add_external_slot(struct npt_d3d11_buffer *b,
       return false;
    }
 
-   /* The bind names the blob's res_id: on transports where a create is
-    * not host-visible on return, the ring must first observe it. */
-   npt_ring_force_roundtrip(ring);
+   /* The bind names the blob's res_id. */
+   npt_ring_ensure_shmem_visible(ring, shmem);
 
    aux->external_slots[cookie] = shmem;
    const HRESULT hr = npt_dispatch_bind_d3d11_buffer_shmem(
@@ -760,6 +758,15 @@ npt_d3d11_buffer_slot_offset(const struct npt_d3d11_buffer *b, uint32_t slot)
 {
    const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
    return aux ? npt_d3d_map_ring_slot_offset(&aux->map_ring, slot) : 0;
+}
+
+void
+npt_d3d11_buffer_slot_visible(const struct npt_d3d11_buffer *b, uint32_t slot,
+                              struct npt_ring *ring)
+{
+   const struct npt_d3d11_buffer_aux *aux = buf_aux(b);
+   if (aux)
+      npt_d3d_map_ring_slot_visible(&aux->map_ring, slot, ring);
 }
 
 void *
@@ -1472,6 +1479,14 @@ void *npt_d3d11_texture_shmem_ptr(const struct npt_d3d11_texture *t)
 
 uint32_t npt_d3d11_texture_slot_offset(const struct npt_d3d11_texture *t, uint32_t slot)
 { const struct npt_d3d11_texture_aux *aux = tex_aux(t); return aux ? npt_d3d_map_ring_slot_offset(&aux->map_ring, slot) : 0; }
+
+void npt_d3d11_texture_slot_visible(const struct npt_d3d11_texture *t,
+                                    uint32_t slot, struct npt_ring *ring)
+{
+   const struct npt_d3d11_texture_aux *aux = tex_aux(t);
+   if (aux)
+      npt_d3d_map_ring_slot_visible(&aux->map_ring, slot, ring);
+}
 
 void *npt_d3d11_texture_slot_ptr(const struct npt_d3d11_texture *t, uint32_t slot)
 {

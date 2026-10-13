@@ -169,10 +169,9 @@ npt_d3d11_query_finalize_create(struct npt_device *dev, void *wrapper,
       return;
 
    uint32_t fb_offset = 0;
-   bool fresh = false;
    struct npt_renderer_shmem *shmem =
       npt_device_alloc_feedback_slot(dev, NPT_QUERY_FEEDBACK_SLOT_SIZE,
-                                     &fb_offset, &fresh);
+                                     &fb_offset);
    if (!shmem)
       return;
 
@@ -180,10 +179,7 @@ npt_d3d11_query_finalize_create(struct npt_device *dev, void *wrapper,
    aux->base.fb_offset = fb_offset;
    aux->query_data_size = data_size;
 
-   /* Fresh shmem requires a roundtrip so REGISTER_QUERY_FEEDBACK's
-    * res_id is registered when the host ring thread reads it. */
-   if (fresh)
-      npt_ring_force_roundtrip(dev->ring);
+   npt_ring_ensure_shmem_visible(dev->ring, shmem);
 
    if (npt_dispatch_feedback_register_query(dev->ring, com->base.id,
                                             shmem->res_id, fb_offset, data_size))

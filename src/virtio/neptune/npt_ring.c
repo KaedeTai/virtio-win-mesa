@@ -1278,6 +1278,24 @@ npt_ring_force_roundtrip(struct npt_ring *ring)
    npt_ring_unlock_and_notify(ring);
 }
 
+void
+npt_ring_ensure_shmem_visible(struct npt_ring *ring,
+                              struct npt_renderer_shmem *shmem)
+{
+   if (!ring || !shmem || !npt_ring_needs_create_roundtrip(ring) ||
+       atomic_load_explicit(&shmem->visible_ring, memory_order_acquire) ==
+          ring->id)
+      return;
+   npt_ring_stage_flush_self(ring);
+   const uint64_t seqno = npt_ring_roundtrip_submit(ring);
+   npt_ring_lock_acquire(&ring->lock);
+   npt_ring_roundtrip_wait_locked(ring, seqno);
+   /* Under the lock, after the WAIT: a thread that sees this id takes
+    * the lock later and so lands behind the WAIT. */
+   atomic_store_explicit(&shmem->visible_ring, ring->id, memory_order_release);
+   npt_ring_unlock_and_notify(ring);
+}
+
 bool
 npt_ring_submit_raw_seqno(struct npt_ring *ring, const void *data,
                           uint32_t size, uint32_t *out_seqno)
@@ -1339,33 +1357,22 @@ npt_ring_submit_command(struct npt_ring *ring,
 
    /* Reply window must be carved BEFORE ring->lock: the pool's growth
     * path takes its own lock and may call shmem_create. */
-   bool shmem_fresh = false;
    if (submit->reply_size) {
       size_t off = 0;
       submit->reply_shmem = npt_shmem_pool_alloc(
-         ring->renderer, &ring->reply_pool, submit->reply_size, &off,
-         &shmem_fresh);
+         ring->renderer, &ring->reply_pool, submit->reply_size, &off);
       if (!submit->reply_shmem) {
          npt_log("submit_command: reply pool alloc failed (%zu bytes)",
                  submit->reply_size);
          return;
       }
       submit->reply_offset = (uint32_t)off;
+      /* The host must know the window's res_id before the ring thread
+       * decodes SET_REPLY_STREAM, or the ring goes fatal. */
+      npt_ring_ensure_shmem_visible(ring, submit->reply_shmem);
    }
 
-   /* Fresh shmem: roundtrip so the virtqueue dispatcher's
-    * RESOURCE_CREATE_BLOB lands before the ring thread reads
-    * SET_REPLY_STREAM and finds no resource for our res_id.  The submit
-    * half is a kernel transition, so it runs before the lock is taken. */
-   const bool need_roundtrip =
-      shmem_fresh && npt_ring_needs_create_roundtrip(ring);
-   const uint64_t roundtrip_seqno =
-      need_roundtrip ? npt_ring_roundtrip_submit(ring) : 0;
-
    npt_ring_lock_acquire(&ring->lock);
-
-   if (need_roundtrip)
-      npt_ring_roundtrip_wait_locked(ring, roundtrip_seqno);
 
    if (submit->reply_size) {
       struct npt_cmd_set_reply_stream set_cmd;
