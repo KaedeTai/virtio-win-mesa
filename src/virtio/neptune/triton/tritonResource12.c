@@ -1152,14 +1152,13 @@ t12CheckResourceAllocationInfo0075(D3D12DDI_HDEVICE hDevice,
         AlignmentRestriction, VisibleNodeMask, pInfo);
 }
 
-static HRESULT APIENTRY
+static VOID APIENTRY
 t12CreateSamplerFeedbackUnorderedAccessView(D3D12DDI_HDEVICE hDevice,
                                             D3D12DDI_HRESOURCE hTarget,
                                             D3D12DDI_HRESOURCE hFeedback,
                                             D3D12DDI_CPU_DESCRIPTOR_HANDLE Dest)
 {
     (void)hDevice; (void)hTarget; (void)hFeedback; (void)Dest;
-    return E_NOTIMPL;
 }
 
 void

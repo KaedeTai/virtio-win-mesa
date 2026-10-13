@@ -16,6 +16,7 @@
 #include "tritonSharedBridge.h"
 #include "tritonHostCaps.h"
 #include "triton12_tables.h"
+#include "triton12_stubs.h"
 #include "npt_env.h"
 
 BOOL
@@ -898,408 +899,6 @@ triton12GetCaps(D3D12DDI_HADAPTER hAdapter, const D3D12DDIARG_GETCAPS *pArgs)
 #undef CAP12_TODO
 
 
-/* ---------- table stubs ----------
- *
- * Every DDI table slot without a real body gets a stub that names its
- * index once, so an unimplemented entry the runtime reaches is visible
- * instead of a jump through uninitialised memory.  The uniform
- * four-argument shape is a calling-convention pun: on x64 the first
- * four arguments arrive in registers and the integer return leaves in
- * RAX, so returning 0 reads as S_OK, zero size or NULL according to the
- * slot's real signature.
- *
- * A slot returning a struct BY VALUE cannot be stubbed this way -- the
- * hidden return-buffer pointer shifts the arguments -- so those need
- * real bodies. */
-static UINT64 APIENTRY t12_stub_0(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_0; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_0, 1)) TR_LOG("12.STUB[%d] hit", 0); return 0; }
-static UINT64 APIENTRY t12_stub_1(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_1; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_1, 1)) TR_LOG("12.STUB[%d] hit", 1); return 0; }
-static UINT64 APIENTRY t12_stub_2(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_2; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_2, 1)) TR_LOG("12.STUB[%d] hit", 2); return 0; }
-static UINT64 APIENTRY t12_stub_3(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_3; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_3, 1)) TR_LOG("12.STUB[%d] hit", 3); return 0; }
-static UINT64 APIENTRY t12_stub_4(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_4; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_4, 1)) TR_LOG("12.STUB[%d] hit", 4); return 0; }
-static UINT64 APIENTRY t12_stub_5(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_5; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_5, 1)) TR_LOG("12.STUB[%d] hit", 5); return 0; }
-static UINT64 APIENTRY t12_stub_6(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_6; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_6, 1)) TR_LOG("12.STUB[%d] hit", 6); return 0; }
-static UINT64 APIENTRY t12_stub_7(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_7; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_7, 1)) TR_LOG("12.STUB[%d] hit", 7); return 0; }
-static UINT64 APIENTRY t12_stub_8(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_8; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_8, 1)) TR_LOG("12.STUB[%d] hit", 8); return 0; }
-static UINT64 APIENTRY t12_stub_9(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_9; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_9, 1)) TR_LOG("12.STUB[%d] hit", 9); return 0; }
-static UINT64 APIENTRY t12_stub_10(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_10; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_10, 1)) TR_LOG("12.STUB[%d] hit", 10); return 0; }
-static UINT64 APIENTRY t12_stub_11(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_11; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_11, 1)) TR_LOG("12.STUB[%d] hit", 11); return 0; }
-static UINT64 APIENTRY t12_stub_12(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_12; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_12, 1)) TR_LOG("12.STUB[%d] hit", 12); return 0; }
-static UINT64 APIENTRY t12_stub_13(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_13; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_13, 1)) TR_LOG("12.STUB[%d] hit", 13); return 0; }
-static UINT64 APIENTRY t12_stub_14(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_14; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_14, 1)) TR_LOG("12.STUB[%d] hit", 14); return 0; }
-static UINT64 APIENTRY t12_stub_15(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_15; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_15, 1)) TR_LOG("12.STUB[%d] hit", 15); return 0; }
-static UINT64 APIENTRY t12_stub_16(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_16; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_16, 1)) TR_LOG("12.STUB[%d] hit", 16); return 0; }
-static UINT64 APIENTRY t12_stub_17(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_17; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_17, 1)) TR_LOG("12.STUB[%d] hit", 17); return 0; }
-static UINT64 APIENTRY t12_stub_18(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_18; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_18, 1)) TR_LOG("12.STUB[%d] hit", 18); return 0; }
-static UINT64 APIENTRY t12_stub_19(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_19; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_19, 1)) TR_LOG("12.STUB[%d] hit", 19); return 0; }
-static UINT64 APIENTRY t12_stub_20(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_20; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_20, 1)) TR_LOG("12.STUB[%d] hit", 20); return 0; }
-static UINT64 APIENTRY t12_stub_21(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_21; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_21, 1)) TR_LOG("12.STUB[%d] hit", 21); return 0; }
-static UINT64 APIENTRY t12_stub_22(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_22; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_22, 1)) TR_LOG("12.STUB[%d] hit", 22); return 0; }
-static UINT64 APIENTRY t12_stub_23(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_23; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_23, 1)) TR_LOG("12.STUB[%d] hit", 23); return 0; }
-static UINT64 APIENTRY t12_stub_24(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_24; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_24, 1)) TR_LOG("12.STUB[%d] hit", 24); return 0; }
-static UINT64 APIENTRY t12_stub_25(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_25; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_25, 1)) TR_LOG("12.STUB[%d] hit", 25); return 0; }
-static UINT64 APIENTRY t12_stub_26(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_26; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_26, 1)) TR_LOG("12.STUB[%d] hit", 26); return 0; }
-static UINT64 APIENTRY t12_stub_27(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_27; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_27, 1)) TR_LOG("12.STUB[%d] hit", 27); return 0; }
-static UINT64 APIENTRY t12_stub_28(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_28; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_28, 1)) TR_LOG("12.STUB[%d] hit", 28); return 0; }
-static UINT64 APIENTRY t12_stub_29(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_29; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_29, 1)) TR_LOG("12.STUB[%d] hit", 29); return 0; }
-static UINT64 APIENTRY t12_stub_30(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_30; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_30, 1)) TR_LOG("12.STUB[%d] hit", 30); return 0; }
-static UINT64 APIENTRY t12_stub_31(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_31; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_31, 1)) TR_LOG("12.STUB[%d] hit", 31); return 0; }
-static UINT64 APIENTRY t12_stub_32(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_32; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_32, 1)) TR_LOG("12.STUB[%d] hit", 32); return 0; }
-static UINT64 APIENTRY t12_stub_33(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_33; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_33, 1)) TR_LOG("12.STUB[%d] hit", 33); return 0; }
-static UINT64 APIENTRY t12_stub_34(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_34; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_34, 1)) TR_LOG("12.STUB[%d] hit", 34); return 0; }
-static UINT64 APIENTRY t12_stub_35(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_35; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_35, 1)) TR_LOG("12.STUB[%d] hit", 35); return 0; }
-static UINT64 APIENTRY t12_stub_36(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_36; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_36, 1)) TR_LOG("12.STUB[%d] hit", 36); return 0; }
-static UINT64 APIENTRY t12_stub_37(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_37; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_37, 1)) TR_LOG("12.STUB[%d] hit", 37); return 0; }
-static UINT64 APIENTRY t12_stub_38(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_38; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_38, 1)) TR_LOG("12.STUB[%d] hit", 38); return 0; }
-static UINT64 APIENTRY t12_stub_39(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_39; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_39, 1)) TR_LOG("12.STUB[%d] hit", 39); return 0; }
-static UINT64 APIENTRY t12_stub_40(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_40; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_40, 1)) TR_LOG("12.STUB[%d] hit", 40); return 0; }
-static UINT64 APIENTRY t12_stub_41(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_41; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_41, 1)) TR_LOG("12.STUB[%d] hit", 41); return 0; }
-static UINT64 APIENTRY t12_stub_42(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_42; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_42, 1)) TR_LOG("12.STUB[%d] hit", 42); return 0; }
-static UINT64 APIENTRY t12_stub_43(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_43; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_43, 1)) TR_LOG("12.STUB[%d] hit", 43); return 0; }
-static UINT64 APIENTRY t12_stub_44(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_44; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_44, 1)) TR_LOG("12.STUB[%d] hit", 44); return 0; }
-static UINT64 APIENTRY t12_stub_45(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_45; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_45, 1)) TR_LOG("12.STUB[%d] hit", 45); return 0; }
-static UINT64 APIENTRY t12_stub_46(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_46; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_46, 1)) TR_LOG("12.STUB[%d] hit", 46); return 0; }
-static UINT64 APIENTRY t12_stub_47(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_47; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_47, 1)) TR_LOG("12.STUB[%d] hit", 47); return 0; }
-static UINT64 APIENTRY t12_stub_48(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_48; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_48, 1)) TR_LOG("12.STUB[%d] hit", 48); return 0; }
-static UINT64 APIENTRY t12_stub_49(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_49; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_49, 1)) TR_LOG("12.STUB[%d] hit", 49); return 0; }
-static UINT64 APIENTRY t12_stub_50(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_50; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_50, 1)) TR_LOG("12.STUB[%d] hit", 50); return 0; }
-static UINT64 APIENTRY t12_stub_51(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_51; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_51, 1)) TR_LOG("12.STUB[%d] hit", 51); return 0; }
-static UINT64 APIENTRY t12_stub_52(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_52; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_52, 1)) TR_LOG("12.STUB[%d] hit", 52); return 0; }
-static UINT64 APIENTRY t12_stub_53(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_53; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_53, 1)) TR_LOG("12.STUB[%d] hit", 53); return 0; }
-static UINT64 APIENTRY t12_stub_54(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_54; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_54, 1)) TR_LOG("12.STUB[%d] hit", 54); return 0; }
-static UINT64 APIENTRY t12_stub_55(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_55; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_55, 1)) TR_LOG("12.STUB[%d] hit", 55); return 0; }
-static UINT64 APIENTRY t12_stub_56(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_56; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_56, 1)) TR_LOG("12.STUB[%d] hit", 56); return 0; }
-static UINT64 APIENTRY t12_stub_57(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_57; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_57, 1)) TR_LOG("12.STUB[%d] hit", 57); return 0; }
-static UINT64 APIENTRY t12_stub_58(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_58; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_58, 1)) TR_LOG("12.STUB[%d] hit", 58); return 0; }
-static UINT64 APIENTRY t12_stub_59(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_59; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_59, 1)) TR_LOG("12.STUB[%d] hit", 59); return 0; }
-static UINT64 APIENTRY t12_stub_60(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_60; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_60, 1)) TR_LOG("12.STUB[%d] hit", 60); return 0; }
-static UINT64 APIENTRY t12_stub_61(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_61; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_61, 1)) TR_LOG("12.STUB[%d] hit", 61); return 0; }
-static UINT64 APIENTRY t12_stub_62(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_62; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_62, 1)) TR_LOG("12.STUB[%d] hit", 62); return 0; }
-static UINT64 APIENTRY t12_stub_63(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_63; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_63, 1)) TR_LOG("12.STUB[%d] hit", 63); return 0; }
-static UINT64 APIENTRY t12_stub_64(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_64; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_64, 1)) TR_LOG("12.STUB[%d] hit", 64); return 0; }
-static UINT64 APIENTRY t12_stub_65(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_65; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_65, 1)) TR_LOG("12.STUB[%d] hit", 65); return 0; }
-static UINT64 APIENTRY t12_stub_66(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_66; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_66, 1)) TR_LOG("12.STUB[%d] hit", 66); return 0; }
-static UINT64 APIENTRY t12_stub_67(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_67; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_67, 1)) TR_LOG("12.STUB[%d] hit", 67); return 0; }
-static UINT64 APIENTRY t12_stub_68(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_68; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_68, 1)) TR_LOG("12.STUB[%d] hit", 68); return 0; }
-static UINT64 APIENTRY t12_stub_69(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_69; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_69, 1)) TR_LOG("12.STUB[%d] hit", 69); return 0; }
-static UINT64 APIENTRY t12_stub_70(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_70; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_70, 1)) TR_LOG("12.STUB[%d] hit", 70); return 0; }
-static UINT64 APIENTRY t12_stub_71(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_71; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_71, 1)) TR_LOG("12.STUB[%d] hit", 71); return 0; }
-static UINT64 APIENTRY t12_stub_72(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_72; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_72, 1)) TR_LOG("12.STUB[%d] hit", 72); return 0; }
-static UINT64 APIENTRY t12_stub_73(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_73; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_73, 1)) TR_LOG("12.STUB[%d] hit", 73); return 0; }
-static UINT64 APIENTRY t12_stub_74(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_74; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_74, 1)) TR_LOG("12.STUB[%d] hit", 74); return 0; }
-static UINT64 APIENTRY t12_stub_75(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_75; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_75, 1)) TR_LOG("12.STUB[%d] hit", 75); return 0; }
-static UINT64 APIENTRY t12_stub_76(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_76; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_76, 1)) TR_LOG("12.STUB[%d] hit", 76); return 0; }
-static UINT64 APIENTRY t12_stub_77(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_77; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_77, 1)) TR_LOG("12.STUB[%d] hit", 77); return 0; }
-static UINT64 APIENTRY t12_stub_78(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_78; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_78, 1)) TR_LOG("12.STUB[%d] hit", 78); return 0; }
-static UINT64 APIENTRY t12_stub_79(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_79; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_79, 1)) TR_LOG("12.STUB[%d] hit", 79); return 0; }
-static UINT64 APIENTRY t12_stub_80(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_80; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_80, 1)) TR_LOG("12.STUB[%d] hit", 80); return 0; }
-static UINT64 APIENTRY t12_stub_81(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_81; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_81, 1)) TR_LOG("12.STUB[%d] hit", 81); return 0; }
-static UINT64 APIENTRY t12_stub_82(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_82; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_82, 1)) TR_LOG("12.STUB[%d] hit", 82); return 0; }
-static UINT64 APIENTRY t12_stub_83(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_83; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_83, 1)) TR_LOG("12.STUB[%d] hit", 83); return 0; }
-static UINT64 APIENTRY t12_stub_84(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_84; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_84, 1)) TR_LOG("12.STUB[%d] hit", 84); return 0; }
-static UINT64 APIENTRY t12_stub_85(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_85; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_85, 1)) TR_LOG("12.STUB[%d] hit", 85); return 0; }
-static UINT64 APIENTRY t12_stub_86(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_86; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_86, 1)) TR_LOG("12.STUB[%d] hit", 86); return 0; }
-static UINT64 APIENTRY t12_stub_87(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_87; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_87, 1)) TR_LOG("12.STUB[%d] hit", 87); return 0; }
-static UINT64 APIENTRY t12_stub_88(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_88; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_88, 1)) TR_LOG("12.STUB[%d] hit", 88); return 0; }
-static UINT64 APIENTRY t12_stub_89(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_89; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_89, 1)) TR_LOG("12.STUB[%d] hit", 89); return 0; }
-static UINT64 APIENTRY t12_stub_90(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_90; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_90, 1)) TR_LOG("12.STUB[%d] hit", 90); return 0; }
-static UINT64 APIENTRY t12_stub_91(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_91; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_91, 1)) TR_LOG("12.STUB[%d] hit", 91); return 0; }
-static UINT64 APIENTRY t12_stub_92(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_92; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_92, 1)) TR_LOG("12.STUB[%d] hit", 92); return 0; }
-static UINT64 APIENTRY t12_stub_93(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_93; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_93, 1)) TR_LOG("12.STUB[%d] hit", 93); return 0; }
-static UINT64 APIENTRY t12_stub_94(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_94; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_94, 1)) TR_LOG("12.STUB[%d] hit", 94); return 0; }
-static UINT64 APIENTRY t12_stub_95(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_95; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_95, 1)) TR_LOG("12.STUB[%d] hit", 95); return 0; }
-static UINT64 APIENTRY t12_stub_96(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_96; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_96, 1)) TR_LOG("12.STUB[%d] hit", 96); return 0; }
-static UINT64 APIENTRY t12_stub_97(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_97; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_97, 1)) TR_LOG("12.STUB[%d] hit", 97); return 0; }
-static UINT64 APIENTRY t12_stub_98(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_98; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_98, 1)) TR_LOG("12.STUB[%d] hit", 98); return 0; }
-static UINT64 APIENTRY t12_stub_99(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_99; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_99, 1)) TR_LOG("12.STUB[%d] hit", 99); return 0; }
-static UINT64 APIENTRY t12_stub_100(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_100; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_100, 1)) TR_LOG("12.STUB[%d] hit", 100); return 0; }
-static UINT64 APIENTRY t12_stub_101(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_101; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_101, 1)) TR_LOG("12.STUB[%d] hit", 101); return 0; }
-static UINT64 APIENTRY t12_stub_102(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_102; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_102, 1)) TR_LOG("12.STUB[%d] hit", 102); return 0; }
-static UINT64 APIENTRY t12_stub_103(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_103; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_103, 1)) TR_LOG("12.STUB[%d] hit", 103); return 0; }
-static UINT64 APIENTRY t12_stub_104(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_104; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_104, 1)) TR_LOG("12.STUB[%d] hit", 104); return 0; }
-static UINT64 APIENTRY t12_stub_105(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_105; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_105, 1)) TR_LOG("12.STUB[%d] hit", 105); return 0; }
-static UINT64 APIENTRY t12_stub_106(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_106; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_106, 1)) TR_LOG("12.STUB[%d] hit", 106); return 0; }
-static UINT64 APIENTRY t12_stub_107(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_107; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_107, 1)) TR_LOG("12.STUB[%d] hit", 107); return 0; }
-static UINT64 APIENTRY t12_stub_108(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_108; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_108, 1)) TR_LOG("12.STUB[%d] hit", 108); return 0; }
-static UINT64 APIENTRY t12_stub_109(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_109; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_109, 1)) TR_LOG("12.STUB[%d] hit", 109); return 0; }
-static UINT64 APIENTRY t12_stub_110(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_110; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_110, 1)) TR_LOG("12.STUB[%d] hit", 110); return 0; }
-static UINT64 APIENTRY t12_stub_111(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_111; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_111, 1)) TR_LOG("12.STUB[%d] hit", 111); return 0; }
-static UINT64 APIENTRY t12_stub_112(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_112; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_112, 1)) TR_LOG("12.STUB[%d] hit", 112); return 0; }
-static UINT64 APIENTRY t12_stub_113(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_113; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_113, 1)) TR_LOG("12.STUB[%d] hit", 113); return 0; }
-static UINT64 APIENTRY t12_stub_114(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_114; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_114, 1)) TR_LOG("12.STUB[%d] hit", 114); return 0; }
-static UINT64 APIENTRY t12_stub_115(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_115; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_115, 1)) TR_LOG("12.STUB[%d] hit", 115); return 0; }
-static UINT64 APIENTRY t12_stub_116(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_116; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_116, 1)) TR_LOG("12.STUB[%d] hit", 116); return 0; }
-static UINT64 APIENTRY t12_stub_117(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_117; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_117, 1)) TR_LOG("12.STUB[%d] hit", 117); return 0; }
-static UINT64 APIENTRY t12_stub_118(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_118; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_118, 1)) TR_LOG("12.STUB[%d] hit", 118); return 0; }
-static UINT64 APIENTRY t12_stub_119(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_119; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_119, 1)) TR_LOG("12.STUB[%d] hit", 119); return 0; }
-static UINT64 APIENTRY t12_stub_120(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_120; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_120, 1)) TR_LOG("12.STUB[%d] hit", 120); return 0; }
-static UINT64 APIENTRY t12_stub_121(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_121; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_121, 1)) TR_LOG("12.STUB[%d] hit", 121); return 0; }
-static UINT64 APIENTRY t12_stub_122(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_122; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_122, 1)) TR_LOG("12.STUB[%d] hit", 122); return 0; }
-static UINT64 APIENTRY t12_stub_123(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_123; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_123, 1)) TR_LOG("12.STUB[%d] hit", 123); return 0; }
-static UINT64 APIENTRY t12_stub_124(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_124; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_124, 1)) TR_LOG("12.STUB[%d] hit", 124); return 0; }
-static UINT64 APIENTRY t12_stub_125(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_125; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_125, 1)) TR_LOG("12.STUB[%d] hit", 125); return 0; }
-static UINT64 APIENTRY t12_stub_126(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_126; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_126, 1)) TR_LOG("12.STUB[%d] hit", 126); return 0; }
-static UINT64 APIENTRY t12_stub_127(UINT64 a, UINT64 b, UINT64 c, UINT64 d)
-{ static LONG t12_once_127; (void)a;(void)b;(void)c;(void)d; if (!InterlockedExchange(&t12_once_127, 1)) TR_LOG("12.STUB[%d] hit", 127); return 0; }
-
-static void *const t12_stub_table[128] = {
-    (void *)t12_stub_0,
-    (void *)t12_stub_1,
-    (void *)t12_stub_2,
-    (void *)t12_stub_3,
-    (void *)t12_stub_4,
-    (void *)t12_stub_5,
-    (void *)t12_stub_6,
-    (void *)t12_stub_7,
-    (void *)t12_stub_8,
-    (void *)t12_stub_9,
-    (void *)t12_stub_10,
-    (void *)t12_stub_11,
-    (void *)t12_stub_12,
-    (void *)t12_stub_13,
-    (void *)t12_stub_14,
-    (void *)t12_stub_15,
-    (void *)t12_stub_16,
-    (void *)t12_stub_17,
-    (void *)t12_stub_18,
-    (void *)t12_stub_19,
-    (void *)t12_stub_20,
-    (void *)t12_stub_21,
-    (void *)t12_stub_22,
-    (void *)t12_stub_23,
-    (void *)t12_stub_24,
-    (void *)t12_stub_25,
-    (void *)t12_stub_26,
-    (void *)t12_stub_27,
-    (void *)t12_stub_28,
-    (void *)t12_stub_29,
-    (void *)t12_stub_30,
-    (void *)t12_stub_31,
-    (void *)t12_stub_32,
-    (void *)t12_stub_33,
-    (void *)t12_stub_34,
-    (void *)t12_stub_35,
-    (void *)t12_stub_36,
-    (void *)t12_stub_37,
-    (void *)t12_stub_38,
-    (void *)t12_stub_39,
-    (void *)t12_stub_40,
-    (void *)t12_stub_41,
-    (void *)t12_stub_42,
-    (void *)t12_stub_43,
-    (void *)t12_stub_44,
-    (void *)t12_stub_45,
-    (void *)t12_stub_46,
-    (void *)t12_stub_47,
-    (void *)t12_stub_48,
-    (void *)t12_stub_49,
-    (void *)t12_stub_50,
-    (void *)t12_stub_51,
-    (void *)t12_stub_52,
-    (void *)t12_stub_53,
-    (void *)t12_stub_54,
-    (void *)t12_stub_55,
-    (void *)t12_stub_56,
-    (void *)t12_stub_57,
-    (void *)t12_stub_58,
-    (void *)t12_stub_59,
-    (void *)t12_stub_60,
-    (void *)t12_stub_61,
-    (void *)t12_stub_62,
-    (void *)t12_stub_63,
-    (void *)t12_stub_64,
-    (void *)t12_stub_65,
-    (void *)t12_stub_66,
-    (void *)t12_stub_67,
-    (void *)t12_stub_68,
-    (void *)t12_stub_69,
-    (void *)t12_stub_70,
-    (void *)t12_stub_71,
-    (void *)t12_stub_72,
-    (void *)t12_stub_73,
-    (void *)t12_stub_74,
-    (void *)t12_stub_75,
-    (void *)t12_stub_76,
-    (void *)t12_stub_77,
-    (void *)t12_stub_78,
-    (void *)t12_stub_79,
-    (void *)t12_stub_80,
-    (void *)t12_stub_81,
-    (void *)t12_stub_82,
-    (void *)t12_stub_83,
-    (void *)t12_stub_84,
-    (void *)t12_stub_85,
-    (void *)t12_stub_86,
-    (void *)t12_stub_87,
-    (void *)t12_stub_88,
-    (void *)t12_stub_89,
-    (void *)t12_stub_90,
-    (void *)t12_stub_91,
-    (void *)t12_stub_92,
-    (void *)t12_stub_93,
-    (void *)t12_stub_94,
-    (void *)t12_stub_95,
-    (void *)t12_stub_96,
-    (void *)t12_stub_97,
-    (void *)t12_stub_98,
-    (void *)t12_stub_99,
-    (void *)t12_stub_100,
-    (void *)t12_stub_101,
-    (void *)t12_stub_102,
-    (void *)t12_stub_103,
-    (void *)t12_stub_104,
-    (void *)t12_stub_105,
-    (void *)t12_stub_106,
-    (void *)t12_stub_107,
-    (void *)t12_stub_108,
-    (void *)t12_stub_109,
-    (void *)t12_stub_110,
-    (void *)t12_stub_111,
-    (void *)t12_stub_112,
-    (void *)t12_stub_113,
-    (void *)t12_stub_114,
-    (void *)t12_stub_115,
-    (void *)t12_stub_116,
-    (void *)t12_stub_117,
-    (void *)t12_stub_118,
-    (void *)t12_stub_119,
-    (void *)t12_stub_120,
-    (void *)t12_stub_121,
-    (void *)t12_stub_122,
-    (void *)t12_stub_123,
-    (void *)t12_stub_124,
-    (void *)t12_stub_125,
-    (void *)t12_stub_126,
-    (void *)t12_stub_127
-};
-
-
 /* ---------- device core (table type 0) ----------
  *
  * Format and multisample answers forward to the inner device and then
@@ -1653,129 +1252,149 @@ triton12FillDDITable(D3D12DDI_HADAPTER hAdapter,
                      UINT tableNum,
                      D3D12DDI_HRTTABLE hRTTable)
 {
-    /* Log every table request (type + size names the runtime's expected
-     * struct revision), fill with logging stubs, then overwrite the
-     * implemented slots below. */
     TR_LOG_HOT("12.FillDDITable: type=%d size=%zu num=%u pTable=%p",
            (int)tableType, tableSize, tableNum, pTable);
-    if (pTable && tableSize) {
-        /* Stub every slot first, then overwrite the implemented ones, so
-         * an unfilled slot is a named log line rather than a wild jump. */
-        SIZE_T n = tableSize / sizeof(void *);
-        if (n > 128)
-            n = 128;
-        memcpy(pTable, t12_stub_table, n * sizeof(void *));
+    if (!pTable || !tableSize)
+        return S_OK;
+    /* Installers fill what is implemented; every slot still NULL after
+     * them gets its typed stub (triton12_stubs.h), so an unimplemented
+     * entry the runtime reaches is a named log line instead of a jump
+     * through garbage. */
+    memset(pTable, 0, tableSize);
 
-        if (tableType == D3D12DDI_TABLE_TYPE_DEVICE_CORE &&
-            tableSize >= sizeof(D3D12DDI_DEVICE_FUNCS_CORE_0022)) {
-            /* The _0080 table is assembled by name through the revision
-             * chain, each image stub-seeded: _0022 image (the shared
-             * prefix every implementation reads) -> _0033 overrides for
-             * the slots whose parameter lists changed -> _0043 image
-             * (the pool/recorder slots interleave where the allocator
-             * ones were, so a byte copy would misalign; see
-             * triton12_tables.h) -> _0062 image -> _0080 table. */
-            D3D12DDI_DEVICE_FUNCS_CORE_0022 image;
-            /* Seeded with the stubs like the live table, so a slot no
-             * installer fills stays a named log line after the copy. */
-            memcpy(&image, t12_stub_table, sizeof(image));
-            D3D12DDI_DEVICE_FUNCS_CORE_0022 *t = &image;
-            t->pfnCheckFormatSupport             = triton12CheckFormatSupport;
-            t->pfnCheckMultisampleQualityLevels  = triton12CheckMultisampleQualityLevels;
-            t->pfnGetMipPacking                  = triton12GetMipPacking;
-            t->pfnQueryNodeMap                   = triton12QueryNodeMap;
-            triton12InstallDescriptorFuncs(t);
-            triton12InstallResourceFuncs(t);
-            triton12InstallQueueDeviceFuncs(t);
-            triton12InstallListDeviceFuncs(t);
-            triton12InstallPipelineFuncs(t);
-            triton12InstallPresentDeviceFuncs(t);
-            triton12InstallQueryDeviceFuncs(t);
-            if (tableSize >= sizeof(D3D12DDI_DEVICE_FUNCS_CORE_0080)) {
-                D3D12DDI_DEVICE_FUNCS_CORE_0033 *t33 =
-                    (D3D12DDI_DEVICE_FUNCS_CORE_0033 *)&image;
-                triton12InstallQueueDeviceFuncs0033(t33);
-                triton12InstallResourceFuncs0033(t33);
-                D3D12DDI_DEVICE_FUNCS_CORE_0043 image43;
-                memcpy(&image43, t12_stub_table, sizeof(image43));
-                T12_COPY_DEVICE_FUNCS_0033_TO_0043(&image43, t33);
-                triton12InstallListDeviceFuncs0043(&image43);
-                triton12InstallResourceFuncs0043(&image43);
-                D3D12DDI_DEVICE_FUNCS_CORE_0062 image62;
-                memcpy(&image62, t12_stub_table, sizeof(image62));
-                T12_COPY_DEVICE_FUNCS_0043_TO_0062(&image62, &image43);
-                triton12InstallQueueDeviceFuncs0062(&image62);
-                triton12InstallListDeviceFuncs0062(&image62);
-                D3D12DDI_DEVICE_FUNCS_CORE_0080 *t80 =
-                    (D3D12DDI_DEVICE_FUNCS_CORE_0080 *)pTable;
-                T12_COPY_DEVICE_FUNCS_0062_TO_0080(t80, &image62);
-                triton12InstallPipelineFuncs0080(t80);
-                triton12InstallResourceFuncs0080(t80);
-                triton12InstallListDeviceFuncs0080(t80);
-            } else {
-                /* R3 (_0022) negotiation on a no-DXIL host: the
-                 * runtime's table is the _0022 image itself. */
-                memcpy(pTable, &image, sizeof(image));
-            }
+    switch ((int)tableType) {
+    case D3D12DDI_TABLE_TYPE_DEVICE_CORE: {
+        if (tableSize < sizeof(D3D12DDI_DEVICE_FUNCS_CORE_0022))
+            break;
+        /* The _0080 table is assembled by name through the revision
+         * chain: _0022 image (the shared prefix every implementation
+         * reads) -> _0033 overrides for the slots whose parameter lists
+         * changed -> _0043 image (the pool/recorder slots interleave
+         * where the allocator ones were, so a byte copy would misalign;
+         * see triton12_tables.h) -> _0062 image -> _0080 table. */
+        D3D12DDI_DEVICE_FUNCS_CORE_0022 image;
+        memset(&image, 0, sizeof(image));
+        D3D12DDI_DEVICE_FUNCS_CORE_0022 *t = &image;
+        t->pfnCheckFormatSupport             = triton12CheckFormatSupport;
+        t->pfnCheckMultisampleQualityLevels  = triton12CheckMultisampleQualityLevels;
+        t->pfnGetMipPacking                  = triton12GetMipPacking;
+        t->pfnQueryNodeMap                   = triton12QueryNodeMap;
+        triton12InstallDescriptorFuncs(t);
+        triton12InstallResourceFuncs(t);
+        triton12InstallQueueDeviceFuncs(t);
+        triton12InstallListDeviceFuncs(t);
+        triton12InstallPipelineFuncs(t);
+        triton12InstallPresentDeviceFuncs(t);
+        triton12InstallQueryDeviceFuncs(t);
+        if (tableSize >= sizeof(D3D12DDI_DEVICE_FUNCS_CORE_0080)) {
+            D3D12DDI_DEVICE_FUNCS_CORE_0033 *t33 =
+                (D3D12DDI_DEVICE_FUNCS_CORE_0033 *)&image;
+            triton12InstallQueueDeviceFuncs0033(t33);
+            triton12InstallResourceFuncs0033(t33);
+            D3D12DDI_DEVICE_FUNCS_CORE_0043 image43;
+            memset(&image43, 0, sizeof(image43));
+            T12_COPY_DEVICE_FUNCS_0033_TO_0043(&image43, t33);
+            triton12InstallListDeviceFuncs0043(&image43);
+            triton12InstallResourceFuncs0043(&image43);
+            D3D12DDI_DEVICE_FUNCS_CORE_0062 image62;
+            memset(&image62, 0, sizeof(image62));
+            T12_COPY_DEVICE_FUNCS_0043_TO_0062(&image62, &image43);
+            triton12InstallQueueDeviceFuncs0062(&image62);
+            triton12InstallListDeviceFuncs0062(&image62);
+            D3D12DDI_DEVICE_FUNCS_CORE_0080 *t80 =
+                (D3D12DDI_DEVICE_FUNCS_CORE_0080 *)pTable;
+            T12_COPY_DEVICE_FUNCS_0062_TO_0080(t80, &image62);
+            triton12InstallPipelineFuncs0080(t80);
+            triton12InstallResourceFuncs0080(t80);
+            triton12InstallListDeviceFuncs0080(t80);
+            t12StubFill_D3D12DDI_DEVICE_FUNCS_CORE_0080(t80, tableSize);
+        } else {
+            /* R3 (_0022) negotiation on a no-DXIL host: the runtime's
+             * table is the _0022 image itself. */
+            memcpy(pTable, &image, sizeof(image));
+            t12StubFill_D3D12DDI_DEVICE_FUNCS_CORE_0022(
+                (D3D12DDI_DEVICE_FUNCS_CORE_0022 *)pTable, tableSize);
         }
-
-        if (tableType == D3D12DDI_TABLE_TYPE_COMMAND_LIST_3D &&
-            tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022)) {
-            PTRITON12_ADAPTER pAdapter = (PTRITON12_ADAPTER)hAdapter.pDrvPrivate;
-            if (pAdapter && tableNum < 2)
-                pAdapter->hRTTableCmdList[tableNum] = hRTTable;
-            /* _0033 appends six slots after the _0022 prefix; _0040
-             * keeps the 58-slot layout, only ResetCommandList's argument
-             * (recorder instead of allocator) changes. */
-            triton12InstallListFuncs(
-                (D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *)pTable);
-            triton12InstallPresentFuncs(
-                (D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *)pTable);
-            if (tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0033)) {
-                D3D12DDI_COMMAND_LIST_FUNCS_3D_0033 *t33 =
-                    (D3D12DDI_COMMAND_LIST_FUNCS_3D_0033 *)pTable;
-                triton12InstallListFuncs0033(t33);
-                triton12InstallPresentFuncs0033(t33);
-                triton12InstallListFuncs0040(
-                    (D3D12DDI_COMMAND_LIST_FUNCS_3D_0040 *)pTable);
-                /* _0062 appends nine slots and retypes pfnPresent; the
-                 * table was filled in place as _0040 above, so reassemble
-                 * it by name from that image. */
-                if (tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0062)) {
-                    D3D12DDI_COMMAND_LIST_FUNCS_3D_0040 image40;
-                    memcpy(&image40, pTable, sizeof(image40));
-                    D3D12DDI_COMMAND_LIST_FUNCS_3D_0062 *t62 =
-                        (D3D12DDI_COMMAND_LIST_FUNCS_3D_0062 *)pTable;
-                    memcpy(t62, t12_stub_table, sizeof(*t62));
-                    T12_COPY_LIST_FUNCS_0040_TO_0062(t62, &image40);
-                    triton12InstallListFuncs0062(t62);
-                    triton12InstallPresentFuncs0062(t62);
-                    /* _0074 appends DispatchMesh. */
-                    if (tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0074))
-                        triton12InstallListFuncs0074(
-                            (D3D12DDI_COMMAND_LIST_FUNCS_3D_0074 *)pTable);
-                }
-            }
+        break;
+    }
+    case D3D12DDI_TABLE_TYPE_COMMAND_LIST_3D: {
+        if (tableSize < sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0022))
+            break;
+        PTRITON12_ADAPTER pAdapter = (PTRITON12_ADAPTER)hAdapter.pDrvPrivate;
+        if (pAdapter && tableNum < 2)
+            pAdapter->hRTTableCmdList[tableNum] = hRTTable;
+        /* _0033 appends six slots after the _0022 prefix; _0040 keeps
+         * the 58-slot layout, only ResetCommandList's argument (recorder
+         * instead of allocator) changes. */
+        triton12InstallListFuncs((D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *)pTable);
+        triton12InstallPresentFuncs(
+            (D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *)pTable);
+        if (tableSize < sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0033)) {
+            t12StubFill_D3D12DDI_COMMAND_LIST_FUNCS_3D_0022(
+                (D3D12DDI_COMMAND_LIST_FUNCS_3D_0022 *)pTable, tableSize);
+            break;
         }
-
-        if (tableType == D3D12DDI_TABLE_TYPE_COMMAND_QUEUE_3D &&
-            tableSize >= sizeof(D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001)) {
-            triton12InstallQueueFuncs(
-                (D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001 *)pTable);
+        D3D12DDI_COMMAND_LIST_FUNCS_3D_0033 *t33 =
+            (D3D12DDI_COMMAND_LIST_FUNCS_3D_0033 *)pTable;
+        triton12InstallListFuncs0033(t33);
+        triton12InstallPresentFuncs0033(t33);
+        triton12InstallListFuncs0040(
+            (D3D12DDI_COMMAND_LIST_FUNCS_3D_0040 *)pTable);
+        /* _0062 appends nine slots and retypes pfnPresent; the table was
+         * filled in place as _0040 above, so reassemble it by name from
+         * that image. */
+        if (tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0062)) {
+            D3D12DDI_COMMAND_LIST_FUNCS_3D_0040 image40;
+            memcpy(&image40, pTable, sizeof(image40));
+            D3D12DDI_COMMAND_LIST_FUNCS_3D_0062 *t62 =
+                (D3D12DDI_COMMAND_LIST_FUNCS_3D_0062 *)pTable;
+            memset(t62, 0, sizeof(*t62));
+            T12_COPY_LIST_FUNCS_0040_TO_0062(t62, &image40);
+            triton12InstallListFuncs0062(t62);
+            triton12InstallPresentFuncs0062(t62);
+            /* _0074 appends DispatchMesh. */
+            if (tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0074))
+                triton12InstallListFuncs0074(
+                    (D3D12DDI_COMMAND_LIST_FUNCS_3D_0074 *)pTable);
         }
-
-        if (tableType == D3D12DDI_TABLE_TYPE_0020_EXTENDED_FEATURES &&
-            tableSize >= sizeof(D3D12DDI_EXTENDED_FEATURES_FUNCS_0021)) {
-            /* The runtime calls slot 0 immediately after the fill and
-             * throws on a garbage out-count, so these need real bodies
-             * even though no extended feature is supported. */
-            D3D12DDI_EXTENDED_FEATURES_FUNCS_0021 *t =
-                (D3D12DDI_EXTENDED_FEATURES_FUNCS_0021 *)pTable;
-            t->pfnGetSupportedExtendedFeatures = triton12GetSupportedExtendedFeatures;
-            t->pfnGetSupportedExtendedFeatureVersions = triton12GetSupportedExtendedFeatureVersions;
-            t->pfnEnableExtendedFeature = triton12EnableExtendedFeature;
-            t->pfnSetExtendedFeatureCallbacks = triton12SetExtendedFeatureCallbacks;
-        }
+        /* Only _0022 and _0074 are negotiated (GetSupportedVersions);
+         * any other size keeps just the implemented slots. */
+        if (tableSize >= sizeof(D3D12DDI_COMMAND_LIST_FUNCS_3D_0074))
+            t12StubFill_D3D12DDI_COMMAND_LIST_FUNCS_3D_0074(
+                (D3D12DDI_COMMAND_LIST_FUNCS_3D_0074 *)pTable, tableSize);
+        break;
+    }
+    case D3D12DDI_TABLE_TYPE_COMMAND_QUEUE_3D:
+        if (tableSize < sizeof(D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001))
+            break;
+        triton12InstallQueueFuncs((D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001 *)pTable);
+        t12StubFill_D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001(
+            (D3D12DDI_COMMAND_QUEUE_FUNCS_CORE_0001 *)pTable, tableSize);
+        break;
+    case D3D12DDI_TABLE_TYPE_DXGI:
+        /* Every DXGI DDI revision is a prefix-compatible array of
+         * HRESULT (*)(arg *) entries, so the newest layout stubs any. */
+        t12StubFill_DXGI1_6_1_DDI_BASE_FUNCTIONS(
+            (DXGI1_6_1_DDI_BASE_FUNCTIONS *)pTable, tableSize);
+        break;
+    case D3D12DDI_TABLE_TYPE_0020_EXTENDED_FEATURES: {
+        if (tableSize < sizeof(D3D12DDI_EXTENDED_FEATURES_FUNCS_0021))
+            break;
+        /* The runtime calls slot 0 immediately after the fill and
+         * throws on a garbage out-count, so these need real bodies
+         * even though no extended feature is supported. */
+        D3D12DDI_EXTENDED_FEATURES_FUNCS_0021 *t =
+            (D3D12DDI_EXTENDED_FEATURES_FUNCS_0021 *)pTable;
+        t->pfnGetSupportedExtendedFeatures = triton12GetSupportedExtendedFeatures;
+        t->pfnGetSupportedExtendedFeatureVersions = triton12GetSupportedExtendedFeatureVersions;
+        t->pfnEnableExtendedFeature = triton12EnableExtendedFeature;
+        t->pfnSetExtendedFeatureCallbacks = triton12SetExtendedFeatureCallbacks;
+        break;
+    }
+    default:
+        TR_LOG("12.FillDDITable: no slots for table type %d (size %zu)",
+               (int)tableType, tableSize);
+        break;
     }
     return S_OK;
 }
