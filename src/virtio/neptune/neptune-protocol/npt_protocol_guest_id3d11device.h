@@ -5190,7 +5190,12 @@ npt_sizeof_ID3D11Device_CheckFeatureSupport(const D3D11_FEATURE Feature,const vo
     (void)max_mode;  /* unused when the command has no struct/union inputs */
     size_t cmd_size = sizeof(struct npt_command_header);
     cmd_size += npt_sizeof_D3D11_FEATURE(&Feature, max_mode);
-/* skip pFeatureSupportData (output only) */
+    if (pFeatureSupportData) {
+        cmd_size += npt_sizeof_array_count(FeatureSupportDataSize);
+        cmd_size += npt_sizeof_blob_array(pFeatureSupportData, FeatureSupportDataSize);
+    } else {
+        cmd_size += npt_sizeof_array_count(0);
+    }
     cmd_size += npt_sizeof_UINT(&FeatureSupportDataSize, max_mode);
     return cmd_size;
 }
@@ -5213,7 +5218,12 @@ npt_encode_ID3D11Device_CheckFeatureSupport(struct npt_cs_encoder *enc,
     };
     npt_cs_encoder_write(enc, sizeof(_hdr), &_hdr, sizeof(_hdr));
     npt_encode_D3D11_FEATURE(enc, &Feature);
-/* skip pFeatureSupportData (output only) */
+    if (pFeatureSupportData) {
+        npt_encode_array_count(enc, FeatureSupportDataSize);
+        npt_encode_blob_array(enc, pFeatureSupportData, FeatureSupportDataSize);
+    } else {
+        npt_encode_array_count(enc, 0);
+    }
     npt_encode_UINT(enc, &FeatureSupportDataSize);
 }
 
