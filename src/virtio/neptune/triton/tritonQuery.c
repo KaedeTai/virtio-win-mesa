@@ -74,11 +74,8 @@ static void tritonQueryCreateFailed(PTRITON_DEVICE pD, D3D11_QUERY q,
     tritonSetError(pD, E_OUTOFMEMORY);
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateQuerySize(D3D10DDI_HDEVICE hDev, const D3D10DDIARG_CREATEQUERY *pArgs)
-{
-    return sizeof(TRITON_QUERY);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateQuerySize, TRITON_QUERY,
+                     const D3D10DDIARG_CREATEQUERY *pArgs)
 
 static void tritonCreateQueryCommon(PTRITON_DEVICE pD, PTRITON_QUERY q,
                                     const D3DWDDM2_0DDIARG_CREATEQUERY *a);
@@ -791,11 +788,8 @@ D3D11_CONTEXT_TYPE tritonContextFlagToEnum(UINT flag)
     }
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateQuerySize_WDDM2_0(D3D10DDI_HDEVICE hDev, const D3DWDDM2_0DDIARG_CREATEQUERY *pArgs)
-{
-    return sizeof(TRITON_QUERY);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateQuerySize_WDDM2_0, TRITON_QUERY,
+                     const D3DWDDM2_0DDIARG_CREATEQUERY *pArgs)
 
 /* Queries go through ID3D11Device3::CreateQuery1 when the host exposes it,
  * so ContextType reaches it.  There is no CreatePredicate1, so predicates

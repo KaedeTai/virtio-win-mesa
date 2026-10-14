@@ -54,21 +54,15 @@ static HRESULT tritonShaderCreateNative(PTRITON_DEVICE pD, TRITON_SHADER_KIND k,
     return E_INVALIDARG;
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateShaderSize(D3D10DDI_HDEVICE hDev, const UINT *pTokens, const VOID *pArgs)
-{
-    return sizeof(TRITON_SHADER);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateShaderSize, TRITON_SHADER,
+                     const UINT *pTokens, const VOID *pArgs)
 
 /* Tessellation shader size — same as regular shader size. The DDI hands
  * tessellation IO signatures separately but we forward DXBC unchanged.
  * Must return non-zero: a 0-sized allocation would cause the create
  * handler to write into a 0-byte buffer. */
-SIZE_T APIENTRY
-tritonCalcPrivateTessellationShaderSize(D3D10DDI_HDEVICE hDev, const UINT *pTokens, const VOID *pArgs)
-{
-    return sizeof(TRITON_SHADER);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateTessellationShaderSize, TRITON_SHADER,
+                     const UINT *pTokens, const VOID *pArgs)
 
 /* Unpack a stage-IO or tessellation-IO signatures struct from a raw
  * void*. D3D10DDIARG_STAGE_IO_SIGNATURES and
@@ -374,11 +368,8 @@ static const TritonDxbcSig *tritonDxbcFindSig(const TritonDxbcSig *p, UINT cnt,
  *   11.0/11.1: D3D11DDIARG_CREATEGEOMETRYSHADERWITHSTREAMOUTPUT — per-entry
  *     Stream, BufferStridesInBytes[NumStrides], RasterizedStream. */
 
-SIZE_T APIENTRY
-tritonCalcPrivateGSWithSOSize(D3D10DDI_HDEVICE hDev, const VOID *pArgs)
-{
-    return sizeof(TRITON_SHADER);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateGSWithSOSize, TRITON_SHADER,
+                     const VOID *pArgs)
 
 /* Fills the API SO declaration for a DDI one against the output signature
  * of the bytecode that will feed it. The DDI gives Stream + RegisterIndex +

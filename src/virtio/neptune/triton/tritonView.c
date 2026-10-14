@@ -122,14 +122,8 @@ tritonResourceRecreateViews(PTRITON_DEVICE pD, PTRITON_RESOURCE r)
     return worst;
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateRenderTargetViewSize(D3D10DDI_HDEVICE hDevice,
-                                      const D3D10DDIARG_CREATERENDERTARGETVIEW *pArgs)
-{
-    (void)hDevice;
-    (void)pArgs;
-    return sizeof(TRITON_RTVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateRenderTargetViewSize, TRITON_RTVIEW,
+                     const D3D10DDIARG_CREATERENDERTARGETVIEW *pArgs)
 
 /* The 11.x create args are a prefix of the WDDM 2.0 ones: the Tex2D member
  * only gains a trailing PlaneSlice, and no other member reaches past it, so
@@ -388,11 +382,8 @@ tritonSetRenderTargets(D3D10DDI_HDEVICE hDevice,
 
 /* ---------- ShaderResourceView ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateSRVSize(D3D10DDI_HDEVICE hDev, const D3D11DDIARG_CREATESHADERRESOURCEVIEW *pArgs)
-{
-    return sizeof(TRITON_SRVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateSRVSize, TRITON_SRVIEW,
+                     const D3D11DDIARG_CREATESHADERRESOURCEVIEW *pArgs)
 
 /* The 11.x create args are a prefix of the WDDM 2.0 ones: the Tex2D member
  * only gains a trailing PlaneSlice, and no other member reaches past it, so
@@ -566,11 +557,8 @@ tritonDestroySRV(D3D10DDI_HDEVICE hDev, D3D10DDI_HSHADERRESOURCEVIEW hSRV)
 
 /* ---------- DepthStencilView ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateDSVSize(D3D10DDI_HDEVICE hDev, const D3D11DDIARG_CREATEDEPTHSTENCILVIEW *pArgs)
-{
-    return sizeof(TRITON_DSVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateDSVSize, TRITON_DSVIEW,
+                     const D3D11DDIARG_CREATEDEPTHSTENCILVIEW *pArgs)
 
 void APIENTRY
 tritonCreateDSV(D3D10DDI_HDEVICE hDevice,
@@ -649,11 +637,8 @@ tritonDestroyDSV(D3D10DDI_HDEVICE hDev, D3D10DDI_HDEPTHSTENCILVIEW hDSV)
 
 /* ---------- UnorderedAccessView ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateUAVSize(D3D10DDI_HDEVICE hDev, const D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs)
-{
-    return sizeof(TRITON_UAVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateUAVSize, TRITON_UAVIEW,
+                     const D3D11DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs)
 
 /* The 11.x create args are a prefix of the WDDM 2.0 ones: the Tex2D member
  * only gains a trailing PlaneSlice, and no other member reaches past it, so
@@ -884,26 +869,14 @@ tritonGenerateMips(D3D10DDI_HDEVICE hDevice, D3D10DDI_HSHADERRESOURCEVIEW hSRV)
 
 /* ---------- WDDM 2.0 view sizes (creates are above) ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateSRVSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
-                                 const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *pArgs)
-{
-    return sizeof(TRITON_SRVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateSRVSize_WDDM2_0, TRITON_SRVIEW,
+                     const D3DWDDM2_0DDIARG_CREATESHADERRESOURCEVIEW *pArgs)
 
-SIZE_T APIENTRY
-tritonCalcPrivateRenderTargetViewSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
-                                              const D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW *pArgs)
-{
-    return sizeof(TRITON_RTVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateRenderTargetViewSize_WDDM2_0, TRITON_RTVIEW,
+                     const D3DWDDM2_0DDIARG_CREATERENDERTARGETVIEW *pArgs)
 
-SIZE_T APIENTRY
-tritonCalcPrivateUAVSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
-                                 const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs)
-{
-    return sizeof(TRITON_UAVIEW);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateUAVSize_WDDM2_0, TRITON_UAVIEW,
+                     const D3DWDDM2_0DDIARG_CREATEUNORDEREDACCESSVIEW *pArgs)
 
 /* WDDM 2.0 Flush(ContextType, FlushFlags).
  *

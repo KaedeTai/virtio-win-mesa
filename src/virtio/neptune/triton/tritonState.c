@@ -24,11 +24,8 @@ static D3D11_BLEND_OP tritonBlendOp(D3D10_DDI_BLEND_OP o){ return (D3D11_BLEND_O
 
 /* ---------- Blend (D3D11_1 layout) ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateBlendStateSize(D3D10DDI_HDEVICE hDev, const D3D11_1_DDI_BLEND_DESC *pArgs)
-{
-    return sizeof(TRITON_BLENDSTATE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateBlendStateSize, TRITON_BLENDSTATE,
+                     const D3D11_1_DDI_BLEND_DESC *pArgs)
 
 void APIENTRY
 tritonCreateBlendState(D3D10DDI_HDEVICE hDevice,
@@ -79,11 +76,8 @@ tritonDestroyBlendState(D3D10DDI_HDEVICE hDev, D3D10DDI_HBLENDSTATE hState)
  * entries minus LogicOp/LogicOpEnable). Upgrade to the 11.1 form and
  * delegate. */
 
-SIZE_T APIENTRY
-tritonCalcPrivateBlendStateSize_10(D3D10DDI_HDEVICE hDev, const D3D10_1_DDI_BLEND_DESC *pArgs)
-{
-    return sizeof(TRITON_BLENDSTATE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateBlendStateSize_10, TRITON_BLENDSTATE,
+                     const D3D10_1_DDI_BLEND_DESC *pArgs)
 
 void APIENTRY
 tritonCreateBlendState_10(D3D10DDI_HDEVICE hDevice,
@@ -126,11 +120,8 @@ tritonSetBlendState(D3D10DDI_HDEVICE hDevice,
 
 /* ---------- Depth-stencil ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateDepthStencilStateSize(D3D10DDI_HDEVICE hDev, const D3D10_DDI_DEPTH_STENCIL_DESC *pArgs)
-{
-    return sizeof(TRITON_DEPTHSTENCILSTATE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateDepthStencilStateSize, TRITON_DEPTHSTENCILSTATE,
+                     const D3D10_DDI_DEPTH_STENCIL_DESC *pArgs)
 
 void APIENTRY
 tritonCreateDepthStencilState(D3D10DDI_HDEVICE hDevice,
@@ -252,11 +243,8 @@ tritonCreateRasterizerCommon(PTRITON_DEVICE pD, PTRITON_RASTERIZERSTATE s,
     }
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateRasterizerStateSize(D3D10DDI_HDEVICE hDev, const D3D11_1_DDI_RASTERIZER_DESC *pArgs)
-{
-    return sizeof(TRITON_RASTERIZERSTATE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateRasterizerStateSize, TRITON_RASTERIZERSTATE,
+                     const D3D11_1_DDI_RASTERIZER_DESC *pArgs)
 
 void APIENTRY
 tritonCreateRasterizerState(D3D10DDI_HDEVICE hDevice,
@@ -281,11 +269,8 @@ tritonCreateRasterizerState(D3D10DDI_HDEVICE hDevice,
                                  (PTRITON_RASTERIZERSTATE)hState.pDrvPrivate, &up);
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateRasterizerStateSize_10(D3D10DDI_HDEVICE hDev, const D3D10_DDI_RASTERIZER_DESC *pArgs)
-{
-    return sizeof(TRITON_RASTERIZERSTATE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateRasterizerStateSize_10, TRITON_RASTERIZERSTATE,
+                     const D3D10_DDI_RASTERIZER_DESC *pArgs)
 
 void APIENTRY
 tritonCreateRasterizerState_10(D3D10DDI_HDEVICE hDevice,
@@ -309,12 +294,8 @@ tritonCreateRasterizerState_10(D3D10DDI_HDEVICE hDevice,
                                  (PTRITON_RASTERIZERSTATE)hState.pDrvPrivate, &up);
 }
 
-SIZE_T APIENTRY
-tritonCalcPrivateRasterizerStateSize_WDDM2_0(D3D10DDI_HDEVICE hDev,
-                                             const D3DWDDM2_0DDI_RASTERIZER_DESC *pArgs)
-{
-    return sizeof(TRITON_RASTERIZERSTATE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateRasterizerStateSize_WDDM2_0, TRITON_RASTERIZERSTATE,
+                     const D3DWDDM2_0DDI_RASTERIZER_DESC *pArgs)
 
 void APIENTRY
 tritonCreateRasterizerState_WDDM2_0(D3D10DDI_HDEVICE hDevice,
@@ -345,11 +326,8 @@ tritonSetRasterizerState(D3D10DDI_HDEVICE hDevice, D3D10DDI_HRASTERIZERSTATE hSt
 
 /* ---------- Sampler ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateSamplerSize(D3D10DDI_HDEVICE hDev, const D3D10_DDI_SAMPLER_DESC *pArgs)
-{
-    return sizeof(TRITON_SAMPLER);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateSamplerSize, TRITON_SAMPLER,
+                     const D3D10_DDI_SAMPLER_DESC *pArgs)
 
 void APIENTRY
 tritonCreateSampler(D3D10DDI_HDEVICE hDevice,
@@ -417,11 +395,8 @@ TR_SAMPLER_SETTER(Cs, CSSetSamplers)
 
 /* ---------- Element layout (lazy ID3D11InputLayout creation) ---------- */
 
-SIZE_T APIENTRY
-tritonCalcPrivateElementLayoutSize(D3D10DDI_HDEVICE hDev, const D3D10DDIARG_CREATEELEMENTLAYOUT *pArgs)
-{
-    return sizeof(TRITON_ELEMENTLAYOUT);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateElementLayoutSize, TRITON_ELEMENTLAYOUT,
+                     const D3D10DDIARG_CREATEELEMENTLAYOUT *pArgs)
 
 void APIENTRY
 tritonCreateElementLayout(D3D10DDI_HDEVICE hDevice,

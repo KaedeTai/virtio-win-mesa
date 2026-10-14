@@ -230,6 +230,14 @@ typedef struct TRITON_DEVICE {
  * import it.  Value is ABI with the host dxvk build. */
 #define TRITON_D3D11_MISC_LINEAR_EXPORT 0x40000000u
 
+/* Defines a CalcPrivate*Size DDI whose private object has a fixed size. */
+#define TR_CALC_PRIVATE_SIZE(name, type, ...)                          \
+    SIZE_T APIENTRY name(D3D10DDI_HDEVICE hDevice, __VA_ARGS__)         \
+    {                                                                   \
+        (void)hDevice;                                                  \
+        return sizeof(type);                                            \
+    }
+
 static inline void tritonSetError(PTRITON_DEVICE pD, HRESULT hr)
 {
     if (pD && pD->pUMCallbacks && pD->pUMCallbacks->pfnSetErrorCb)

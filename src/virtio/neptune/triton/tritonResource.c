@@ -18,23 +18,11 @@
 /* tritonQuery.c; the DDI table in tritonDDI.c carries the same prototype. */
 void APIENTRY tritonCheckFormatSupport(D3D10DDI_HDEVICE, DXGI_FORMAT, UINT *);
 
-SIZE_T APIENTRY
-tritonCalcPrivateResourceSize(D3D10DDI_HDEVICE hDevice,
-                              const D3D11DDIARG_CREATERESOURCE *pArgs)
-{
-    (void)hDevice;
-    (void)pArgs;
-    return sizeof(TRITON_RESOURCE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateResourceSize, TRITON_RESOURCE,
+                     const D3D11DDIARG_CREATERESOURCE *pArgs)
 
-SIZE_T APIENTRY
-tritonCalcPrivateOpenedResourceSize(D3D10DDI_HDEVICE hDevice,
-                                    const D3D10DDIARG_OPENRESOURCE *pArgs)
-{
-    (void)hDevice;
-    (void)pArgs;
-    return sizeof(TRITON_RESOURCE);
-}
+TR_CALC_PRIVATE_SIZE(tritonCalcPrivateOpenedResourceSize, TRITON_RESOURCE,
+                     const D3D10DDIARG_OPENRESOURCE *pArgs)
 
 /* Translate the DDI's combined Usage/CpuAccess/Bind flag salad into the
  * corresponding D3D11 enums.
