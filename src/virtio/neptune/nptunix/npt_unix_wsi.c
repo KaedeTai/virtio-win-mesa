@@ -140,7 +140,7 @@ NTSTATUS npt_do_wsi_init(void *args)
       int xcb_fd = dup(g_wsi.images[i].fd);
       xcb_void_cookie_t cookie = xcb_dri3_pixmap_from_buffer_checked(
          g_wsi.conn, g_wsi.images[i].pixmap, g_wsi.window,
-         p->width * p->height * 4,
+         p->strides[i] * p->height,
          p->width, p->height, p->strides[i],
          24, 32, xcb_fd);
 
