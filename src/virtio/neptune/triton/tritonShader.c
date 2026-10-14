@@ -383,12 +383,15 @@ tritonCalcPrivateGSWithSOSize(D3D10DDI_HDEVICE hDev, const VOID *pArgs)
 /* Fills the API SO declaration for a DDI one against the output signature
  * of the bytecode that will feed it. The DDI gives Stream + RegisterIndex +
  * RegisterMask + OutputSlot; SemanticName/Index come from the signature
- * (OSG5 for SM5, OSGN for SM4). A register the signature lacks becomes a
- * gap entry (NULL name) rather than a failure -- an all-gap declaration is
- * rejected outright by the runtime, a partial one silently drops those
- * attributes and shifts the buffer layout -- so it is logged. `dxsigs` is
- * caller storage the names point into for as long as `dstEntries` is used. */
-static void tritonFillSoDecl(const void *pBytecode, SIZE_T cbBytecode,
+ * (OSG5 for SM5, OSGN for SM4). `dxsigs` is caller storage the names point
+ * into for as long as `dstEntries` is used.
+ *
+ * Returns FALSE when an entry has no signature element -- a declared gap, or
+ * a register the signature lacks. Such an entry can only travel as a gap
+ * (NULL name), which the host's stream-out cannot express: D3DMetal
+ * dereferences the NULL name and the render-server worker dies, taking every
+ * object of the process with it. The caller must not create from it. */
+static BOOL tritonFillSoDecl(const void *pBytecode, SIZE_T cbBytecode,
                              const D3D11DDIARG_STREAM_OUTPUT_DECLARATION_ENTRY *pDdi,
                              UINT NumEntries,
                              D3D11_SO_DECLARATION_ENTRY *dstEntries,
@@ -397,8 +400,9 @@ static void tritonFillSoDecl(const void *pBytecode, SIZE_T cbBytecode,
     const UINT cDxSigs = tritonDxbcParseSig(pBytecode, cbBytecode, FALSE,
                                              dxsigs, 128);
     if (cDxSigs == 0)
-        TR_LOG("CreateGSWithSO: no output signature parsed; every SO entry "
-               "will be a gap");
+        TR_LOG("CreateGSWithSO: no output signature parsed");
+
+    BOOL complete = TRUE;
 
     for (UINT i = 0; i < NumEntries; ++i) {
         const D3D11DDIARG_STREAM_OUTPUT_DECLARATION_ENTRY *src = &pDdi[i];
@@ -428,10 +432,12 @@ static void tritonFillSoDecl(const void *pBytecode, SIZE_T cbBytecode,
                 elemBase = start;
         }
 
-        if (!sig)
+        if (!sig) {
             TR_LOG("CreateGSWithSO: SO entry %u (stream %u reg %u mask 0x%x) has "
-                   "no output-signature match; emitting a gap",
+                   "no output-signature match",
                    i, src->Stream, src->RegisterIndex, src->RegisterMask);
+            complete = FALSE;
+        }
 
         D3D11_SO_DECLARATION_ENTRY *dst = &dstEntries[i];
         dst->Stream         = src->Stream;
@@ -441,6 +447,7 @@ static void tritonFillSoDecl(const void *pBytecode, SIZE_T cbBytecode,
         dst->ComponentCount = count;
         dst->OutputSlot     = (BYTE)src->OutputSlot;
     }
+    return complete;
 }
 
 void APIENTRY
@@ -524,8 +531,15 @@ tritonCreateGSWithSO_11(D3D10DDI_HDEVICE hDevice,
     D3D11_SO_DECLARATION_ENTRY soEntries[D3D11_SO_STREAM_COUNT *
                                          D3D11_SO_OUTPUT_COMPONENT_COUNT];
     TritonDxbcSig dxsigs[128];
-    tritonFillSoDecl(s->pBytecode, s->cbBytecode, pArgs->pOutputStreamDecl,
-                     pArgs->NumEntries, soEntries, dxsigs);
+    if (!tritonFillSoDecl(s->pBytecode, s->cbBytecode, pArgs->pOutputStreamDecl,
+                          pArgs->NumEntries, soEntries, dxsigs)) {
+        /* No pfnDestroyShader after a create error - free the container. */
+        HeapFree(GetProcessHeap(), 0, s->pBytecode);
+        s->pBytecode  = NULL;
+        s->cbBytecode = 0;
+        tritonSetCreateError(pD, E_INVALIDARG);
+        return;
+    }
 
     HRESULT hr = ID3D11Device1_CreateGeometryShaderWithStreamOutput(
         pD->pDev1,
@@ -570,12 +584,13 @@ static void tritonBindSoOnlyGS(PTRITON_DEVICE pD)
         D3D11_SO_DECLARATION_ENTRY soEntries[D3D11_SO_STREAM_COUNT *
                                              D3D11_SO_OUTPUT_COMPONENT_COUNT];
         TritonDxbcSig dxsigs[128];
-        tritonFillSoDecl(src->pBytecode, src->cbBytecode, gs->pSoDecl,
-                         gs->cSoDecl, soEntries, dxsigs);
-        HRESULT hr = ID3D11Device1_CreateGeometryShaderWithStreamOutput(
-            pD->pDev1, src->pBytecode, src->cbBytecode,
-            soEntries, gs->cSoDecl, gs->SoStrides, gs->cSoStrides,
-            gs->SoRasterizedStream, NULL, &gs->pSoOnlyGS);
+        HRESULT hr = E_INVALIDARG;
+        if (tritonFillSoDecl(src->pBytecode, src->cbBytecode, gs->pSoDecl,
+                             gs->cSoDecl, soEntries, dxsigs))
+            hr = ID3D11Device1_CreateGeometryShaderWithStreamOutput(
+                pD->pDev1, src->pBytecode, src->cbBytecode,
+                soEntries, gs->cSoDecl, gs->SoStrides, gs->cSoStrides,
+                gs->SoRasterizedStream, NULL, &gs->pSoOnlyGS);
         if (FAILED(hr)) {
             TR_LOG("SO-only GS: D3D11 create from %s bytecode failed 0x%08lx",
                    pD->pCurrentDS ? "DS" : "VS", hr);
