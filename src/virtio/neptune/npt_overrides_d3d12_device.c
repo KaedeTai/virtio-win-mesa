@@ -553,6 +553,10 @@ dev12_CreateDescriptorHeap_override(void *self,
       npt_d3d12_desc_note_write(ring, (dest).ptr, 1);                    \
    }
 
+DESC_WRITE_OVERRIDE(id3d12device, CreateConstantBufferView,
+   (void *self, const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
+    D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor),
+   (self, pDesc, DestDescriptor), DestDescriptor)
 DESC_WRITE_OVERRIDE(id3d12device, CreateShaderResourceView,
    (void *self, ID3D12Resource *pResource,
     const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc,
@@ -588,17 +592,6 @@ DESC_WRITE_OVERRIDE(id3d12device11, CreateSampler2,
     D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor),
    (self, pDesc, DestDescriptor), DestDescriptor)
 
-static void NPT_STDMETHODCALLTYPE
-dev12_CreateConstantBufferView_override(
-   void *self, const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc,
-   D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
-{
-   struct npt_ring *ring = npt_com_self_ring(self);
-   npt_d3d12_desc_before_write(ring, DestDescriptor.ptr, 1);
-   npt_id3d12device_default_CreateConstantBufferView(self, pDesc,
-                                                     DestDescriptor);
-   npt_d3d12_desc_note_write(ring, DestDescriptor.ptr, 1);
-}
 
 static void NPT_STDMETHODCALLTYPE
 dev12_CopyDescriptors_override(
@@ -1207,7 +1200,7 @@ npt_overrides_d3d12_device_init(void)
    NPT_REGISTER_OVERRIDE(id3d12device, CreateSampler,
                                       id3d12device_CreateSampler_override);
    NPT_REGISTER_OVERRIDE(id3d12device, CreateConstantBufferView,
-                                      dev12_CreateConstantBufferView_override);
+                                      id3d12device_CreateConstantBufferView_override);
    NPT_REGISTER_OVERRIDE(id3d12device, CopyDescriptors,
                                       dev12_CopyDescriptors_override);
    NPT_REGISTER_OVERRIDE(id3d12device, CopyDescriptorsSimple,
