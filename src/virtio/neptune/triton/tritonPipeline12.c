@@ -896,6 +896,43 @@ t12CalcPrivateMeshShaderSize(D3D12DDI_HDEVICE hDevice,
                              const D3D12DDIARG_CREATE_SHADER_0026 *pArgs)
 { (void)hDevice; (void)pArgs; return sizeof(TRITON12_SHADER); }
 
+/* Stream output is not implemented.  The shader still gets a zeroed private
+ * struct: it shares pfnDestroyShader with every other stage, which frees
+ * what the struct points at. */
+static SIZE_T APIENTRY
+t12CalcPrivateGsWithSoSize(D3D12DDI_HDEVICE hDevice,
+                           const D3D12DDIARG_CREATE_GEOMETRY_SHADER_WITH_STREAM_OUTPUT_0010 *pArgs)
+{ (void)hDevice; (void)pArgs; return sizeof(TRITON12_SHADER); }
+
+static VOID APIENTRY
+t12CreateGsWithSo(D3D12DDI_HDEVICE hDevice,
+                  const D3D12DDIARG_CREATE_GEOMETRY_SHADER_WITH_STREAM_OUTPUT_0010 *pArgs,
+                  D3D12DDI_HSHADER hShader)
+{
+    PTRITON12_SHADER s = (PTRITON12_SHADER)hShader.pDrvPrivate;
+    (void)hDevice; (void)pArgs;
+    if (s)
+        memset(s, 0, sizeof(*s));
+    TR_STUB("12.CreateGeometryShaderWithStreamOutput");
+}
+
+static SIZE_T APIENTRY
+t12CalcPrivateGsWithSoSize0026(D3D12DDI_HDEVICE hDevice,
+                               const D3D12DDIARG_CREATE_GEOMETRY_SHADER_WITH_STREAM_OUTPUT_0026 *pArgs)
+{ (void)hDevice; (void)pArgs; return sizeof(TRITON12_SHADER); }
+
+static VOID APIENTRY
+t12CreateGsWithSo0026(D3D12DDI_HDEVICE hDevice,
+                      const D3D12DDIARG_CREATE_GEOMETRY_SHADER_WITH_STREAM_OUTPUT_0026 *pArgs,
+                      D3D12DDI_HSHADER hShader)
+{
+    PTRITON12_SHADER s = (PTRITON12_SHADER)hShader.pDrvPrivate;
+    (void)hDevice; (void)pArgs;
+    if (s)
+        memset(s, 0, sizeof(*s));
+    TR_STUB("12.CreateGeometryShaderWithStreamOutput");
+}
+
 void
 triton12InstallPipelineFuncs0080(D3D12DDI_DEVICE_FUNCS_CORE_0080 *t)
 {
@@ -906,6 +943,8 @@ triton12InstallPipelineFuncs0080(D3D12DDI_DEVICE_FUNCS_CORE_0080 *t)
     t->pfnCreateAmplificationShader    = t12CreateAmplificationShader;
     t->pfnCreateMeshShader             = t12CreateMeshShader;
     t->pfnCalcPrivateMeshShaderSize    = t12CalcPrivateMeshShaderSize;
+    t->pfnCalcPrivateGeometryShaderWithStreamOutput = t12CalcPrivateGsWithSoSize0026;
+    t->pfnCreateGeometryShaderWithStreamOutput      = t12CreateGsWithSo0026;
 }
 
 void
@@ -927,6 +966,8 @@ triton12InstallPipelineFuncs(D3D12DDI_DEVICE_FUNCS_CORE_0022 *t)
     t->pfnCreateVertexShader               = t12CreateVertexShader;
     t->pfnCreatePixelShader                = t12CreatePixelShader;
     t->pfnCreateGeometryShader             = t12CreateGeometryShader;
+    t->pfnCalcPrivateGeometryShaderWithStreamOutput = t12CalcPrivateGsWithSoSize;
+    t->pfnCreateGeometryShaderWithStreamOutput      = t12CreateGsWithSo;
     t->pfnCreateComputeShader              = t12CreateComputeShader;
     t->pfnCalcPrivateTessellationShaderSize = t12CalcPrivateShaderSize;
     t->pfnCreateHullShader                 = t12CreateHullShader;
