@@ -727,9 +727,16 @@ dev12_CheckFeatureSupport_override(void *self,
    default: {
       /* Pointer-free feature structs are a plain in/out byte blob. */
       struct npt_device *dev = npt_com_self_device(self);
-      return npt_call_ID3D12Device_CheckFeatureSupport(
+      HRESULT hr = npt_call_ID3D12Device_CheckFeatureSupport(
          npt_device_method_ring(dev), npt_com_self_id(self),
          Feature, pFeatureSupportData, FeatureSupportDataSize);
+      /* ID3D12StateObjectProperties::GetShaderIdentifier is unsupported on
+       * the wire, so no shader table can be built: DXR is not usable. */
+      if (NPT_SUCCEEDED(hr) && Feature == D3D12_FEATURE_D3D12_OPTIONS5 &&
+          FeatureSupportDataSize >= sizeof(D3D12_FEATURE_DATA_D3D12_OPTIONS5))
+         ((D3D12_FEATURE_DATA_D3D12_OPTIONS5 *)pFeatureSupportData)
+            ->RaytracingTier = D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+      return hr;
    }
    }
 }
