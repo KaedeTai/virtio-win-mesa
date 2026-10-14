@@ -1048,7 +1048,7 @@ npt_ring_roundtrip_submit(struct npt_ring *ring)
 {
    /* acq_rel: a thread minting a later seqno is thereby ordered after
     * this thread's create submission, which the out-of-order wait
-    * argument in npt_ring_force_roundtrip relies on. */
+    * argument in npt_ring_ensure_shmem_visible relies on. */
    const uint64_t seqno =
       atomic_fetch_add_explicit(&ring->roundtrip_next, 1,
                                 memory_order_acq_rel) + 1;
@@ -1261,24 +1261,6 @@ npt_ring_submit_raw_with_payload(struct npt_ring *ring,
 }
 
 void
-npt_ring_force_roundtrip(struct npt_ring *ring)
-{
-   if (!ring || !npt_ring_needs_create_roundtrip(ring))
-      return;
-   /* Mint and submit outside ring->lock -- every recording thread takes
-    * that lock for every wire command, and the submit is a kernel
-    * transition.  Seqnos can then enter the ring out of order, which is
-    * sound: a seqno is minted only after its own resource create is
-    * queued on the FIFO control queue, so the host observing ANY seqno
-    * >= mine proves my create reached the resource table. */
-   npt_ring_stage_flush_self(ring);
-   const uint64_t seqno = npt_ring_roundtrip_submit(ring);
-   npt_ring_lock_acquire(&ring->lock);
-   npt_ring_roundtrip_wait_locked(ring, seqno);
-   npt_ring_unlock_and_notify(ring);
-}
-
-void
 npt_ring_ensure_shmem_visible(struct npt_ring *ring,
                               struct npt_renderer_shmem *shmem)
 {
@@ -1286,6 +1268,12 @@ npt_ring_ensure_shmem_visible(struct npt_ring *ring,
        atomic_load_explicit(&shmem->visible_ring, memory_order_acquire) ==
           ring->id)
       return;
+   /* Mint and submit outside ring->lock -- every recording thread takes
+    * that lock for every wire command, and the submit is a kernel
+    * transition.  Seqnos can then enter the ring out of order, which is
+    * sound: a seqno is minted only after its own resource create is
+    * queued on the FIFO control queue, so the host observing ANY seqno
+    * >= mine proves my create reached the resource table. */
    npt_ring_stage_flush_self(ring);
    const uint64_t seqno = npt_ring_roundtrip_submit(ring);
    npt_ring_lock_acquire(&ring->lock);

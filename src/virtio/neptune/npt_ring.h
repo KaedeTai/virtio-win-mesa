@@ -370,23 +370,13 @@ npt_ring_submit_raw_with_payload(struct npt_ring *ring,
                                  const void *payload, uint32_t payload_size,
                                  uint32_t payload_padded_size);
 
-/*
- * Force a virtqueue-seqno roundtrip: SUBMIT via the renderer's sync
- * path + matching WAIT through the ring so the ring thread blocks
- * until the host's virtqueue dispatcher catches up.  Required before
- * any ring command that names a freshly-created shmem's res_id
- * (e.g. REGISTER_QUERY_FEEDBACK), otherwise the ring thread races
- * the resource-table register.
- *
- * A no-op on transports whose shmem create is already host-visible on
- * return (npt_renderer::shmem_create_host_visible).
- */
-void
-npt_ring_force_roundtrip(struct npt_ring *ring);
-
 /* Order `ring` after the host's create of `shmem`, once per shmem and
- * ring: every later command on `ring` may name shmem->res_id.  Call
- * outside ring->lock.  No-op where creates are host-visible on return.
+ * ring: every later command on `ring` may name shmem->res_id.  A
+ * virtqueue-seqno roundtrip (SUBMIT via the renderer's sync path +
+ * matching WAIT through the ring) blocks the ring thread until the
+ * host's virtqueue dispatcher has registered the resource.  Call
+ * outside ring->lock.  No-op where creates are host-visible on return
+ * (npt_renderer::shmem_create_host_visible).
  *
  * Use this rather than a "fresh" flag handed to the first allocation of
  * a new pool shmem: a second thread allocating from the same shmem can

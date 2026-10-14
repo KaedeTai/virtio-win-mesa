@@ -247,7 +247,7 @@ struct npt_renderer {
     * -- synchronously inside the RES_INFO escape where the KMD owns the
     * window, otherwise through the drained MAP_BLOB packet.
     * Transports that only queue the create leave this false and pay
-    * npt_ring_force_roundtrip. */
+    * npt_ring_ensure_shmem_visible. */
    bool shmem_create_host_visible;
 
    /* Set (never cleared) when a ring blob CPU mapping is observed torn
