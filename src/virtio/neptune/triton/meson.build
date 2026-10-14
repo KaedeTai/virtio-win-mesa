@@ -16,6 +16,7 @@ triton_src = files(
   'tritonState.c',
   'tritonShader.c',
   'tritonDxbc.c',
+  'tritonDxil.c',
   'tritonQuery.c',
   'tritonDxgi.c',
   'tritonPresent.c',
@@ -71,6 +72,20 @@ if with_tests
       files('tests/tritonDxbcTest.c'),
       include_directories : triton_incs,
       c_args : npt_c_args,
+    ),
+    suite : ['neptune'],
+  )
+  # Checks the DXIL input-signature reader against DXC's reflection and
+  # the containers' ISG1 chunks; loads dxcompiler.dll (beside the exe or
+  # on PATH), dxilconv.dll and d3dcompiler_47.dll at runtime.
+  test(
+    'triton-dxil',
+    executable(
+      'triton_dxil_test',
+      files('tests/tritonDxilTest.cpp', 'tritonDxil.c', 'tritonDxbc.c'),
+      include_directories : triton_incs,
+      c_args : npt_c_args,
+      link_args : ['ole32.lib'],
     ),
     suite : ['neptune'],
   )

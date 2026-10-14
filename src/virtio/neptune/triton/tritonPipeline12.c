@@ -19,9 +19,8 @@
 #include "triton12.h"
 #include "triton_log.h"
 
-#include <stdio.h> /* snprintf (DXIL input-layout placeholder names) */
-
 #include "tritonDxbc.h"
+#include "tritonDxil.h"
 #include "npt_workaround.h"
 
 /* npt_entry_d3d12.c (aliased to the public export by d3d12.def). */
@@ -35,6 +34,9 @@ typedef struct TRITON12_SHADER
     void   *pDxbc;   /* full container: rebuilt DXBC, or verbatim DXIL */
     SIZE_T  cbDxbc;
     BOOL    IsDxil;  /* container carries a DXIL part (forwarded verbatim) */
+    /* DXIL vertex shaders: the input signature, read once at create; NULL
+     * when the program could not be read. */
+    TritonDxilInputSig *pDxilInputs;
 } TRITON12_SHADER, *PTRITON12_SHADER;
 
 /* Container part scan: does a 'DXBC'-magic container carry a part with
@@ -193,7 +195,21 @@ static VOID APIENTRY
 t12CreateVertexShader(D3D12DDI_HDEVICE hDevice,
                       const D3D12DDIARG_CREATE_SHADER_0010 *pArgs,
                       D3D12DDI_HSHADER hShader)
-{ (void)hDevice; t12CreateShaderCommon(pArgs, hShader, "vs", 0); }
+{
+    (void)hDevice;
+    t12CreateShaderCommon(pArgs, hShader, "vs", 0);
+    PTRITON12_SHADER s = (PTRITON12_SHADER)hShader.pDrvPrivate;
+    if (!s || !s->IsDxil)
+        return;
+    /* The input-layout semantic names live only in the DXIL metadata; the
+     * DDI hands registers.  Read them once for every PSO built on it. */
+    size_t cbProgram = 0;
+    const void *program = tritonDxilFindProgram(s->pDxbc, s->cbDxbc, &cbProgram);
+    s->pDxilInputs = program ? tritonDxilReadInputSig(program, cbProgram) : NULL;
+    if (!s->pDxilInputs)
+        TR_LOG("12.CreateShader(vs): DXIL input signature unreadable "
+               "(container %zu bytes)", (size_t)s->cbDxbc);
+}
 
 static VOID APIENTRY
 t12CreatePixelShader(D3D12DDI_HDEVICE hDevice,
@@ -234,6 +250,10 @@ t12DestroyShader(D3D12DDI_HDEVICE hDevice, D3D12DDI_HSHADER hShader)
         HeapFree(GetProcessHeap(), 0, s->pDxbc);
         s->pDxbc = NULL;
         s->cbDxbc = 0;
+    }
+    if (s) {
+        tritonDxilFreeInputSig(s->pDxilInputs);
+        s->pDxilInputs = NULL;
     }
 }
 
@@ -724,31 +744,25 @@ t12CreatePipelineStateImpl(D3D12DDI_HDEVICE hDevice,
         gd.DepthStencilState.BackFace.StencilFunc = (D3D12_COMPARISON_FUNC)ds->d.BackFace.StencilFunc;
     }
 
-    /* Input layout: semantics recovered from the stored VS container's
-     * input signature -- ISGN in our synthesized DXBC, ISG1 in verbatim
-     * DXIL containers (element InputRegister -> entry by register). */
+    /* Input layout: each element's InputRegister named from the stored VS
+     * -- its synthesized ISGN for DXBC, its input-signature metadata for
+     * DXIL. */
     D3D12_INPUT_ELEMENT_DESC elems[32];
-    char dxilNames[32][12]; /* "NPTA<reg>" placeholders, DXIL VS only */
     const TRITON12_ELAYOUT *el =
         (const TRITON12_ELAYOUT *)pArgs->hElementLayout.pDrvPrivate;
     PTRITON12_SHADER vsForIsgn =
         (PTRITON12_SHADER)pArgs->hVertexShader.pDrvPrivate;
     if (el && el->NumElements && vsForIsgn && vsForIsgn->pDxbc) {
+        if (vsForIsgn->IsDxil && !vsForIsgn->pDxilInputs)
+            return E_INVALIDARG;
         UINT n = 0;
         for (UINT i = 0; i < el->NumElements && n < 32; i++) {
             const D3D12DDIARG_INPUT_ELEMENT_DESC *se = &el->Elements[i];
             UINT semIdx = 0;
             const char *name;
             if (vsForIsgn->IsDxil) {
-                /* Verbatim DXIL container: input-signature names live in
-                 * the bitcode metadata, not in a readable ISG1.  Emit a
-                 * register-tagged placeholder; the host render server
-                 * resolves it to the real name via DXC reflection before
-                 * the backend sees the desc (npt: NPTA rewrite). */
-                snprintf(dxilNames[n], sizeof(dxilNames[n]), "NPTA%u",
-                         se->InputRegister);
-                name = dxilNames[n];
-                semIdx = 0;
+                name = tritonDxilInputSemantic(vsForIsgn->pDxilInputs,
+                                               se->InputRegister, &semIdx);
             } else {
                 name = tritonDxbcInputSemantic(
                     vsForIsgn->pDxbc, vsForIsgn->cbDxbc, se->InputRegister,
