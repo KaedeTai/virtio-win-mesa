@@ -1202,12 +1202,18 @@ tritonDxgiBlt(DXGI_DDI_ARG_BLT *pArgs)
    PTRITON_RESOURCE src = (PTRITON_RESOURCE)(uintptr_t)pArgs->hSrcResource;
    if (!src)
       return E_INVALIDARG;
+   /* The implied source box is the whole source subresource, which for a
+    * mip above 0 is that mip's extent. */
+   const UINT srcMip = pArgs->SrcSubresource %
+                       (src->MipLevels ? src->MipLevels : 1);
+   const UINT srcW = src->Width  >> srcMip ? src->Width  >> srcMip : 1;
+   const UINT srcH = src->Height >> srcMip ? src->Height >> srcMip : 1;
    return tritonDxgiBltCommon(pArgs->hDevice,
                               pArgs->hDstResource, pArgs->DstSubresource,
                               pArgs->DstLeft, pArgs->DstTop,
                               pArgs->DstRight, pArgs->DstBottom,
                               pArgs->hSrcResource, pArgs->SrcSubresource,
-                              0, 0, src->Width, src->Height,
+                              0, 0, srcW, srcH,
                               pArgs->Flags);
 }
 
