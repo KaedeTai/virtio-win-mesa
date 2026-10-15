@@ -191,6 +191,73 @@ t12CreateShaderCommon(const D3D12DDIARG_CREATE_SHADER_0010 *pArgs,
                tag, (size_t)cbTok);
 }
 
+/* A wrapped bare DXIL part carries its signatures only in the module
+ * metadata.  The host binds input-layout elements to vertex inputs through
+ * the container's ISGN/ISG1 part and silently drops every element it cannot
+ * find there, so add an ISGN part built from the metadata: one entry per
+ * register row, Register = StartRow (the attribute location of the DXIL
+ * input). */
+static void
+t12AddDxilInputSigPart(PTRITON12_SHADER s)
+{
+    if (t12ContainerHasPart(s->pDxbc, s->cbDxbc, 0x4E475349u /* 'ISGN' */) ||
+        t12ContainerHasPart(s->pDxbc, s->cbDxbc, 0x31475349u /* 'ISG1' */))
+        return;
+    size_t cbProgram = 0;
+    const unsigned char *program = (const unsigned char *)
+        tritonDxilFindProgram(s->pDxbc, s->cbDxbc, &cbProgram);
+    if (!program)
+        return;
+
+    const char *names[32];
+    UINT semIdx[32], regs[32], n = 0;
+    const TritonDxilInputSig *sig = s->pDxilInputs;
+    for (UINT i = 0; i < sig->Count; i++) {
+        const TritonDxilInput *e = &sig->Elems[i];
+        /* Generated inputs (SV_VertexID, SV_InstanceID) carry a system
+         * semantic kind; a VS input named SV_Position is kind 0 and fetched
+         * like any other attribute. */
+        if (e->StartRow < 0 || e->SemanticKind != 0)
+            continue;
+        for (UINT r = 0; r < e->Rows && n < 32; r++, n++) {
+            names[n] = e->Name;
+            semIdx[n] = e->SemanticIndex[r];
+            regs[n] = (UINT)e->StartRow + r;
+        }
+    }
+    if (!n)
+        return;
+
+    SIZE_T cbSig = 0;
+    unsigned char *sigDxbc = (unsigned char *)
+        tritonBuildInputSigDxbc(names, semIdx, regs, n, &cbSig);
+    if (!sigDxbc)
+        return;
+    const UINT sigOff = *(const UINT *)(sigDxbc + 32);
+    const SIZE_T cbSigPart = cbSig - sigOff;   /* ISGN header + body */
+    const SIZE_T cbDxilPart = 8 + cbProgram;   /* DXIL header + program */
+
+    const SIZE_T cbHdr = 32 + 2 * 4;
+    const SIZE_T cb = cbHdr + cbSigPart + cbDxilPart;
+    unsigned char *c = (unsigned char *)HeapAlloc(GetProcessHeap(),
+                                                  HEAP_ZERO_MEMORY, cb);
+    if (!c) {
+        HeapFree(GetProcessHeap(), 0, sigDxbc);
+        return;
+    }
+    memcpy(c, s->pDxbc, 24);                    /* magic, digest, version */
+    *(UINT *)(c + 24) = (UINT)cb;
+    *(UINT *)(c + 28) = 2;
+    *(UINT *)(c + 32) = (UINT)cbHdr;
+    *(UINT *)(c + 36) = (UINT)(cbHdr + cbSigPart);
+    memcpy(c + cbHdr, sigDxbc + sigOff, cbSigPart);
+    memcpy(c + cbHdr + cbSigPart, program - 8, cbDxilPart);
+    HeapFree(GetProcessHeap(), 0, sigDxbc);
+    HeapFree(GetProcessHeap(), 0, s->pDxbc);
+    s->pDxbc = c;
+    s->cbDxbc = cb;
+}
+
 static VOID APIENTRY
 t12CreateVertexShader(D3D12DDI_HDEVICE hDevice,
                       const D3D12DDIARG_CREATE_SHADER_0010 *pArgs,
@@ -209,6 +276,8 @@ t12CreateVertexShader(D3D12DDI_HDEVICE hDevice,
     if (!s->pDxilInputs)
         TR_LOG("12.CreateShader(vs): DXIL input signature unreadable "
                "(container %zu bytes)", (size_t)s->cbDxbc);
+    else
+        t12AddDxilInputSigPart(s);
 }
 
 static VOID APIENTRY
